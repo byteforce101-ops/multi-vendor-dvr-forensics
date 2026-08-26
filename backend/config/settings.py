@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 
 def _sqlalchemy_database_url(url: str) -> str:
     """Normalise Supabase's Postgres connection URL for SQLAlchemy/psycopg."""
@@ -33,6 +35,7 @@ class Settings:
 @lru_cache
 def get_settings() -> Settings:
     project_root = Path(__file__).resolve().parents[2]
+    load_dotenv(project_root / ".env")
     storage_root = project_root / "backend" / "storage"
     return Settings(
         database_url=_sqlalchemy_database_url(

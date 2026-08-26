@@ -1,4 +1,5 @@
 from fastapi import Depends, FastAPI, HTTPException
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from backend.api.auth import AuthenticatedUser, get_current_user
@@ -24,7 +25,13 @@ def _require_case_access(case: Case, user: AuthenticatedUser | None) -> None:
 def create_case(payload: CaseCreate, db: Session = Depends(get_db), user: AuthenticatedUser | None = Depends(get_current_user)):
     case = Case(**payload.model_dump(), owner_auth_id=user.user_id if user else None)
     db.add(case)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        if payload.case_number:
+            raise HTTPException(409, f"Case number already exists: {payload.case_number}") from exc
+        raise
     db.refresh(case)
     return case
 

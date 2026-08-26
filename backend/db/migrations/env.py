@@ -8,7 +8,9 @@ from backend.db.models import Base
 config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
-config.set_main_option("sqlalchemy.url", get_settings().database_url)
+# ConfigParser treats '%' as an interpolation marker. Escape it here so a
+# percent-encoded database password reaches SQLAlchemy unchanged.
+config.set_main_option("sqlalchemy.url", get_settings().database_url.replace("%", "%%"))
 target_metadata = Base.metadata
 
 

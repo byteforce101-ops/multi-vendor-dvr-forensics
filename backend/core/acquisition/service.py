@@ -1,25 +1,38 @@
 import os
 import shutil
+import uuid
 from sqlalchemy.orm import Session
+
+from backend.config.settings import get_settings
 from backend.db.models import Evidence, EvidenceStatus
 from backend.core.integrity.hashing import compute_hashes, verify_hash
-import uuid
-
-WORKING_COPY_ROOT = "backend/storage/working_copies"
-ORIGINAL_ROOT = "backend/storage/original"
 
 def import_evidence(db: Session, case_id: str, source_path: str) -> Evidence:
-    """Copies source into original/ (untouched reference), then makes a working copy.
-    Never reads source_path again after this — all downstream ops use working_copy_path."""
+    """Create an immutable local original and separate disposable working copy.
+
+    Do not configure Supabase Storage as this original-evidence destination: it
+    lacks evidence-retention/Object-Lock semantics. It remains suitable for
+    extracted recordings and thumbnails after the video-processing phase.
+    """
     if not os.path.isfile(source_path):
         raise FileNotFoundError(source_path)
 
+    settings = get_settings()
     filename = os.path.basename(source_path)
-    original_dest = os.path.join(ORIGINAL_ROOT, filename)
-    working_dest = os.path.join(WORKING_COPY_ROOT, filename)
+    original_dest = settings.original_evidence_root / filename
+    working_dest = settings.working_copy_root / filename
 
-    os.makedirs(ORIGINAL_ROOT, exist_ok=True)
-    os.makedirs(WORKING_COPY_ROOT, exist_ok=True)
+    settings.original_evidence_root.mkdir(parents=True, exist_ok=True)
+    settings.working_copy_root.mkdir(parents=True, exist_ok=True)
+
+    # Avoid silently overwriting prior evidence with the same filename —
+    # each import gets a unique destination instead.
+    if os.path.exists(original_dest):
+        base, ext = os.path.splitext(filename)
+        suffix = uuid.uuid4().hex[:8]
+        filename = f"{base}_{suffix}{ext}"
+        original_dest = settings.original_evidence_root / filename
+        working_dest = settings.working_copy_root / filename
 
     shutil.copy2(source_path, original_dest)
     os.chmod(original_dest, 0o444)  # read-only, enforce the no-modification boundary
@@ -28,14 +41,15 @@ def import_evidence(db: Session, case_id: str, source_path: str) -> Evidence:
     evidence = Evidence(
         case_id=case_id,
         original_filename=filename,
-        original_path=original_dest,
-        working_copy_path=working_dest,
+        original_path=str(original_dest),
+        working_copy_path=str(working_dest),
         status=EvidenceStatus.ACQUIRED,
     )
     db.add(evidence)
     db.commit()
     db.refresh(evidence)
     return evidence
+
 
 def hash_evidence(db: Session, evidence: Evidence) -> Evidence:
     hashes = compute_hashes(evidence.working_copy_path)
@@ -46,47 +60,10 @@ def hash_evidence(db: Session, evidence: Evidence) -> Evidence:
     db.refresh(evidence)
     return evidence
 
+
 def verify_evidence(db: Session, evidence: Evidence) -> Evidence:
     ok = verify_hash(evidence.working_copy_path, evidence.sha256)
     evidence.status = EvidenceStatus.VERIFIED if ok else EvidenceStatus.TAMPERED
-    db.commit()
-    db.refresh(evidence)
-    return evidence
-
-def import_evidence(db: Session, case_id: str, source_path: str) -> Evidence:
-    """Copies source into original/ (untouched reference), then makes a working copy.
-    Never reads source_path again after this — all downstream ops use working_copy_path."""
-    if not os.path.isfile(source_path):
-        raise FileNotFoundError(source_path)
-
-    filename = os.path.basename(source_path)
-    original_dest = os.path.join(ORIGINAL_ROOT, filename)
-    working_dest = os.path.join(WORKING_COPY_ROOT, filename)
-
-    os.makedirs(ORIGINAL_ROOT, exist_ok=True)
-    os.makedirs(WORKING_COPY_ROOT, exist_ok=True)
-
-    # Avoid silently overwriting prior evidence with the same filename —
-    # each import gets a unique destination instead.
-    if os.path.exists(original_dest):
-        base, ext = os.path.splitext(filename)
-        suffix = uuid.uuid4().hex[:8]
-        filename = f"{base}_{suffix}{ext}"
-        original_dest = os.path.join(ORIGINAL_ROOT, filename)
-        working_dest = os.path.join(WORKING_COPY_ROOT, filename)
-
-    shutil.copy2(source_path, original_dest)
-    os.chmod(original_dest, 0o444)  # read-only, enforce the no-modification boundary
-    shutil.copy2(original_dest, working_dest)
-
-    evidence = Evidence(
-        case_id=case_id,
-        original_filename=filename,
-        original_path=original_dest,
-        working_copy_path=working_dest,
-        status=EvidenceStatus.ACQUIRED,
-    )
-    db.add(evidence)
     db.commit()
     db.refresh(evidence)
     return evidence

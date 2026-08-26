@@ -1,0 +1,9 @@
+﻿backend/storage/original/*
+!backend/storage/original/.gitkeep
+backend/storage/working_copies/*
+!backend/storage/working_copies/.gitkeep
+backend/storage/extracted/*
+!backend/storage/extracted/.gitkeep
+backend/forensics.db
+__pycache__/
+*.pyc

@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
+import { createCase, parseEvidence, uploadEvidence } from './api'
+import { isSupabaseConfigured, supabase } from './supabase'
 
 const processingSteps = [
   'Uploading footage',
@@ -73,44 +75,29 @@ function Globe() {
   )
 }
 
-function UploadCard() {
+function UploadCard({ session, onSignIn }) {
   const inputRef = useRef(null)
   const [file, setFile] = useState(null)
   const [isDragging, setIsDragging] = useState(false)
   const [status, setStatus] = useState('idle')
   const [step, setStep] = useState(0)
   const [progress, setProgress] = useState(0)
-
-  useEffect(() => {
-    if (status !== 'processing') return undefined
-    const timer = window.setInterval(() => {
-      setStep((current) => {
-        if (current >= processingSteps.length - 1) return current
-        return current + 1
-      })
-      setProgress((current) => Math.min(current + 20, 100))
-    }, 800)
-    const finish = window.setTimeout(() => {
-      setProgress(100)
-      setStatus('complete')
-    }, 4000)
-    return () => {
-      window.clearInterval(timer)
-      window.clearTimeout(finish)
-    }
-  }, [status])
+  const [message, setMessage] = useState('')
+  const [result, setResult] = useState(null)
 
   const handleFile = (selectedFile) => {
     if (!selectedFile) return
     const supported = ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska', 'video/webm']
-    const extensionOk = /\.(mp4|mov|avi|mkv|webm)$/i.test(selectedFile.name)
+    const extensionOk = /\.(dd|mp4|mov|avi|mkv|webm)$/i.test(selectedFile.name)
     if (!supported.includes(selectedFile.type) && !extensionOk) {
+      setMessage('That file type isn’t supported. Try a DVR image (.dd) or MP4, MOV, AVI, MKV, or WEBM file.')
       setStatus('error')
       return
     }
     setFile(selectedFile)
     setStep(0)
     setProgress(0)
+    setMessage('')
     setStatus('ready')
   }
 
@@ -122,7 +109,34 @@ function UploadCard() {
     if (inputRef.current) inputRef.current.value = ''
   }
 
-  const startProcessing = () => setStatus('processing')
+  const startProcessing = async () => {
+    if (!session) {
+      onSignIn()
+      return
+    }
+    try {
+      setStatus('processing')
+      setStep(0)
+      setProgress(12)
+      const caseRecord = await createCase(session.access_token, {
+        name: `Analysis: ${file.name}`,
+        investigator: session.user.email || 'Authenticated investigator',
+      })
+      setStep(1)
+      setProgress(45)
+      const evidence = await uploadEvidence(session.access_token, caseRecord.id, file)
+      setStep(2)
+      setProgress(75)
+      const parsed = await parseEvidence(session.access_token, evidence.id)
+      setStep(4)
+      setProgress(100)
+      setResult({ caseRecord, evidence: parsed })
+      setStatus('complete')
+    } catch (error) {
+      setMessage(error.message || 'The evidence could not be processed.')
+      setStatus('error')
+    }
+  }
 
   return (
     <div className={`upload-card ${isDragging ? 'is-dragging' : ''}`}>
@@ -131,7 +145,7 @@ function UploadCard() {
           <div className="upload-icon"><Icon name="cloud" size={26} /></div>
           <p className="eyebrow">START AN INVESTIGATION</p>
           <h2>Drop your footage here</h2>
-          <p className="upload-copy">Upload a CCTV export and we’ll prepare it for forensic review.</p>
+          <p className="upload-copy">{session ? 'Upload a CCTV export and we’ll prepare it for forensic review.' : 'Sign in to start a protected forensic case and upload evidence.'}</p>
           <div
             className="drop-zone"
             onDragEnter={(event) => { event.preventDefault(); setIsDragging(true) }}
@@ -143,18 +157,18 @@ function UploadCard() {
               Choose a video <Icon name="arrow" size={17} />
             </button>
             <span>or drag and drop it here</span>
-            <small>MP4, MOV, AVI, MKV or WEBM · up to 2 GB</small>
+            <small>DVR .DD, MP4, MOV, AVI, MKV or WEBM</small>
           </div>
           <input ref={inputRef} className="visually-hidden" type="file" accept="video/*" onChange={(event) => handleFile(event.target.files[0])} />
-          {status === 'error' && <p className="error-message">That file type isn’t supported. Try an MP4, MOV, AVI, MKV, or WEBM file.</p>}
+          {status === 'error' && <p className="error-message">{message}</p>}
         </>
       ) : status === 'ready' ? (
         <>
           <div className="file-badge"><span className="file-dot" /> VIDEO READY</div>
           <h2>Ready to process</h2>
           <p className="upload-copy file-name">{file?.name}</p>
-          <div className="file-meta"><span>{file ? `${(file.size / (1024 * 1024)).toFixed(1)} MB` : 'Video file'}</span><span>•</span><span>Local preview only</span></div>
-          <button className="button button-accent button-wide" type="button" onClick={startProcessing}>Start analysis <Icon name="arrow" size={17} /></button>
+          <div className="file-meta"><span>{file ? `${(file.size / (1024 * 1024)).toFixed(1)} MB` : 'Video file'}</span><span>•</span><span>Encrypted case workflow</span></div>
+          <button className="button button-accent button-wide" type="button" onClick={startProcessing}>{session ? 'Start analysis' : 'Sign in to continue'} <Icon name="arrow" size={17} /></button>
           <button className="text-button" type="button" onClick={reset}>Choose another file</button>
         </>
       ) : status === 'processing' ? (
@@ -174,8 +188,8 @@ function UploadCard() {
           <div className="complete-icon"><Icon name="check" size={26} /></div>
           <p className="eyebrow">ANALYSIS COMPLETE</p>
           <h2>Your footage is ready</h2>
-          <p className="upload-copy">A common copy has been prepared with the first review signals.</p>
-          <div className="result-grid"><div><strong>04</strong><span>Faces found</span></div><div><strong>03</strong><span>Activity moments</span></div><div><strong>98%</strong><span>File integrity</span></div></div>
+          <p className="upload-copy">Evidence has been hashed and the parser result is stored with your case.</p>
+          <div className="result-grid"><div><strong>{result?.evidence?.recordings?.length ?? 0}</strong><span>Recordings found</span></div><div><strong>{result?.evidence?.vendor || '—'}</strong><span>Parser vendor</span></div><div><strong>{result?.evidence?.sha256 ? '✓' : '—'}</strong><span>Integrity hash</span></div></div>
           <button className="button button-accent button-wide" type="button" onClick={reset}>Process another video <Icon name="refresh" size={16} /></button>
         </>
       )}
@@ -183,13 +197,46 @@ function UploadCard() {
   )
 }
 
+function AuthDialog({ onClose, onAuthenticated }) {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [mode, setMode] = useState('signIn')
+  const [message, setMessage] = useState('')
+
+  const submit = async (event) => {
+    event.preventDefault()
+    if (!supabase) return
+    setMessage('')
+    const action = mode === 'signIn'
+      ? supabase.auth.signInWithPassword({ email, password })
+      : supabase.auth.signUp({ email, password })
+    const { data, error } = await action
+    if (error) return setMessage(error.message)
+    if (data.session) onAuthenticated(data.session)
+    else setMessage('Check your email to confirm the account, then sign in.')
+  }
+
+  return <div className="auth-backdrop" role="presentation"><section className="auth-dialog" role="dialog" aria-modal="true" aria-label="Account access"><button className="auth-close" type="button" onClick={onClose}>×</button><p className="eyebrow accent-eyebrow">SECURE INVESTIGATOR ACCESS</p><h2>{mode === 'signIn' ? 'Sign in to your casework.' : 'Create your investigator account.'}</h2><form onSubmit={submit}><label>Email<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required /></label><label>Password<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} minLength="6" required /></label>{message && <p className="error-message">{message}</p>}<button className="button button-accent button-wide" type="submit">{mode === 'signIn' ? 'Sign in' : 'Create account'} <Icon name="arrow" size={16} /></button></form><button className="text-button" type="button" onClick={() => setMode(mode === 'signIn' ? 'signUp' : 'signIn')}>{mode === 'signIn' ? 'Need an account? Sign up' : 'Already have an account? Sign in'}</button></section></div>
+}
+
 function App() {
+  const [session, setSession] = useState(null)
+  const [showAuth, setShowAuth] = useState(false)
+
+  useEffect(() => {
+    if (!supabase) return undefined
+    supabase.auth.getSession().then(({ data }) => setSession(data.session))
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => setSession(nextSession))
+    return () => listener.subscription.unsubscribe()
+  }, [])
+
+  const signOut = () => supabase?.auth.signOut()
   return (
     <div className="app-shell">
       <header className="site-header">
         <a className="brand" href="#top" aria-label="DVR Forensics home"><span className="brand-mark"><span /><span /><span /></span><span>DVR <em>FORENSICS</em></span></a>
         <nav className="main-nav" aria-label="Main navigation"><a href="#about">About</a><a href="#capabilities">Capabilities</a><a href="#process">How it works</a></nav>
-        <a className="header-action" href="#upload">Start an upload <Icon name="arrow" size={16} /></a>
+        {session ? <button className="header-action" type="button" onClick={signOut}>Sign out <Icon name="arrow" size={16} /></button> : <button className="header-action" type="button" onClick={() => setShowAuth(true)}>{isSupabaseConfigured ? 'Sign in' : 'Configure Supabase'} <Icon name="arrow" size={16} /></button>}
       </header>
 
       <main id="top">
@@ -207,7 +254,7 @@ function App() {
 
         <section className="upload-section section-shell" id="upload-card">
           <div className="section-intro"><p className="eyebrow">01 / BRING IT IN</p><h2>Start with the footage<br /><span>you already have.</span></h2><p>Different cameras. Different formats. One place to begin. Upload an export from your DVR and let the workflow take care of the technical first pass.</p></div>
-          <UploadCard />
+          <UploadCard session={session} onSignIn={() => setShowAuth(true)} />
         </section>
 
         <section className="statement-section" id="about">
@@ -228,6 +275,7 @@ function App() {
       </main>
 
       <footer className="site-footer"><a className="brand" href="#top"><span className="brand-mark"><span /><span /><span /></span><span>DVR <em>FORENSICS</em></span></a><span>Common format. Clearer evidence.</span><span>© 2026 DVR Forensics</span></footer>
+      {showAuth && (isSupabaseConfigured ? <AuthDialog onClose={() => setShowAuth(false)} onAuthenticated={(nextSession) => { setSession(nextSession); setShowAuth(false) }} /> : <div className="auth-backdrop"><section className="auth-dialog"><button className="auth-close" type="button" onClick={() => setShowAuth(false)}>×</button><h2>Supabase needs configuration.</h2><p className="upload-copy">Copy <code>.env.example</code> to <code>.env.local</code> in the frontend and add the Supabase URL and publishable key.</p></section></div>)}
     </div>
   )
 }

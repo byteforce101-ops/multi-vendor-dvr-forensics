@@ -12,7 +12,7 @@ In the root `.env` file, use the existing Supabase database URL and set:
 ```env
 SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
 AUTH_REQUIRED=true
-CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+CORS_ORIGINS=http://localhost:5174,http://127.0.0.1:5174
 ```
 
 For modern Supabase signing keys, the backend validates tokens using the

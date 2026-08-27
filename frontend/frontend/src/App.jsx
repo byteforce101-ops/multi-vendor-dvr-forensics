@@ -86,6 +86,10 @@ function UploadCard({ session, onSignIn }) {
   const [result, setResult] = useState(null)
 
   const handleFile = (selectedFile) => {
+    if (!session) {
+      onSignIn()
+      return
+    }
     if (!selectedFile) return
     const supported = ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska', 'video/webm']
     const extensionOk = /\.(dd|mp4|mov|avi|mkv|webm)$/i.test(selectedFile.name)
@@ -145,7 +149,7 @@ function UploadCard({ session, onSignIn }) {
           <div className="upload-icon"><Icon name="cloud" size={26} /></div>
           <p className="eyebrow">START AN INVESTIGATION</p>
           <h2>Drop your footage here</h2>
-          <p className="upload-copy">{session ? 'Upload a CCTV export and we’ll prepare it for forensic review.' : 'Sign in to start a protected forensic case and upload evidence.'}</p>
+          <p className="upload-copy">{session ? 'Upload a CCTV export and we’ll prepare it for forensic review.' : 'Sign in or create an account before uploading protected evidence.'}</p>
           <div
             className="drop-zone"
             onDragEnter={(event) => { event.preventDefault(); setIsDragging(true) }}
@@ -154,9 +158,9 @@ function UploadCard({ session, onSignIn }) {
             onDrop={(event) => { event.preventDefault(); setIsDragging(false); handleFile(event.dataTransfer.files[0]) }}
           >
             <button className="button button-light" type="button" onClick={() => inputRef.current?.click()}>
-              Choose a video <Icon name="arrow" size={17} />
+              {session ? 'Choose a video' : 'Sign in to upload'} <Icon name="arrow" size={17} />
             </button>
-            <span>or drag and drop it here</span>
+            <span>{session ? 'or drag and drop it here' : 'Protected evidence upload requires sign-in'}</span>
             <small>DVR .DD, MP4, MOV, AVI, MKV or WEBM</small>
           </div>
           <input ref={inputRef} className="visually-hidden" type="file" accept="video/*" onChange={(event) => handleFile(event.target.files[0])} />

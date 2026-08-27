@@ -1,6 +1,7 @@
 import os
 import shutil
 import uuid
+from pathlib import Path
 from sqlalchemy.orm import Session
 
 from backend.config.settings import get_settings
@@ -49,6 +50,23 @@ def import_evidence(db: Session, case_id: str, source_path: str) -> Evidence:
     db.commit()
     db.refresh(evidence)
     return evidence
+
+
+def import_uploaded_evidence(db: Session, case_id: str, upload) -> Evidence:
+    """Stage a browser upload before passing it through the normal evidence workflow."""
+    settings = get_settings()
+    filename = Path(upload.filename or "evidence.bin").name
+    staging_root = settings.working_copy_root / ".incoming"
+    staging_root.mkdir(parents=True, exist_ok=True)
+    staged_path = staging_root / f"{uuid.uuid4().hex}_{filename}"
+    try:
+        with staged_path.open("wb") as target:
+            shutil.copyfileobj(upload.file, target, length=1024 * 1024)
+        return import_evidence(db, case_id, str(staged_path))
+    finally:
+        upload.file.close()
+        if staged_path.exists():
+            staged_path.unlink()
 
 
 def hash_evidence(db: Session, evidence: Evidence) -> Evidence:

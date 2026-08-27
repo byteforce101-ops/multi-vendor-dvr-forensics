@@ -1,10 +1,11 @@
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from backend.api.auth import AuthenticatedUser, get_current_user
 from backend.config.settings import get_settings
-from backend.core.acquisition.service import hash_evidence, import_evidence, verify_evidence
+from backend.core.acquisition.service import hash_evidence, import_evidence, import_uploaded_evidence, verify_evidence
 from backend.db.database import get_db
 from backend.db.models import Case, Evidence
 from backend.db.schemas import CaseCreate, CaseRead, EvidenceCreate, EvidenceRead
@@ -12,6 +13,13 @@ from backend.db.services import persist_parse_result
 from backend.parsers.registry import ParserManager
 
 app = FastAPI(title="DVR Forensic Platform")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=get_settings().cors_origins,
+    allow_credentials=True,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Authorization", "Content-Type"],
+)
 parser_manager = ParserManager()
 
 
@@ -55,6 +63,18 @@ def add_evidence(case_id: str, payload: EvidenceCreate, db: Session = Depends(ge
         evidence = hash_evidence(db, import_evidence(db, case_id, payload.source_path))
     except FileNotFoundError as exc:
         raise HTTPException(422, f"Evidence source does not exist: {exc}") from exc
+    return evidence
+
+
+@app.post("/cases/{case_id}/evidence/upload", response_model=EvidenceRead, status_code=201)
+def upload_evidence(case_id: str, file: UploadFile = File(...), db: Session = Depends(get_db), user: AuthenticatedUser | None = Depends(get_current_user)):
+    case = db.get(Case, case_id)
+    if not case:
+        raise HTTPException(404, "Case not found")
+    _require_case_access(case, user)
+    if not file.filename:
+        raise HTTPException(422, "An evidence file is required")
+    evidence = hash_evidence(db, import_uploaded_evidence(db, case_id, file))
     return evidence
 
 

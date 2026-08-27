@@ -30,6 +30,7 @@ class Settings:
     supabase_anon_key: str | None
     supabase_jwt_secret: str | None
     auth_required: bool
+    cors_origins: list[str]
 
 
 @lru_cache
@@ -51,4 +52,9 @@ def get_settings() -> Settings:
         supabase_anon_key=os.getenv("SUPABASE_ANON_KEY"),
         supabase_jwt_secret=os.getenv("SUPABASE_JWT_SECRET"),
         auth_required=os.getenv("AUTH_REQUIRED", "false").lower() == "true",
+        cors_origins=[
+            origin.strip()
+            for origin in os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").split(",")
+            if origin.strip()
+        ],
     )

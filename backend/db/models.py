@@ -85,3 +85,18 @@ class Recording(Base):
     raw_metadata: Mapped[dict] = mapped_column(JSON, default=dict)
     evidence: Mapped["Evidence"] = relationship(back_populates="recordings")
     device: Mapped["Device | None"] = relationship(back_populates="recordings")
+
+class Event(Base):
+    __tablename__ = "events"
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    evidence_id: Mapped[str] = mapped_column(ForeignKey("evidence.id"), index=True)
+    recording_id: Mapped[str | None] = mapped_column(ForeignKey("recordings.id"), index=True, nullable=True)
+    case_id: Mapped[str] = mapped_column(ForeignKey("cases.id"), index=True)
+    camera_id: Mapped[str] = mapped_column(String(100), index=True)
+    event_type: Mapped[str] = mapped_column(String(100), index=True)
+    start_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    end_time: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
+    track_id: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    object_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    raw_metadata: Mapped[dict] = mapped_column(JSON, default=dict)

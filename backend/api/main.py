@@ -134,3 +134,57 @@ def extract_evidence(evidence_id: str, db: Session = Depends(get_db), user: Auth
     persist_parse_result(db, evidence, extract_result, device_info)
     db.refresh(evidence)
     return evidence
+
+from pydantic import BaseModel
+from backend.db.models import Event
+from backend.db.schemas import EventRead
+from backend.db.services import persist_video_events
+from backend.db.repositories.events_repository import EventsRepository
+from backend.core.search.service import SearchService
+from backend.video.analysis.service import VideoAnalysisService
+
+video_analysis_service = VideoAnalysisService()
+
+
+@app.post("/evidence/{evidence_id}/analyze")
+def analyze_evidence(evidence_id: str, db: Session = Depends(get_db), user: AuthenticatedUser | None = Depends(get_current_user)):
+    evidence = db.get(Evidence, evidence_id)
+    if not evidence:
+        raise HTTPException(404, "Evidence not found")
+    _require_case_access(evidence.case, user)
+    if not evidence.recordings:
+        raise HTTPException(422, "No recordings to analyze - parse/extract evidence first")
+
+    all_events = []
+    errors = []
+    for recording in evidence.recordings:
+        if not (recording.normalized_timestamp or recording.original_timestamp):
+            errors.append({"recording_id": recording.id, "error": "no timestamp available"})
+            continue
+        try:
+            result = video_analysis_service.analyze(
+                video_id=recording.id,
+                camera_id=recording.camera_id,
+                video_path=recording.extracted_path or recording.source_path,
+                video_start_time=recording.normalized_timestamp or recording.original_timestamp,
+            )
+            all_events += persist_video_events(db, evidence, recording, result.events)
+        except Exception as exc:
+            errors.append({"recording_id": recording.id, "error": str(exc)})
+    if errors and not all_events:
+        raise HTTPException(422, {"message": "No recordings could be analyzed", "errors": errors})
+    return {"events": [EventRead.model_validate(e) for e in all_events], "errors": errors}
+
+
+class SearchRequest(BaseModel):
+    query: str
+
+
+@app.post("/cases/{case_id}/search")
+def search_case(case_id: str, payload: SearchRequest, db: Session = Depends(get_db), user: AuthenticatedUser | None = Depends(get_current_user)):
+    case = db.get(Case, case_id)
+    if not case:
+        raise HTTPException(404, "Case not found")
+    _require_case_access(case, user)
+    service = SearchService(EventsRepository(db))
+    return service.search(case_id=case_id, nl_query=payload.query)

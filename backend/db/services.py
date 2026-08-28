@@ -94,3 +94,33 @@ def persist_parse_result(
     for recording in stored:
         db.refresh(recording)
     return device, stored
+
+from backend.db.models import Event, Recording
+from backend.video.analysis.models import VideoEvent
+
+
+def persist_video_events(
+    db: Session,
+    evidence: Evidence,
+    recording: Recording | None,
+    events: list[VideoEvent],
+) -> list[Event]:
+    stored: list[Event] = []
+    for e in events:
+        row = Event(
+            evidence_id=evidence.id,
+            recording_id=recording.id if recording else None,
+            case_id=evidence.case_id,
+            camera_id=e.camera_id,
+            event_type=e.event_type,
+            start_time=e.start_time,
+            end_time=e.end_time,
+            confidence=e.confidence,
+            track_id=str(e.track_id) if e.track_id is not None else None,
+            object_type=e.object_type,
+            raw_metadata=_json_safe(e.metadata),
+        )
+        db.add(row)
+        stored.append(row)
+    db.commit()
+    return stored

@@ -71,3 +71,18 @@ class CaseRead(BaseModel):
     description: str | None
     status: str
     created_at: datetime
+
+class EventRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    evidence_id: str
+    recording_id: str | None
+    case_id: str
+    camera_id: str
+    event_type: str
+    start_time: datetime
+    end_time: datetime
+    confidence: float | None
+    track_id: str | None
+    object_type: str | None
+    

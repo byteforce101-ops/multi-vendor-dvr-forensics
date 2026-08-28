@@ -1,0 +1,9 @@
+{
+  "name": "multi-vendor-dvr-forensics",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix multi-vendor-dvr-forensics-main/frontend run dev --",
+    "build": "npm --prefix multi-vendor-dvr-forensics-main/frontend run build",
+    "preview": "npm --prefix multi-vendor-dvr-forensics-main/frontend run preview"
+  }
+}

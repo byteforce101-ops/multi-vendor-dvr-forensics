@@ -1,0 +1,926 @@
+[
+  {
+    "frame_number": 0,
+    "timestamp_seconds": 0.0,
+    "class_id": 66,
+    "class_name": "keyboard",
+    "confidence": 0.5342,
+    "bbox": [
+      0.49456119537353516,
+      0.13052046298980713,
+      395.13104248046875,
+      114.363037109375
+    ],
+    "track_id": null
+  },
+  {
+    "frame_number": 6,
+    "timestamp_seconds": 0.2,
+    "class_id": 66,
+    "class_name": "keyboard",
+    "confidence": 0.7195,
+    "bbox": [
+      0.0,
+      0.3459233045578003,
+      404.5914611816406,
+      213.4772491455078
+    ],
+    "track_id": null
+  },
+  {
+    "frame_number": 12,
+    "timestamp_seconds": 0.4,
+    "class_id": 63,
+    "class_name": "laptop",
+    "confidence": 0.7496,
+    "bbox": [
+      0.0,
+      0.0,
+      474.8586730957031,
+      747.8074951171875
+    ],
+    "track_id": null
+  },
+  {
+    "frame_number": 12,
+    "timestamp_seconds": 0.4,
+    "class_id": 66,
+    "class_name": "keyboard",
+    "confidence": 0.5752,
+    "bbox": [
+      0.014104843139648438,
+      0.3519320487976074,
+      398.1504821777344,
+      351.07733154296875
+    ],
+    "track_id": null
+  },
+  {
+    "frame_number": 19,
+    "timestamp_seconds": 0.633,
+    "class_id": 66,
+    "class_name": "keyboard",
+    "confidence": 0.5036,
+    "bbox": [
+      0.0,
+      144.98072814941406,
+      475.8629455566406,
+      833.6047973632812
+    ],
+    "track_id": null
+  },
+  {
+    "frame_number": 26,
+    "timestamp_seconds": 0.867,
+    "class_id": 63,
+    "class_name": "laptop",
+    "confidence": 0.8505,
+    "bbox": [
+      1.098090410232544,
+      4.184315204620361,
+      472.00640869140625,
+      838.9978637695312
+    ],
+    "track_id": null
+  },
+  {
+    "frame_number": 26,
+    "timestamp_seconds": 0.867,
+    "class_id": 66,
+    "class_name": "keyboard",
+    "confidence": 0.5395,
+    "bbox": [
+      0.0,
+      277.3155517578125,
+      473.48809814453125,
+      850.0
+    ],
+    "track_id": null
+  },
+  {
+    "frame_number": 33,
+    "timestamp_seconds": 1.1,
+    "class_id": 63,
+    "class_name": "laptop",
+    "confidence": 0.9457,
+    "bbox": [
+      0.5904781818389893,
+      6.724362373352051,
+      454.0799560546875,
+      838.2232666015625
+    ],
+    "track_id": null
+  },
+  {
+    "frame_number": 40,
+    "timestamp_seconds": 1.333,
+    "class_id": 63,
+    "class_name": "laptop",
+    "confidence": 0.9195,
+    "bbox": [
+      0.0,
+      40.83098220825195,
+      419.5487060546875,
+      850.0
+    ],
+    "track_id": 3
+  },
+  {
+    "frame_number": 46,
+    "timestamp_seconds": 1.533,
+    "class_id": 63,
+    "class_name": "laptop",
+    "confidence": 0.9373,
+    "bbox": [
+      0.0,
+      91.49046325683594,
+      384.31427001953125,
+      850.0
+    ],
+    "track_id": 3
+  },
+  {
+    "frame_number": 52,
+    "timestamp_seconds": 1.733,
+    "class_id": 63,
+    "class_name": "laptop",
+    "confidence": 0.943,
+    "bbox": [
+      0.0,
+      190.55926513671875,
+      356.6768493652344,
+      849.9613037109375
+    ],
+    "track_id": 3
+  },
+  {
+    "frame_number": 59,
+    "timestamp_seconds": 1.956,
+    "class_id": 63,
+    "class_name": "laptop",
+    "confidence": 0.9165,
+    "bbox": [
+      0.28158995509147644,
+      294.23175048828125,
+      319.91351318359375,
+      848.683837890625
+    ],
+    "track_id": 3
+  },
+  {
+    "frame_number": 65,
+    "timestamp_seconds": 2.156,
+    "class_id": 39,
+    "class_name": "bottle",
+    "confidence": 0.9468,
+    "bbox": [
+      335.0765380859375,
+      376.9969177246094,
+      454.6247253417969,
+      824.24267578125
+    ],
+    "track_id": 4
+  },
+  {
+    "frame_number": 72,
+    "timestamp_seconds": 2.39,
+    "class_id": 39,
+    "class_name": "bottle",
+    "confidence": 0.9557,
+    "bbox": [
+      279.9217529296875,
+      422.67706298828125,
+      394.23065185546875,
+      844.6890258789062
+    ],
+    "track_id": 4
+  },
+  {
+    "frame_number": 79,
+    "timestamp_seconds": 2.623,
+    "class_id": 39,
+    "class_name": "bottle",
+    "confidence": 0.9137,
+    "bbox": [
+      204.35694885253906,
+      451.1792907714844,
+      313.0950927734375,
+      843.2717895507812
+    ],
+    "track_id": 4
+  },
+  {
+    "frame_number": 86,
+    "timestamp_seconds": 2.856,
+    "class_id": 39,
+    "class_name": "bottle",
+    "confidence": 0.7601,
+    "bbox": [
+      110.67362976074219,
+      464.33770751953125,
+      221.25534057617188,
+      834.7080078125
+    ],
+    "track_id": 4
+  },
+  {
+    "frame_number": 92,
+    "timestamp_seconds": 3.066,
+    "class_id": 39,
+    "class_name": "bottle",
+    "confidence": 0.8356,
+    "bbox": [
+      9.264005661010742,
+      467.8326110839844,
+      116.96066284179688,
+      836.1365966796875
+    ],
+    "track_id": 4
+  },
+  {
+    "frame_number": 99,
+    "timestamp_seconds": 3.3,
+    "class_id": 0,
+    "class_name": "person",
+    "confidence": 0.9046,
+    "bbox": [
+      0.0,
+      280.42559814453125,
+      206.5946044921875,
+      588.0840454101562
+    ],
+    "track_id": null
+  },
+  {
+    "frame_number": 106,
+    "timestamp_seconds": 3.533,
+    "class_id": 0,
+    "class_name": "person",
+    "confidence": 0.4605,
+    "bbox": [
+      0.0,
+      287.4591979980469,
+      114.4947280883789,
+      566.6314697265625
+    ],
+    "track_id": null
+  },
+  {
+    "frame_number": 106,
+    "timestamp_seconds": 3.533,
+    "class_id": 62,
+    "class_name": "tv",
+    "confidence": 0.3839,
+    "bbox": [
+      224.62327575683594,
+      204.34844970703125,
+      323.39410400390625,
+      303.5932312011719
+    ],
+    "track_id": null
+  },
+  {
+    "frame_number": 106,
+    "timestamp_seconds": 3.533,
+    "class_id": 59,
+    "class_name": "bed",
+    "confidence": 0.3512,
+    "bbox": [
+      126.23615264892578,
+      430.442626953125,
+      477.9534606933594,
+      618.7504272460938
+    ],
+    "track_id": null
+  },
+  {
+    "frame_number": 112,
+    "timestamp_seconds": 3.733,
+    "class_id": 59,
+    "class_name": "bed",
+    "confidence": 0.5928,
+    "bbox": [
+      49.634334564208984,
+      404.942626953125,
+      478.0,
+      847.6295776367188
+    ],
+    "track_id": null
+  },
+  {
+    "frame_number": 118,
+    "timestamp_seconds": 3.933,
+    "class_id": 59,
+    "class_name": "bed",
+    "confidence": 0.5353,
+    "bbox": [
+      0.2305614948272705,
+      410.2997741699219,
+      478.0,
+      843.0745239257812
+    ],
+    "track_id": null
+  },
+  {
+    "frame_number": 118,
+    "timestamp_seconds": 3.933,
+    "class_id": 59,
+    "class_name": "bed",
+    "confidence": 0.3515,
+    "bbox": [
+      0.15101909637451172,
+      410.51922607421875,
+      477.7001953125,
+      630.6798706054688
+    ],
+    "track_id": null
+  },
+  {
+    "frame_number": 124,
+    "timestamp_seconds": 4.133,
+    "class_id": 59,
+    "class_name": "bed",
+    "confidence": 0.7709,
+    "bbox": [
+      0.23609399795532227,
+      424.93060302734375,
+      454.575927734375,
+      848.7572021484375
+    ],
+    "track_id": null
+  },
+  {
+    "frame_number": 130,
+    "timestamp_seconds": 4.333,
+    "class_id": 59,
+    "class_name": "bed",
+    "confidence": 0.7461,
+    "bbox": [
+      0.7685518264770508,
+      437.4034118652344,
+      381.5934753417969,
+      850.0
+    ],
+    "track_id": null
+  },
+  {
+    "frame_number": 137,
+    "timestamp_seconds": 4.566,
+    "class_id": 59,
+    "class_name": "bed",
+    "confidence": 0.4309,
+    "bbox": [
+      0.0,
+      443.1154479980469,
+      281.7206115722656,
+      672.6067504882812
+    ],
+    "track_id": null
+  },
+  {
+    "frame_number": 137,
+    "timestamp_seconds": 4.566,
+    "class_id": 59,
+    "class_name": "bed",
+    "confidence": 0.3922,
+    "bbox": [
+      54.62297058105469,
+      640.0733642578125,
+      476.3062744140625,
+      849.5304565429688
+    ],
+    "track_id": null
+  },
+  {
+    "frame_number": 157,
+    "timestamp_seconds": 5.233,
+    "class_id": 59,
+    "class_name": "bed",
+    "confidence": 0.691,
+    "bbox": [
+      259.19659423828125,
+      464.5708312988281,
+      478.0,
+      847.1251831054688
+    ],
+    "track_id": null
+  },
+  {
+    "frame_number": 164,
+    "timestamp_seconds": 5.466,
+    "class_id": 59,
+    "class_name": "bed",
+    "confidence": 0.6087,
+    "bbox": [
+      234.72000122070312,
+      422.0628967285156,
+      478.0,
+      847.3163452148438
+    ],
+    "track_id": null
+  },
+  {
+    "frame_number": 171,
+    "timestamp_seconds": 5.699,
+    "class_id": 59,
+    "class_name": "bed",
+    "confidence": 0.5813,
+    "bbox": [
+      181.66452026367188,
+      415.50006103515625,
+      478.0,
+      847.3583374023438
+    ],
+    "track_id": null
+  },
+  {
+    "frame_number": 178,
+    "timestamp_seconds": 5.932,
+    "class_id": 59,
+    "class_name": "bed",
+    "confidence": 0.5939,
+    "bbox": [
+      152.7205047607422,
+      388.5751647949219,
+      478.0,
+      847.214599609375
+    ],
+    "track_id": null
+  },
+  {
+    "frame_number": 203,
+    "timestamp_seconds": 6.766,
+    "class_id": 59,
+    "class_name": "bed",
+    "confidence": 0.7208,
+    "bbox": [
+      150.11497497558594,
+      217.64149475097656,
+      478.0,
+      672.5784912109375
+    ],
+    "track_id": null
+  },
+  {
+    "frame_number": 203,
+    "timestamp_seconds": 6.766,
+    "class_id": 15,
+    "class_name": "cat",
+    "confidence": 0.4151,
+    "bbox": [
+      183.71588134765625,
+      769.7470092773438,
+      367.39337158203125,
+      849.6329345703125
+    ],
+    "track_id": null
+  },
+  {
+    "frame_number": 210,
+    "timestamp_seconds": 6.999,
+    "class_id": 15,
+    "class_name": "cat",
+    "confidence": 0.6958,
+    "bbox": [
+      183.70120239257812,
+      767.057861328125,
+      368.2158508300781,
+      849.5819702148438
+    ],
+    "track_id": null
+  },
+  {
+    "frame_number": 210,
+    "timestamp_seconds": 6.999,
+    "class_id": 59,
+    "class_name": "bed",
+    "confidence": 0.4149,
+    "bbox": [
+      155.0723114013672,
+      216.17803955078125,
+      478.0,
+      670.6007690429688
+    ],
+    "track_id": null
+  },
+  {
+    "frame_number": 210,
+    "timestamp_seconds": 6.999,
+    "class_id": 59,
+    "class_name": "bed",
+    "confidence": 0.3775,
+    "bbox": [
+      92.2923812866211,
+      1.0532426834106445,
+      478.0,
+      841.4228515625
+    ],
+    "track_id": null
+  },
+  {
+    "frame_number": 217,
+    "timestamp_seconds": 7.232,
+    "class_id": 15,
+    "class_name": "cat",
+    "confidence": 0.6924,
+    "bbox": [
+      174.87925720214844,
+      773.0858154296875,
+      354.19482421875,
+      849.5884399414062
+    ],
+    "track_id": null
+  },
+  {
+    "frame_number": 217,
+    "timestamp_seconds": 7.232,
+    "class_id": 59,
+    "class_name": "bed",
+    "confidence": 0.5911,
+    "bbox": [
+      134.3155517578125,
+      219.70132446289062,
+      478.0,
+      676.723388671875
+    ],
+    "track_id": null
+  },
+  {
+    "frame_number": 217,
+    "timestamp_seconds": 7.232,
+    "class_id": 73,
+    "class_name": "book",
+    "confidence": 0.4502,
+    "bbox": [
+      199.0756072998047,
+      330.7376708984375,
+      396.2460632324219,
+      386.7794494628906
+    ],
+    "track_id": null
+  },
+  {
+    "frame_number": 230,
+    "timestamp_seconds": 7.666,
+    "class_id": 59,
+    "class_name": "bed",
+    "confidence": 0.7172,
+    "bbox": [
+      36.347408294677734,
+      206.04910278320312,
+      478.0,
+      680.080810546875
+    ],
+    "track_id": null
+  },
+  {
+    "frame_number": 236,
+    "timestamp_seconds": 7.889,
+    "class_id": 59,
+    "class_name": "bed",
+    "confidence": 0.7623,
+    "bbox": [
+      27.9425048828125,
+      187.64422607421875,
+      478.0,
+      666.570556640625
+    ],
+    "track_id": null
+  },
+  {
+    "frame_number": 242,
+    "timestamp_seconds": 8.089,
+    "class_id": 59,
+    "class_name": "bed",
+    "confidence": 0.8126,
+    "bbox": [
+      25.976287841796875,
+      181.148681640625,
+      478.0,
+      710.1898193359375
+    ],
+    "track_id": 9
+  },
+  {
+    "frame_number": 248,
+    "timestamp_seconds": 8.289,
+    "class_id": 59,
+    "class_name": "bed",
+    "confidence": 0.6557,
+    "bbox": [
+      51.847537994384766,
+      190.50767517089844,
+      478.0,
+      698.0010986328125
+    ],
+    "track_id": 9
+  },
+  {
+    "frame_number": 255,
+    "timestamp_seconds": 8.522,
+    "class_id": 59,
+    "class_name": "bed",
+    "confidence": 0.7562,
+    "bbox": [
+      82.89253997802734,
+      210.35601806640625,
+      478.0,
+      726.263916015625
+    ],
+    "track_id": 9
+  },
+  {
+    "frame_number": 261,
+    "timestamp_seconds": 8.732,
+    "class_id": 59,
+    "class_name": "bed",
+    "confidence": 0.7535,
+    "bbox": [
+      112.98371887207031,
+      239.69692993164062,
+      478.0,
+      785.3505859375
+    ],
+    "track_id": 9
+  },
+  {
+    "frame_number": 268,
+    "timestamp_seconds": 8.965,
+    "class_id": 59,
+    "class_name": "bed",
+    "confidence": 0.3751,
+    "bbox": [
+      143.99790954589844,
+      289.7774658203125,
+      476.0327453613281,
+      794.3058471679688
+    ],
+    "track_id": 9
+  },
+  {
+    "frame_number": 274,
+    "timestamp_seconds": 9.165,
+    "class_id": 59,
+    "class_name": "bed",
+    "confidence": 0.776,
+    "bbox": [
+      182.84039306640625,
+      335.3218688964844,
+      478.0,
+      818.1005249023438
+    ],
+    "track_id": 9
+  },
+  {
+    "frame_number": 280,
+    "timestamp_seconds": 9.365,
+    "class_id": 59,
+    "class_name": "bed",
+    "confidence": 0.5528,
+    "bbox": [
+      230.2679443359375,
+      376.1387023925781,
+      478.0,
+      850.0
+    ],
+    "track_id": 9
+  },
+  {
+    "frame_number": 286,
+    "timestamp_seconds": 9.565,
+    "class_id": 59,
+    "class_name": "bed",
+    "confidence": 0.695,
+    "bbox": [
+      296.42572021484375,
+      406.8111572265625,
+      478.0,
+      850.0
+    ],
+    "track_id": 9
+  },
+  {
+    "frame_number": 292,
+    "timestamp_seconds": 9.765,
+    "class_id": 59,
+    "class_name": "bed",
+    "confidence": 0.6424,
+    "bbox": [
+      331.9598083496094,
+      424.7559509277344,
+      478.0,
+      850.0
+    ],
+    "track_id": 9
+  },
+  {
+    "frame_number": 306,
+    "timestamp_seconds": 10.232,
+    "class_id": 59,
+    "class_name": "bed",
+    "confidence": 0.372,
+    "bbox": [
+      0.0,
+      394.85809326171875,
+      220.74314880371094,
+      616.8662109375
+    ],
+    "track_id": null
+  },
+  {
+    "frame_number": 319,
+    "timestamp_seconds": 10.665,
+    "class_id": 59,
+    "class_name": "bed",
+    "confidence": 0.5526,
+    "bbox": [
+      0.0,
+      396.2417297363281,
+      329.99981689453125,
+      845.5989379882812
+    ],
+    "track_id": null
+  },
+  {
+    "frame_number": 319,
+    "timestamp_seconds": 10.665,
+    "class_id": 59,
+    "class_name": "bed",
+    "confidence": 0.4445,
+    "bbox": [
+      83.71192169189453,
+      589.7210083007812,
+      478.0,
+      848.716796875
+    ],
+    "track_id": null
+  },
+  {
+    "frame_number": 326,
+    "timestamp_seconds": 10.898,
+    "class_id": 59,
+    "class_name": "bed",
+    "confidence": 0.7325,
+    "bbox": [
+      0.21163344383239746,
+      376.841552734375,
+      436.5018005371094,
+      844.0230712890625
+    ],
+    "track_id": null
+  },
+  {
+    "frame_number": 326,
+    "timestamp_seconds": 10.898,
+    "class_id": 59,
+    "class_name": "bed",
+    "confidence": 0.3922,
+    "bbox": [
+      171.76754760742188,
+      585.1929321289062,
+      478.0,
+      849.0382690429688
+    ],
+    "track_id": null
+  },
+  {
+    "frame_number": 332,
+    "timestamp_seconds": 11.098,
+    "class_id": 59,
+    "class_name": "bed",
+    "confidence": 0.6577,
+    "bbox": [
+      1.2597894668579102,
+      369.91619873046875,
+      478.0,
+      825.3575439453125
+    ],
+    "track_id": null
+  },
+  {
+    "frame_number": 339,
+    "timestamp_seconds": 11.332,
+    "class_id": 0,
+    "class_name": "person",
+    "confidence": 0.5267,
+    "bbox": [
+      0.0,
+      295.46478271484375,
+      256.06524658203125,
+      846.402587890625
+    ],
+    "track_id": null
+  },
+  {
+    "frame_number": 346,
+    "timestamp_seconds": 11.565,
+    "class_id": 0,
+    "class_name": "person",
+    "confidence": 0.6718,
+    "bbox": [
+      0.0,
+      248.95423889160156,
+      340.1546630859375,
+      848.4559326171875
+    ],
+    "track_id": null
+  },
+  {
+    "frame_number": 352,
+    "timestamp_seconds": 11.765,
+    "class_id": 0,
+    "class_name": "person",
+    "confidence": 0.8803,
+    "bbox": [
+      42.56023025512695,
+      253.5765838623047,
+      259.815673828125,
+      540.5193481445312
+    ],
+    "track_id": null
+  },
+  {
+    "frame_number": 352,
+    "timestamp_seconds": 11.765,
+    "class_id": 39,
+    "class_name": "bottle",
+    "confidence": 0.8749,
+    "bbox": [
+      5.6723103523254395,
+      424.0554504394531,
+      112.61814880371094,
+      844.1622924804688
+    ],
+    "track_id": null
+  },
+  {
+    "frame_number": 359,
+    "timestamp_seconds": 11.988,
+    "class_id": 39,
+    "class_name": "bottle",
+    "confidence": 0.8763,
+    "bbox": [
+      55.45138168334961,
+      432.8448791503906,
+      157.61453247070312,
+      846.5119018554688
+    ],
+    "track_id": null
+  },
+  {
+    "frame_number": 359,
+    "timestamp_seconds": 11.988,
+    "class_id": 0,
+    "class_name": "person",
+    "confidence": 0.6241,
+    "bbox": [
+      73.6434097290039,
+      260.2417907714844,
+      427.60528564453125,
+      808.701416015625
+    ],
+    "track_id": null
+  },
+  {
+    "frame_number": 359,
+    "timestamp_seconds": 11.988,
+    "class_id": 63,
+    "class_name": "laptop",
+    "confidence": 0.4453,
+    "bbox": [
+      0.0,
+      342.1914367675781,
+      90.1229248046875,
+      532.0970458984375
+    ],
+    "track_id": null
+  },
+  {
+    "frame_number": 365,
+    "timestamp_seconds": 12.188,
+    "class_id": 39,
+    "class_name": "bottle",
+    "confidence": 0.8408,
+    "bbox": [
+      68.35060119628906,
+      439.3524475097656,
+      174.24757385253906,
+      845.36474609375
+    ],
+    "track_id": 12
+  },
+  {
+    "frame_number": 371,
+    "timestamp_seconds": 12.388,
+    "class_id": 39,
+    "class_name": "bottle",
+    "confidence": 0.9021,
+    "bbox": [
+      71.89878845214844,
+      436.12811279296875,
+      178.70155334472656,
+      844.7359619140625
+    ],
+    "track_id": 12
+  }
+]

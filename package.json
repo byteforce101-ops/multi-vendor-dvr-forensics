@@ -5,5 +5,8 @@
     "dev": "npm --prefix multi-vendor-dvr-forensics-main/frontend run dev --",
     "build": "npm --prefix multi-vendor-dvr-forensics-main/frontend run build",
     "preview": "npm --prefix multi-vendor-dvr-forensics-main/frontend run preview"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.112.4"
   }
 }

@@ -1,9 +1,6 @@
 import typer
 
-<<<<<<< HEAD
-=======
 from backend.cli import interactive
->>>>>>> 62378bbf9649647cca47b7b00b4599eb368cc53b
 from backend.cli.commands import case, detect, evidence
 from backend.cli.commands.extract import extract_evidence
 from backend.cli.commands.parse import parse_evidence
@@ -11,12 +8,6 @@ from backend.cli.commands.parse import parse_evidence
 
 app = typer.Typer(
     help="DVR Forensics Platform Command Line Interface",
-<<<<<<< HEAD
-    no_args_is_help=True,
-)
-
-
-=======
     no_args_is_help=False,
 )
 
@@ -28,7 +19,6 @@ def main(ctx: typer.Context):
         interactive.run()
 
 
->>>>>>> 62378bbf9649647cca47b7b00b4599eb368cc53b
 app.add_typer(
     case.app,
     name="case",

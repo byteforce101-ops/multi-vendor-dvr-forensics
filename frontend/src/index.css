@@ -1,0 +1,92 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-serif: 'EB Garamond', Georgia, serif;
+    --font-sans: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-mono: 'DM Mono', monospace;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    color: #221e1b;
+    background-color: #f4eee3;
+  }
+
+  h1, h2, h3, .font-serif-heading {
+    font-family: var(--font-serif);
+    letter-spacing: -0.01em;
+  }
+
+  code, pre, .font-code {
+    font-family: var(--font-mono);
+  }
+}
+
+/* Primary CTA Buttons: Rich Forest Green, Deep Navy & Terracotta */
+.btn-primary-green {
+  background: linear-gradient(135deg, #1b4e39 0%, #266b4f 100%);
+  color: #ffffff;
+  box-shadow: 0 4px 16px -2px rgba(27, 78, 57, 0.4);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-primary-green:hover {
+  background: linear-gradient(135deg, #236446 0%, #1b4e39 100%);
+  box-shadow: 0 6px 20px 0px rgba(27, 78, 57, 0.5);
+  transform: translateY(-1px);
+}
+
+.btn-primary-green:active {
+  transform: translateY(1px);
+  box-shadow: 0 2px 8px 0px rgba(27, 78, 57, 0.25);
+}
+
+.btn-primary-navy {
+  background: linear-gradient(135deg, #0f2338 0%, #162f4a 100%);
+  color: #ffffff;
+  box-shadow: 0 4px 16px -2px rgba(15, 35, 56, 0.35);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-primary-navy:hover {
+  background: linear-gradient(135deg, #183350 0%, #0f2338 100%);
+  box-shadow: 0 6px 20px 0px rgba(15, 35, 56, 0.45);
+  transform: translateY(-1px);
+}
+
+.btn-primary-navy:active {
+  transform: translateY(1px);
+  box-shadow: 0 2px 8px 0px rgba(15, 35, 56, 0.25);
+}
+
+.btn-primary-terracotta {
+  background: linear-gradient(135deg, #c2593f 0%, #ae482f 100%);
+  color: #ffffff;
+  box-shadow: 0 4px 16px -2px rgba(194, 89, 63, 0.38);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-primary-terracotta:hover {
+  background: linear-gradient(135deg, #cf664b 0%, #c2593f 100%);
+  box-shadow: 0 6px 20px 0px rgba(194, 89, 63, 0.48);
+  transform: translateY(-1px);
+}
+
+.btn-primary-terracotta:active {
+  transform: translateY(1px);
+  box-shadow: 0 2px 8px 0px rgba(194, 89, 63, 0.25);
+}
+
+/* Muted Sage Green Accents */
+.badge-sage {
+  background-color: #eaf1ed;
+  color: #3b5749;
+  border: 1px solid #c9dcd0;
+}
+
+.upload-zone-sage-gradient {
+  background: linear-gradient(135deg, rgba(244, 248, 245, 0.9) 0%, rgba(253, 252, 249, 0.85) 60%, rgba(248, 243, 235, 0.8) 100%);
+}
+
+

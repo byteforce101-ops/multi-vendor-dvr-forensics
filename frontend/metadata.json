@@ -1,0 +1,6 @@
+{
+  "name": "TraceX",
+  "description": "TraceX evidence processing pipeline with chain of custody, video parsing, SHA-256 integrity hashing, and automated forensic analysis.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

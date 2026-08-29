@@ -1,1 +1,28 @@
- 
+    + CategoryInfo          : WriteError: (D:\project\mult...-forensics-main:DirectoryInfo) [Remove-Item], IOException
+    + FullyQualifiedErrorId : RemoveFileSystemItemIOError,Microsoft.PowerShell.Commands.RemoveItemCommand
+PS D:\project\multi-vendor-dvr-forensics-main> Remove-Item -Recurse -Force .\multi-vendor-dvr-forensics-main
+Remove-Item : Cannot remove item D:\project\multi-vendor-dvr-forensics-main\multi-vendor-dvr-forensics-main\frontend: The process cannot access the file 
+'D:\project\multi-vendor-dvr-forensics-main\multi-vendor-dvr-forensics-main\frontend' because it is being used by another process.
+At line:1 char:1
++ Remove-Item -Recurse -Force .\multi-vendor-dvr-forensics-main
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : WriteError: (frontend:DirectoryInfo) [Remove-Item], IOException
+    + FullyQualifiedErrorId : RemoveFileSystemItemIOError,Microsoft.PowerShell.Commands.RemoveItemCommand
+Remove-Item : Cannot remove item D:\project\multi-vendor-dvr-forensics-main\multi-vendor-dvr-forensics-main: The process cannot access the file 
+'D:\project\multi-vendor-dvr-forensics-main\multi-vendor-dvr-forensics-main' because it is being used by another process.
+At line:1 char:1
++ Remove-Item -Recurse -Force .\multi-vendor-dvr-forensics-main
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : WriteError: (D:\project\mult...-forensics-main:DirectoryInfo) [Remove-Item], IOException
+    + FullyQualifiedErrorId : RemoveFileSystemItemIOError,Microsoft.PowerShell.Commands.RemoveItemCommand
+PS D:\project\multi-vendor-dvr-forensics-main> Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force
+PS D:\project\multi-vendor-dvr-forensics-main> Remove-Item -Recurse -Force .\multi-vendor-dvr-forensics-main
+Remove-Item : Cannot remove item D:\project\multi-vendor-dvr-forensics-main\multi-vendor-dvr-forensics-main: The process cannot access the file 
+'D:\project\multi-vendor-dvr-forensics-main\multi-vendor-dvr-forensics-main' because it is being used by another process.
+At line:1 char:1
++ Remove-Item -Recurse -Force .\multi-vendor-dvr-forensics-main
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : WriteError: (D:\project\mult...-forensics-main:DirectoryInfo) [Remove-Item], IOException
+    + FullyQualifiedErrorId : RemoveFileSystemItemIOError,Microsoft.PowerShell.Commands.RemoveItemCommand
+PS D:\project\multi-vendor-dvr-forensics-main> cmd /c "rmdir /s /q multi-vendor-dvr-forensics-main"
+The process cannot access the file because it is being used by another process.  

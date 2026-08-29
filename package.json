@@ -1,12 +1,13 @@
 {
   "name": "multi-vendor-dvr-forensics",
   "private": true,
-  "scripts": {
-    "dev": "npm --prefix multi-vendor-dvr-forensics-main/frontend run dev --",
-    "build": "npm --prefix multi-vendor-dvr-forensics-main/frontend run build",
-    "preview": "npm --prefix multi-vendor-dvr-forensics-main/frontend run preview"
-  },
+     "scripts": {
+     "dev": "npm --prefix frontend run dev",
+     "build": "npm --prefix frontend run build",
+     "preview": "npm --prefix frontend run preview"
+   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.112.4"
+    "@supabase/supabase-js": "^2.112.4",
+    "requirements": "^4.0.2"
   }
 }

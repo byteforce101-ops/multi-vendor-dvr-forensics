@@ -8,3 +8,4 @@ backend/forensics.db
 .env
 __pycache__/
 *.pyc
+node_modules/

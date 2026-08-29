@@ -1,380 +1,229 @@
-import hashlib
+"""dvrforensics evidence add|hash|list"""
+
+from __future__ import annotations
+
+import enum
 from pathlib import Path
 
 import typer
-from rich.console import Console
 from rich.panel import Panel
 from rich.progress import (
     BarColumn,
+    DownloadColumn,
     Progress,
+    SpinnerColumn,
     TextColumn,
     TimeRemainingColumn,
+    TransferSpeedColumn,
 )
 from rich.table import Table
 
-from backend.core.acquisition.service import (
-    hash_evidence as hash_stored_evidence,
-    import_evidence,
-    reference_evidence,
-)
-from backend.db.database import SessionLocal
-from backend.db.models import Case, Evidence
+from backend.cli.common import db_session, require_file
+from backend.cli.exit_codes import ExitCode
+from backend.cli.theme import error, fact_table, get_console, human_size, section_header, success, warn
 
-app = typer.Typer(
-    help="Evidence management commands.",
-    no_args_is_help=True,
-)
+app = typer.Typer(help="Register and inspect evidence files.")
 
-console = Console()
+DEFAULT_CHUNK_SIZE = 8 * 1024 * 1024  # 8 MiB
 
-CHUNK_SIZE = 8 * 1024 * 1024
+
+class AddMode(str, enum.Enum):
+    reference = "reference"
+    copy = "copy"
+
+
+def _hash_progress() -> Progress:
+    return Progress(
+        SpinnerColumn(style="brand"),
+        TextColumn("[field]{task.description}[/field]"),
+        BarColumn(bar_width=None, style="brand.dim", complete_style="brand"),
+        TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+        DownloadColumn(),
+        TransferSpeedColumn(),
+        TimeRemainingColumn(),
+        console=get_console(),
+    )
 
 
 @app.command("hash")
-def hash_evidence(
-    evidence_path: Path = typer.Argument(
-        ...,
-        exists=True,
-        file_okay=True,
-        dir_okay=False,
-        readable=True,
-        resolve_path=True,
-        help="Path to the evidence file.",
+def evidence_hash(
+    path: Path = typer.Argument(..., help="Path to the evidence file to hash"),
+    chunk_size: int = typer.Option(
+        DEFAULT_CHUNK_SIZE, "--chunk-size", help="Read chunk size in bytes (default: 8 MiB)"
     ),
-):
-    sha256 = hashlib.sha256()
-    md5 = hashlib.md5()
+) -> None:
+    """Compute MD5 + SHA256 of a file, streamed in chunks (safe for huge images)."""
+    from backend.core.integrity.hashing import compute_hashes_with_progress
 
-    total_size = evidence_path.stat().st_size
+    console = get_console()
+    section_header(console, "Evidence Hash")
 
-    console.print(
-        f"\n[bold cyan]Hashing:[/bold cyan] {evidence_path.name}"
-    )
-    console.print(
-        f"[bold cyan]Size:[/bold cyan] {total_size:,} bytes\n"
-    )
+    resolved = require_file(path, console)
+    total = resolved.stat().st_size
 
-    with Progress(
-        TextColumn("[progress.description]{task.description}"),
-        BarColumn(),
-        TextColumn("{task.percentage:>3.0f}%"),
-        TimeRemainingColumn(),
-        console=console,
-    ) as progress:
+    if chunk_size <= 0:
+        error(console, "--chunk-size must be greater than 0")
+        raise typer.Exit(code=ExitCode.INVALID_ARGUMENT)
 
-        task = progress.add_task(
-            "Calculating hashes",
-            total=total_size,
+    console.print(f"[field]File:[/field] [path]{resolved}[/path]")
+    console.print(f"[field]Size:[/field] {human_size(total)}\n")
+
+    with _hash_progress() as progress:
+        task = progress.add_task("Hashing evidence...", total=total)
+
+        def on_progress(done: int, _total: int) -> None:
+            progress.update(task, completed=done)
+
+        hashes = compute_hashes_with_progress(
+            str(resolved), chunk_size=chunk_size, on_progress=on_progress
         )
 
-        try:
-            with evidence_path.open("rb") as file:
-                while chunk := file.read(CHUNK_SIZE):
-                    sha256.update(chunk)
-                    md5.update(chunk)
-
-                    progress.update(
-                        task,
-                        advance=len(chunk),
-                    )
-
-        except OSError as exc:
-            console.print(
-                f"[bold red]Unable to read evidence:[/bold red] {exc}"
-            )
-            raise typer.Exit(code=1)
-
-    console.print()
-    console.print(
-        "[bold green]Hashing completed successfully.[/bold green]"
-    )
-
-    console.print(
-        f"\n[bold cyan]MD5:[/bold cyan]\n{md5.hexdigest()}"
-    )
-
-    console.print(
-        f"\n[bold cyan]SHA256:[/bold cyan]\n{sha256.hexdigest()}"
-    )
+    table = fact_table()
+    table.add_row("[field]MD5:[/field]", hashes["md5"])
+    table.add_row("[field]SHA256:[/field]", hashes["sha256"])
+    console.print(Panel(table, border_style="brand", title="Digest"))
 
 
 @app.command("add")
-def add_evidence(
-    evidence_path: Path = typer.Argument(
-        ...,
-        exists=True,
-        file_okay=True,
-        dir_okay=False,
-        readable=True,
-        resolve_path=True,
-        help="Path to the evidence file.",
-    ),
-    case_id: str = typer.Option(
-        ...,
-        "--case-id",
-        "-c",
-        help="ID of the case this evidence belongs to.",
-    ),
-    mode: str = typer.Option(
-        "reference",
+def evidence_add(
+    path: Path = typer.Argument(..., help="Path to the evidence file"),
+    case: str = typer.Option(..., "--case", help="Case ID to attach this evidence to"),
+    mode: AddMode = typer.Option(
+        AddMode.reference,
         "--mode",
-        "-m",
-        help="Acquisition mode: reference or copy.",
+        help="reference: register the path in place (no copy, for huge images). "
+        "copy: duplicate + hash-verify a forensic working copy.",
     ),
-):
-    mode = mode.lower()
+    chunk_size: int = typer.Option(
+        DEFAULT_CHUNK_SIZE, "--chunk-size", help="Read chunk size in bytes for hashing (copy mode)"
+    ),
+) -> None:
+    """Register an evidence file against a case."""
+    from backend.db.models import Case, EvidenceStatus
 
-    if mode not in {"reference", "copy"}:
+    console = get_console()
+    section_header(console, "Evidence Add")
+
+    resolved = require_file(path, console)
+
+    with db_session() as db:
+        case_row = db.get(Case, case)
+        if case_row is None:
+            error(console, f"Case not found: {case}")
+            raise typer.Exit(code=ExitCode.NOT_FOUND)
+
+        if mode is AddMode.reference:
+            from backend.core.acquisition.service import import_evidence_reference
+
+            warn(
+                console,
+                "Reference mode: the file will NOT be copied. dvrforensics will read it "
+                "in place. Make sure the source is mounted read-only or write-blocked.",
+            )
+            try:
+                evidence = import_evidence_reference(db, case, str(resolved))
+            except FileNotFoundError:
+                error(console, f"File not found: {resolved}")
+                raise typer.Exit(code=ExitCode.FILE_NOT_FOUND)
+
+            table = fact_table()
+            table.add_row("[field]Evidence ID:[/field]", evidence.id)
+            table.add_row("[field]Original path:[/field]", f"[path]{evidence.original_path}[/path]")
+            table.add_row("[field]Working copy:[/field]", "[dim](same file — reference mode)[/dim]")
+            table.add_row("[field]Status:[/field]", evidence.status.value)
+            console.print(Panel(table, border_style="brand", title="Evidence Registered"))
+            success(console, "Evidence registered in reference mode.")
+            return
+
+        # copy mode
+        from backend.core.acquisition.service import import_and_verify_evidence
+
+        total = resolved.stat().st_size
+        console.print(f"[field]Creating forensic working copy of:[/field] [path]{resolved}[/path]")
         console.print(
-            "[bold red]Invalid mode.[/bold red] "
-            "Use 'reference' or 'copy'."
-        )
-        raise typer.Exit(code=1)
-
-    console.print(
-        Panel.fit(
-            "[bold cyan]DVR FORENSICS PLATFORM[/bold cyan]\n"
-            "Evidence Acquisition",
-            border_style="cyan",
-        )
-    )
-
-    console.print(
-        f"[bold cyan]File:[/bold cyan] {evidence_path}"
-    )
-    console.print(
-        f"[bold cyan]Mode:[/bold cyan] {mode}"
-    )
-    console.print(
-        f"[bold cyan]Case ID:[/bold cyan] {case_id}"
-    )
-
-    db = SessionLocal()
-
-    try:
-        case = (
-            db.query(Case)
-            .filter(Case.id == case_id)
-            .one_or_none()
+            "[dim]Hashing runs twice in copy mode: once against the original, once "
+            "against the copy, so the two can be compared.[/dim]\n"
         )
 
-        if case is None:
-            console.print(
-                "\n[bold red]Case not found.[/bold red]"
-            )
-            raise typer.Exit(code=1)
+        with _hash_progress() as progress:
+            task = progress.add_task("Hashing + copying...", total=total * 2)
+            calls = {"n": 0}
 
-        if mode == "reference":
-            console.print(
-                "\n[cyan]Registering evidence without copying the original...[/cyan]"
-            )
+            def on_progress(done: int, _total: int) -> None:
+                # Two hashing passes (source, then working copy) share one bar.
+                progress.update(task, completed=calls["n"] * total + done)
 
-            evidence = reference_evidence(
-                db,
-                case_id,
-                str(evidence_path),
-            )
+            try:
+                evidence, matched = import_and_verify_evidence(
+                    db, case, str(resolved), chunk_size=chunk_size, on_progress=on_progress
+                )
+            except FileNotFoundError:
+                error(console, f"File not found: {resolved}")
+                raise typer.Exit(code=ExitCode.FILE_NOT_FOUND)
+            finally:
+                calls["n"] = 1
+            progress.update(task, completed=total * 2)
 
+        table = fact_table()
+        table.add_row("[field]Evidence ID:[/field]", evidence.id)
+        table.add_row("[field]Original path:[/field]", f"[path]{evidence.original_path}[/path]")
+        table.add_row("[field]Working copy:[/field]", f"[path]{evidence.working_copy_path}[/path]")
+        table.add_row("[field]SHA256:[/field]", evidence.sha256)
+        table.add_row("[field]MD5:[/field]", evidence.md5)
+        table.add_row(
+            "[field]Status:[/field]",
+            f"[ok]{evidence.status.value}[/ok]" if matched else f"[err]{evidence.status.value}[/err]",
+        )
+        console.print(Panel(table, border_style="brand" if matched else "err", title="Evidence Registered"))
+
+        if matched:
+            success(console, "Working copy verified — hashes match the original.")
         else:
-            console.print(
-                "\n[yellow]Copying evidence into managed storage...[/yellow]"
+            error(console, "TAMPER WARNING: working copy hash does NOT match the original.")
+            raise typer.Exit(code=ExitCode.CORRUPTED_EVIDENCE)
+
+
+@app.command("list")
+def evidence_list(
+    case: str = typer.Option(..., "--case", help="Case ID to list evidence for"),
+) -> None:
+    """List evidence registered against a case."""
+    from backend.db.models import Case, Evidence
+
+    console = get_console()
+    section_header(console, "Evidence List")
+
+    with db_session() as db:
+        case_row = db.get(Case, case)
+        if case_row is None:
+            error(console, f"Case not found: {case}")
+            raise typer.Exit(code=ExitCode.NOT_FOUND)
+
+        items = db.query(Evidence).filter(Evidence.case_id == case).all()
+
+        if not items:
+            warn(console, f"No evidence registered for case {case}.")
+            return
+
+        table = Table(border_style="brand.dim", header_style="brand")
+        table.add_column("Evidence ID", no_wrap=True)
+        table.add_column("Filename")
+        table.add_column("Vendor")
+        table.add_column("Status")
+        table.add_column("SHA256", no_wrap=True)
+        table.add_column("Acquired At")
+
+        for ev in items:
+            status_style = "ok" if ev.status.value == "verified" else (
+                "err" if ev.status.value == "tampered" else "dim"
+            )
+            table.add_row(
+                ev.id,
+                ev.original_filename,
+                ev.vendor or "[dim]-[/dim]",
+                f"[{status_style}]{ev.status.value}[/{status_style}]",
+                (ev.sha256 or "-")[:16] + ("…" if ev.sha256 else ""),
+                ev.acquired_at.isoformat(sep=" ", timespec="seconds"),
             )
 
-            evidence = import_evidence(
-                db,
-                case_id,
-                str(evidence_path),
-            )
-
-        console.print(
-            "\n[cyan]Calculating cryptographic hashes...[/cyan]"
-        )
-
-        evidence = hash_stored_evidence(
-            db,
-            evidence,
-        )
-
-        table = Table(
-            title="Evidence Registered Successfully"
-        )
-
-        table.add_column(
-            "Property",
-            style="bold cyan",
-        )
-        table.add_column("Value")
-
-        table.add_row(
-            "Evidence ID",
-            evidence.id,
-        )
-
-        table.add_row(
-            "Case ID",
-            evidence.case_id,
-        )
-
-        table.add_row(
-            "Filename",
-            evidence.original_filename,
-        )
-
-        table.add_row(
-            "Mode",
-            mode,
-        )
-
-        table.add_row(
-            "Original Path",
-            evidence.original_path,
-        )
-
-        table.add_row(
-            "Working Path",
-            evidence.working_copy_path,
-        )
-
-        table.add_row(
-            "SHA-256",
-            evidence.sha256 or "Not available",
-        )
-
-        table.add_row(
-            "MD5",
-            evidence.md5 or "Not available",
-        )
-
-        table.add_row(
-            "Status",
-            evidence.status.value,
-        )
-
-        console.print()
         console.print(table)
-
-        console.print(
-            "\n[bold green]✓ Evidence registered successfully.[/bold green]"
-        )
-
-    except FileNotFoundError as exc:
-        console.print(
-            f"\n[bold red]File not found:[/bold red] {exc}"
-        )
-        raise typer.Exit(code=1)
-
-    except typer.Exit:
-        raise
-
-    except Exception as exc:
-        db.rollback()
-
-        console.print(
-            f"\n[bold red]Evidence acquisition failed:[/bold red] {exc}"
-        )
-
-        raise typer.Exit(code=1)
-
-    finally:
-        db.close()
-
-
-@app.command("info")
-def evidence_info(
-    evidence_id: str = typer.Argument(
-        ...,
-        help="ID of the evidence record.",
-    ),
-):
-    db = SessionLocal()
-
-    try:
-        evidence = (
-            db.query(Evidence)
-            .filter(Evidence.id == evidence_id)
-            .one_or_none()
-        )
-
-        if evidence is None:
-            console.print(
-                "[bold red]Evidence not found.[/bold red]"
-            )
-            raise typer.Exit(code=1)
-
-        table = Table(title="Evidence Information")
-
-        table.add_column(
-            "Property",
-            style="bold cyan",
-        )
-        table.add_column("Value")
-
-        table.add_row(
-            "Evidence ID",
-            evidence.id,
-        )
-
-        table.add_row(
-            "Case ID",
-            evidence.case_id,
-        )
-
-        table.add_row(
-            "Filename",
-            evidence.original_filename,
-        )
-
-        table.add_row(
-            "Original Path",
-            evidence.original_path,
-        )
-
-        table.add_row(
-            "Working Path",
-            evidence.working_copy_path,
-        )
-
-        table.add_row(
-            "SHA-256",
-            evidence.sha256 or "Not calculated",
-        )
-
-        table.add_row(
-            "MD5",
-            evidence.md5 or "Not calculated",
-        )
-
-        table.add_row(
-            "Vendor",
-            evidence.vendor or "Not detected",
-        )
-
-        table.add_row(
-            "Parser Version",
-            evidence.parser_version or "Not available",
-        )
-
-        table.add_row(
-            "Status",
-            evidence.status.value,
-        )
-
-        table.add_row(
-            "Acquired",
-            str(evidence.acquired_at),
-        )
-
-        console.print()
-        console.print(table)
-
-    except typer.Exit:
-        raise
-
-    except Exception as exc:
-        console.print(
-            f"\n[bold red]Failed to retrieve evidence:[/bold red] {exc}"
-        )
-        raise typer.Exit(code=1)
-
-    finally:
-        db.close()

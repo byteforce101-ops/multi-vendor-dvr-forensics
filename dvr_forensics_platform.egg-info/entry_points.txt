@@ -1,0 +1,2 @@
+[console_scripts]
+dvrforensics = backend.cli.main:app

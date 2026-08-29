@@ -1,224 +1,122 @@
+"""dvrforensics case create|list|show"""
+
+from __future__ import annotations
+
 from typing import Optional
 
 import typer
-from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-from backend.db.database import SessionLocal
-from backend.db.models import Case
+from backend.cli.common import db_session
+from backend.cli.exit_codes import ExitCode
+from backend.cli.theme import error, fact_table, get_console, section_header, success
 
-app = typer.Typer(
-    help="Case management commands.",
-    no_args_is_help=True,
-)
-
-console = Console()
+app = typer.Typer(help="Manage forensic cases.")
 
 
 @app.command("create")
-def create_case(
-    name: str = typer.Argument(
-        ...,
-        help="Name of the investigation.",
-    ),
-    investigator: str = typer.Option(
-        ...,
-        "--investigator",
-        "-i",
-        help="Name of the investigator.",
-    ),
-    case_number: Optional[str] = typer.Option(
-        None,
-        "--case-number",
-        help="Optional case number.",
-    ),
-    description: Optional[str] = typer.Option(
-        None,
-        "--description",
-        "-d",
-        help="Optional case description.",
-    ),
-):
-    console.print(
-        Panel.fit(
-            "[bold cyan]DVR FORENSICS PLATFORM[/bold cyan]\n"
-            "Case Creation",
-            border_style="cyan",
-        )
-    )
+def case_create(
+    name: str = typer.Option(..., "--name", help="Case name"),
+    investigator: str = typer.Option(..., "--investigator", help="Investigator name"),
+    case_number: Optional[str] = typer.Option(None, "--case-number", help="External case number"),
+    description: Optional[str] = typer.Option(None, "--description", help="Free-text description"),
+) -> None:
+    """Create a new case."""
+    from backend.db.models import Case
 
-    db = SessionLocal()
+    console = get_console()
+    section_header(console, "Case Create")
 
-    try:
-        if case_number:
-            existing_case = (
-                db.query(Case)
-                .filter(Case.case_number == case_number)
-                .one_or_none()
-            )
-
-            if existing_case is not None:
-                console.print(
-                    f"[bold red]A case with number "
-                    f"'{case_number}' already exists.[/bold red]"
-                )
-                raise typer.Exit(code=1)
-
+    with db_session() as db:
         case = Case(
             name=name,
             investigator=investigator,
             case_number=case_number,
             description=description,
         )
-
         db.add(case)
         db.commit()
         db.refresh(case)
 
-        table = Table(title="Case Created Successfully")
-
-        table.add_column("Property", style="bold cyan")
-        table.add_column("Value")
-
-        table.add_row("Case ID", case.id)
-        table.add_row("Name", case.name)
-        table.add_row("Investigator", case.investigator)
-
-        table.add_row(
-            "Case Number",
-            case.case_number or "Not provided",
-        )
-
-        table.add_row(
-            "Description",
-            case.description or "Not provided",
-        )
-
-        table.add_row("Status", case.status)
-
-        table.add_row(
-            "Created",
-            str(case.created_at),
-        )
-
-        console.print()
-        console.print(table)
-
-        console.print(
-            "\n[bold green]✓ Case created successfully.[/bold green]"
-        )
-
-    except typer.Exit:
-        raise
-
-    except Exception as exc:
-        db.rollback()
-
-        console.print(
-            f"\n[bold red]Failed to create case:[/bold red] {exc}"
-        )
-
-        raise typer.Exit(code=1)
-
-    finally:
-        db.close()
+        table = fact_table()
+        table.add_row("[field]Case ID:[/field]", case.id)
+        table.add_row("[field]Name:[/field]", case.name)
+        table.add_row("[field]Investigator:[/field]", case.investigator)
+        table.add_row("[field]Case Number:[/field]", case.case_number or "[dim]-[/dim]")
+        table.add_row("[field]Status:[/field]", case.status)
+        console.print(Panel(table, border_style="brand", title="Case Created"))
+        success(console, f"Created case {case.id}")
 
 
 @app.command("list")
-def list_cases():
-    db = SessionLocal()
+def case_list() -> None:
+    """List all cases."""
+    from backend.db.models import Case
 
-    try:
-        cases = (
-            db.query(Case)
-            .order_by(Case.created_at.desc())
-            .all()
-        )
+    console = get_console()
+    section_header(console, "Case List")
+
+    with db_session() as db:
+        cases = db.query(Case).order_by(Case.created_at.desc()).all()
 
         if not cases:
-            console.print("[yellow]No cases found.[/yellow]")
+            console.print("[dim]No cases yet. Create one with `dvrforensics case create`.[/dim]")
             return
 
-        table = Table(title="Cases")
-
-        table.add_column("Case ID", style="cyan")
+        table = Table(border_style="brand.dim", header_style="brand")
+        table.add_column("Case ID", no_wrap=True)
         table.add_column("Name")
-        table.add_column("Case Number")
         table.add_column("Investigator")
+        table.add_column("Case Number")
         table.add_column("Status")
-        table.add_column("Created")
+        table.add_column("Created At")
 
-        for case in cases:
+        for c in cases:
             table.add_row(
-                case.id,
-                case.name,
-                case.case_number or "-",
-                case.investigator,
-                case.status,
-                str(case.created_at),
+                c.id,
+                c.name,
+                c.investigator,
+                c.case_number or "[dim]-[/dim]",
+                c.status,
+                c.created_at.isoformat(sep=" ", timespec="seconds"),
             )
 
         console.print(table)
-
-    finally:
-        db.close()
 
 
 @app.command("show")
-def show_case(
-    case_id: str = typer.Argument(
-        ...,
-        help="ID of the case.",
-    ),
-):
-    db = SessionLocal()
+def case_show(case_id: str = typer.Argument(..., help="Case ID to show")) -> None:
+    """Show a single case and its evidence."""
+    from backend.db.models import Case
 
-    try:
-        case = (
-            db.query(Case)
-            .filter(Case.id == case_id)
-            .one_or_none()
-        )
+    console = get_console()
+    section_header(console, "Case Detail")
 
+    with db_session() as db:
+        case = db.get(Case, case_id)
         if case is None:
-            console.print(
-                "[bold red]Case not found.[/bold red]"
-            )
-            raise typer.Exit(code=1)
+            error(console, f"Case not found: {case_id}")
+            raise typer.Exit(code=ExitCode.NOT_FOUND)
 
-        table = Table(title="Case Details")
+        table = fact_table()
+        table.add_row("[field]Case ID:[/field]", case.id)
+        table.add_row("[field]Name:[/field]", case.name)
+        table.add_row("[field]Investigator:[/field]", case.investigator)
+        table.add_row("[field]Case Number:[/field]", case.case_number or "[dim]-[/dim]")
+        table.add_row("[field]Description:[/field]", case.description or "[dim]-[/dim]")
+        table.add_row("[field]Status:[/field]", case.status)
+        table.add_row("[field]Created At:[/field]", case.created_at.isoformat(sep=" ", timespec="seconds"))
+        console.print(Panel(table, border_style="brand", title="Case"))
 
-        table.add_column("Property", style="bold cyan")
-        table.add_column("Value")
-
-        table.add_row("Case ID", case.id)
-        table.add_row("Name", case.name)
-        table.add_row("Investigator", case.investigator)
-
-        table.add_row(
-            "Case Number",
-            case.case_number or "Not provided",
-        )
-
-        table.add_row(
-            "Description",
-            case.description or "Not provided",
-        )
-
-        table.add_row("Status", case.status)
-
-        table.add_row(
-            "Created",
-            str(case.created_at),
-        )
-
-        table.add_row(
-            "Evidence Items",
-            str(len(case.evidence_items)),
-        )
-
-        console.print(table)
-
-    finally:
-        db.close()
+        if case.evidence_items:
+            ev_table = Table(border_style="brand.dim", header_style="brand", title="Evidence")
+            ev_table.add_column("Evidence ID", no_wrap=True)
+            ev_table.add_column("Filename")
+            ev_table.add_column("Vendor")
+            ev_table.add_column("Status")
+            for ev in case.evidence_items:
+                ev_table.add_row(ev.id, ev.original_filename, ev.vendor or "[dim]-[/dim]", ev.status.value)
+            console.print(ev_table)
+        else:
+            console.print("[dim]No evidence registered for this case yet.[/dim]")

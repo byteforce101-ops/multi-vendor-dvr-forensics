@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dvr-forensics-platform"
+version = "0.1.0"
+description = "DVR Forensics Platform — backend, API, and dvrforensics CLI"
+requires-python = ">=3.11"
+readme = "README.md"
+dependencies = [
+    "fastapi>=0.110,<1.0",
+    "uvicorn[standard]>=0.27,<1.0",
+    "SQLAlchemy>=2.0,<3.0",
+    "alembic>=1.13,<2.0",
+    "psycopg[binary]>=3.1,<4.0",
+    "PyJWT[crypto]>=2.8,<3.0",
+    "python-dotenv>=1.0,<2.0",
+    "python-multipart>=0.0.9,<1.0",
+    "httpx>=0.27,<1.0",
+    "groq>=0.11,<1.0",
+    "ultralytics>=8.4,<9.0",
+    "av>=12.0,<15.0",
+    "typer>=0.12,<1.0",
+    "rich>=13.7,<14.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0,<9.0"]
+
+[project.scripts]
+dvrforensics = "backend.cli.main:app"
+
+[tool.setuptools.packages.find]
+include = ["backend*"]

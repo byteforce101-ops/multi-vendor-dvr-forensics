@@ -1,104 +1,49 @@
+"""dvrforensics detect PATH"""
+
+from __future__ import annotations
+
 from pathlib import Path
 
 import typer
-from rich.console import Console
 from rich.panel import Panel
-from rich.table import Table
 
-from backend.parsers.registry import ParserManager
+from backend.cli.common import require_file
+from backend.cli.exit_codes import ExitCode
+from backend.cli.theme import error, fact_table, get_console, human_size, section_header
 
-app = typer.Typer(
-    help="Detect the DVR vendor and parser for an evidence file."
-)
-
-console = Console()
-
-
-@app.callback(invoke_without_command=True)
 def detect(
-    ctx: typer.Context,
-    evidence_path: Path = typer.Argument(
-        ...,
-        exists=True,
-        file_okay=True,
-        dir_okay=False,
-        readable=True,
-        resolve_path=True,
-        help="Path to the evidence file.",
-    ),
-):
-    if ctx.invoked_subcommand is not None:
-        return
+    path: Path = typer.Argument(..., help="Path to the evidence file (.dd, .img, .mp4, ...)"),
+) -> None:
+    """Detect the vendor/parser for an evidence file without fully parsing it."""
+    from backend.parsers.registry import ParserManager
 
-    console.print(
-        Panel.fit(
-            "[bold cyan]DVR FORENSICS PLATFORM[/bold cyan]\n"
-            "Evidence Detection",
-            border_style="cyan",
-        )
-    )
+    console = get_console()
+    section_header(console, "Detect")
 
-    manager = ParserManager()
+    resolved = require_file(path, console)
+    size = resolved.stat().st_size
 
-    try:
-        parser, confidence, info = manager.detect(str(evidence_path))
-    except Exception as exc:
-        console.print(f"[bold red]Detection failed:[/bold red] {exc}")
-        raise typer.Exit(code=1)
+    with console.status("[brand]Scanning file signature...[/brand]", spinner="bouncingBar"):
+        parser, confidence, info = ParserManager().detect(str(resolved))
 
-    file_table = Table(show_header=False, box=None)
-    file_table.add_column(style="bold cyan")
-    file_table.add_column()
-
-    file_table.add_row("File", evidence_path.name)
-    file_table.add_row("Path", str(evidence_path))
-    file_table.add_row(
-        "Size",
-        f"{evidence_path.stat().st_size:,} bytes",
-    )
-
-    console.print(file_table)
-    console.print()
+    table = fact_table()
+    table.add_row("[field]File:[/field]", f"[path]{resolved}[/path]")
+    table.add_row("[field]Size:[/field]", f"{human_size(size)}  [dim]({size:,} bytes)[/dim]")
 
     if parser is None:
-        console.print(
-            Panel(
-                "[yellow]No supported parser detected for this evidence file.[/yellow]",
-                title="Detection Result",
-                border_style="yellow",
-            )
-        )
-        raise typer.Exit(code=2)
+        table.add_row("[field]Result:[/field]", "[err]No matching parser[/err]")
+        console.print(Panel(table, border_style="err", title="No Match"))
+        error(console, "No registered parser recognized this file.")
+        raise typer.Exit(code=ExitCode.UNSUPPORTED_VENDOR)
 
-    result_table = Table(
-        title="Detection Result",
-        show_header=True,
-    )
-
-    result_table.add_column("Property", style="bold cyan")
-    result_table.add_column("Value")
-
-    result_table.add_row("Vendor", parser.vendor_name)
-    result_table.add_row("Parser", parser.__class__.__name__)
-    result_table.add_row("Version", parser.parser_version)
-    result_table.add_row("Confidence", f"{confidence:.1%}")
-
-    console.print(result_table)
-
+    table.add_row("", "")
+    table.add_row("[field]Detected Vendor:[/field]", f"[ok]{parser.vendor_name}[/ok]")
+    table.add_row("[field]Parser:[/field]", type(parser).__name__)
+    table.add_row("[field]Parser Version:[/field]", parser.parser_version)
+    table.add_row("[field]Confidence:[/field]", f"{confidence * 100:.0f}%")
     if info:
-        metadata_table = Table(
-            title="Detection Metadata",
-            show_header=True,
-        )
-
-        metadata_table.add_column("Key", style="cyan")
-        metadata_table.add_column("Value")
-
+        table.add_row("", "")
         for key, value in info.items():
-            metadata_table.add_row(str(key), str(value))
+            table.add_row(f"[dim]{key}:[/dim]", str(value))
 
-        console.print(metadata_table)
-
-    console.print(
-        "\n[bold green]✓ Supported evidence format detected.[/bold green]"
-    )
+    console.print(Panel(table, border_style="brand", title="Detection Result"))

@@ -1,0 +1,24 @@
+Metadata-Version: 2.4
+Name: dvr-forensics-platform
+Version: 0.1.0
+Summary: DVR Forensics Platform — backend, API, and dvrforensics CLI
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+Requires-Dist: fastapi<1.0,>=0.110
+Requires-Dist: uvicorn[standard]<1.0,>=0.27
+Requires-Dist: SQLAlchemy<3.0,>=2.0
+Requires-Dist: alembic<2.0,>=1.13
+Requires-Dist: psycopg[binary]<4.0,>=3.1
+Requires-Dist: PyJWT[crypto]<3.0,>=2.8
+Requires-Dist: python-dotenv<2.0,>=1.0
+Requires-Dist: python-multipart<1.0,>=0.0.9
+Requires-Dist: httpx<1.0,>=0.27
+Requires-Dist: groq<1.0,>=0.11
+Requires-Dist: ultralytics<9.0,>=8.4
+Requires-Dist: av<15.0,>=12.0
+Requires-Dist: typer<1.0,>=0.12
+Requires-Dist: rich<14.0,>=13.7
+Provides-Extra: dev
+Requires-Dist: pytest<9.0,>=8.0; extra == "dev"
+
+hi lol

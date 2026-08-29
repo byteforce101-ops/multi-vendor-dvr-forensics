@@ -1,225 +1,121 @@
-from pathlib import Path
+"""dvrforensics extract PATH"""
+
+from __future__ import annotations
+
 import shutil
+from datetime import datetime
+from pathlib import Path
+from typing import Optional
 
 import typer
-from rich.console import Console
-from rich.panel import Panel
-from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 
-from backend.parsers.registry import ParserManager
+from backend.cli.common import require_file
+from backend.cli.exit_codes import ExitCode
+from backend.cli.theme import error, get_console, section_header, success, warn
 
-console = Console()
+DEFAULT_OUTPUT = "./recovered"
 
 
-def extract_evidence(
-    evidence_path: Path = typer.Argument(
-        ...,
-        exists=True,
-        file_okay=True,
-        dir_okay=False,
-        readable=True,
-        resolve_path=True,
-        help="Path to the DVR evidence file.",
+def extract(
+    path: Path = typer.Argument(..., help="Path to the evidence file"),
+    output: Path = typer.Option(DEFAULT_OUTPUT, "--output", help="Output directory for extracted recordings"),
+    camera: Optional[str] = typer.Option(
+        None, "--camera", help="[not yet supported by the parser layer] Filter to a single camera ID"
     ),
-    output: Path = typer.Option(
-        Path("./output/recovered"),
-        "--output",
-        "-o",
-        help="Directory where recovered recordings will be saved.",
+    recording: Optional[str] = typer.Option(
+        None, "--recording", help="[not yet supported by the parser layer] Filter to a single recording ID"
     ),
-):
-    console.print(
-        Panel.fit(
-            "[bold cyan]DVR FORENSICS PLATFORM[/bold cyan]\n"
-            "Evidence Extraction",
-            border_style="cyan",
-        )
-    )
+    from_time: Optional[datetime] = typer.Option(
+        None, "--from", help="[not yet supported by the parser layer] Only recordings starting at/after this time"
+    ),
+    to_time: Optional[datetime] = typer.Option(
+        None, "--to", help="[not yet supported by the parser layer] Only recordings starting at/before this time"
+    ),
+) -> None:
+    """Parse an evidence file, then extract every recoverable recording.
 
-    console.print(
-        f"[bold cyan]Evidence:[/bold cyan] {evidence_path}"
-    )
+    --camera/--recording/--from/--to are accepted now so scripts can be
+    written against a stable interface, but BaseDVRParser.extract_recordings
+    currently always operates on the full recording list returned by
+    parse() — there's no per-recording filtering hook in the parser layer
+    yet. Passing them prints a notice and extracts everything; wiring real
+    filtering through ParserManager.extract() is a parser-layer change, not
+    a CLI one.
+    """
+    from backend.parsers.registry import ParserManager
 
-    console.print(
-        f"[bold cyan]Output:[/bold cyan] {output.resolve()}"
-    )
+    console = get_console()
+    section_header(console, "Extract")
+
+    resolved = require_file(path, console)
+    output_dir = output.expanduser().resolve()
 
     if shutil.which("ffmpeg") is None:
-        console.print(
-            Panel(
-                "[bold red]ffmpeg was not found on PATH.[/bold red]\n\n"
-                "Hikvision recording extraction requires ffmpeg for "
-                "MPEG-PS/TS to MP4 muxing.",
-                title="Missing Dependency",
-                border_style="red",
-            )
-        )
-        raise typer.Exit(code=1)
+        error(console, "ffmpeg was not found on PATH. Extraction requires ffmpeg to mux recovered video.")
+        raise typer.Exit(code=ExitCode.MISSING_DEPENDENCY)
 
-    output.mkdir(parents=True, exist_ok=True)
+    if any([camera, recording, from_time, to_time]):
+        warn(
+            console,
+            "Recording filters (--camera/--recording/--from/--to) are accepted for forward "
+            "compatibility but not yet applied — the parser layer doesn't support filtered "
+            "extraction. All recoverable recordings will be extracted.",
+        )
 
     manager = ParserManager()
 
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        console=console,
-    ) as progress:
+    with console.status("[brand]Parsing evidence...[/brand]", spinner="arc"):
+        parse_result = manager.parse(str(resolved), str(output_dir))
 
-        task = progress.add_task(
-            "Parsing evidence...",
-            total=None,
+    for w in parse_result.warnings:
+        warn(console, w)
+
+    if not parse_result.success:
+        for e in parse_result.errors:
+            error(console, e)
+        raise typer.Exit(code=ExitCode.CORRUPTED_EVIDENCE)
+
+    if not parse_result.recordings:
+        warn(console, "No recordings found to extract.")
+        return
+
+    with console.status(
+        f"[brand]Extracting {len(parse_result.recordings)} recording(s) via ffmpeg...[/brand]",
+        spinner="dots",
+    ):
+        extract_result = manager.extract(str(resolved), str(output_dir), parse_result)
+
+    for w in extract_result.warnings:
+        warn(console, w)
+    for e in extract_result.errors:
+        error(console, e)
+
+    table = Table(border_style="brand.dim", header_style="brand", title="Extraction Results")
+    table.add_column("Recording ID")
+    table.add_column("Camera ID")
+    table.add_column("Recovery Status")
+    table.add_column("Extracted Path")
+
+    recovered = 0
+    for rec in extract_result.recordings:
+        style = {"ORIGINAL": "ok", "RECOVERED": "ok", "PARTIAL": "warn"}.get(rec.recovery_status, "dim")
+        if rec.recovery_status in ("ORIGINAL", "RECOVERED"):
+            recovered += 1
+        table.add_row(
+            rec.recording_id,
+            rec.camera_id,
+            f"[{style}]{rec.recovery_status}[/{style}]",
+            f"[path]{rec.extracted_path}[/path]" if rec.extracted_path else "[dim]-[/dim]",
         )
 
-        try:
-            parse_result = manager.parse(
-                str(evidence_path),
-                str(output),
-            )
-        except Exception as exc:
-            console.print(
-                f"[bold red]Parsing failed:[/bold red] {exc}"
-            )
-            raise typer.Exit(code=1)
+    console.print(table)
 
-        if not parse_result.success:
-            console.print(
-                Panel(
-                    "[bold red]Evidence parsing failed.[/bold red]",
-                    border_style="red",
-                )
-            )
+    if not extract_result.success:
+        error(console, f"Extraction completed with errors ({recovered}/{len(extract_result.recordings)} recovered). Output: {output_dir}")
+        raise typer.Exit(code=ExitCode.EXTRACTION_FAILED)
 
-            if parse_result.errors:
-                for error in parse_result.errors:
-                    console.print(f"[red]• {error}[/red]")
-
-            raise typer.Exit(code=1)
-
-        progress.update(
-            task,
-            description=(
-                f"Extracting {len(parse_result.recordings)} recording(s)..."
-            ),
-        )
-
-        try:
-            extraction_result = manager.extract(
-                str(evidence_path),
-                str(output),
-                parse_result,
-            )
-        except Exception as exc:
-            console.print(
-                f"[bold red]Extraction failed:[/bold red] {exc}"
-            )
-            raise typer.Exit(code=1)
-
-    recovered = [
-        recording
-        for recording in extraction_result.recordings
-        if recording.extracted_path
-    ]
-
-    partial = [
-        recording
-        for recording in extraction_result.recordings
-        if recording.recovery_status == "PARTIAL"
-    ]
-
-    summary = Table(title="Extraction Summary")
-
-    summary.add_column("Property", style="bold cyan")
-    summary.add_column("Value")
-
-    summary.add_row(
-        "Vendor",
-        extraction_result.vendor,
-    )
-
-    summary.add_row(
-        "Recordings Found",
-        str(len(parse_result.recordings)),
-    )
-
-    summary.add_row(
-        "Successfully Extracted",
-        str(len(recovered)),
-    )
-
-    summary.add_row(
-        "Partial / Skipped",
-        str(len(partial)),
-    )
-
-    summary.add_row(
-        "Output Directory",
-        str(output.resolve()),
-    )
-
-    console.print()
-    console.print(summary)
-
-    if recovered:
-        recordings_table = Table(
-            title="Recovered Recordings",
-            show_lines=True,
-        )
-
-        recordings_table.add_column(
-            "Recording ID",
-            style="cyan",
-        )
-        recordings_table.add_column("Camera")
-        recordings_table.add_column("Status")
-        recordings_table.add_column("Output File")
-
-        for recording in recovered:
-            recordings_table.add_row(
-                str(recording.recording_id),
-                str(recording.camera_id),
-                str(recording.recovery_status),
-                str(recording.extracted_path),
-            )
-
-        console.print()
-        console.print(recordings_table)
-
-    if extraction_result.warnings:
-        console.print("\n[bold yellow]Warnings:[/bold yellow]")
-
-        for warning in extraction_result.warnings:
-            console.print(
-                f"  [yellow]•[/yellow] {warning}"
-            )
-
-    if extraction_result.errors:
-        console.print("\n[bold red]Errors:[/bold red]")
-
-        for error in extraction_result.errors:
-            console.print(
-                f"  [red]•[/red] {error}"
-            )
-
-    if not extraction_result.success:
-        console.print(
-            "\n[bold red]✗ Extraction completed with errors.[/bold red]"
-        )
-        raise typer.Exit(code=1)
-
-    if len(recovered) == 0:
-        console.print(
-            "\n[bold yellow]⚠ Extraction completed, but no recordings could be recovered.[/bold yellow]"
-        )
-        raise typer.Exit(code=2)
-
-    if partial:
-        console.print(
-            "\n[bold yellow]⚠ Extraction completed with partial or skipped recordings.[/bold yellow]"
-        )
-        raise typer.Exit(code=2)
-
-    console.print(
-        "\n[bold green]✓ All recoverable recordings extracted successfully.[/bold green]"
-    )
+    if recovered == 0:
+        warn(console, f"No recordings could be recovered (0/{len(extract_result.recordings)}) — see warnings above.")
+    else:
+        success(console, f"Extracted {recovered}/{len(extract_result.recordings)} recording(s) to {output_dir}")

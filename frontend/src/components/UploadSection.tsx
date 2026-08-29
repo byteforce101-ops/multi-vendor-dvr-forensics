@@ -94,6 +94,7 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!selectedFile || isHashing) return;
     onBeginProcessing({
       caseName: caseName || 'V-2024-081A',
       evidenceId: evidenceId || `EVD-${Math.floor(100000 + Math.random() * 900000)}`,
@@ -252,9 +253,10 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
           id="btn-begin-processing"
           type="button"
           onClick={handleSubmit}
+          disabled={!selectedFile || isHashing}
           className="btn-primary-green px-6 py-3 rounded-full text-white text-[14px] font-semibold flex items-center space-x-2 tracking-wide cursor-pointer group"
         >
-          <span>Begin Processing</span>
+          <span>Begin Manual Processing</span>
           <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform stroke-[2.3]" />
         </button>
       </div>

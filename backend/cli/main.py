@@ -2,6 +2,7 @@ import typer
 
 from backend.cli import interactive
 from backend.cli.commands import case, detect, evidence
+from backend.cli.commands.analyze import analyze
 from backend.cli.commands.extract import extract_evidence
 from backend.cli.commands.parse import parse_evidence
 
@@ -49,6 +50,17 @@ app.command(
     help="Extract recoverable recordings from DVR evidence.",
 )(
     extract_evidence
+)
+
+# =========================================================
+# VIDEO ANALYSIS
+# =========================================================
+
+app.command(
+    "analyze",
+    help="Run video analysis, AI event reconstruction and forensic summary.",
+)(
+    analyze
 )
 
 

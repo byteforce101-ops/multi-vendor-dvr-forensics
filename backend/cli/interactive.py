@@ -1353,6 +1353,156 @@ def _run_and_print_integrity_checks(
 
 
 # =========================================================
+# OBJECT DISAPPEARANCE DETECTION
+# =========================================================
+
+def _detect_object_disappearances(console, events: list) -> list:
+    """
+    Detect objects that are repeatedly observed and then stop appearing.
+
+    This is a heuristic forensic observation. It does not prove that an
+    object was removed, stolen, hidden, or that the footage was manipulated.
+    """
+    from datetime import timedelta
+
+    section_header(console, "Object Disappearance Detection")
+
+    if not events:
+        warn(console, "No AI events available for object disappearance analysis.")
+        return []
+
+    observations = {}
+
+    for camera_id, event in events:
+        object_type = getattr(event, "object_type", None)
+        if not object_type:
+            continue
+
+        object_type = str(object_type).strip().lower()
+        if object_type in {"motion", "unknown", "none", ""}:
+            continue
+
+        start_time = getattr(event, "start_time", None)
+        end_time = getattr(event, "end_time", None) or start_time
+        if start_time is None:
+            continue
+
+        key = (str(camera_id or "CH-UNKNOWN"), object_type)
+        observations.setdefault(key, []).append(
+            {"start": start_time, "end": end_time, "event": event}
+        )
+
+    candidates = []
+
+    for (camera_id, object_type), items in observations.items():
+        items.sort(key=lambda item: item["start"])
+        if len(items) < 2:
+            continue
+
+        gaps = []
+        for previous, current in zip(items, items[1:]):
+            try:
+                gap = (current["start"] - previous["end"]).total_seconds()
+                if gap >= 0:
+                    gaps.append(gap)
+            except Exception:
+                pass
+
+        median_gap = 1.0
+        if gaps:
+            ordered = sorted(gaps)
+            median_gap = ordered[len(ordered) // 2]
+
+        disappearance_delay = max(2.0, median_gap * 3.0)
+        last_seen = max(item["end"] for item in items)
+        disappearance_time = last_seen + timedelta(seconds=disappearance_delay)
+
+        candidates.append(
+            {
+                "camera_id": camera_id,
+                "object_type": object_type,
+                "first_seen": items[0]["start"],
+                "last_seen": last_seen,
+                "disappearance_time": disappearance_time,
+                "observation_count": len(items),
+            }
+        )
+
+    if not candidates:
+        success(console, "No significant object disappearance patterns detected.")
+        return []
+
+    table = Table(
+        border_style="bright_cyan",
+        header_style="bold bright_cyan",
+        title=f"{len(candidates)} potential disappearance(s)",
+    )
+    table.add_column("Object")
+    table.add_column("Camera")
+    table.add_column("First Observed")
+    table.add_column("Last Observed")
+    table.add_column("No Longer Seen")
+    table.add_column("Observations")
+
+    for candidate in candidates:
+        table.add_row(
+            candidate["object_type"],
+            candidate["camera_id"],
+            candidate["first_seen"].isoformat(sep=" ", timespec="seconds"),
+            candidate["last_seen"].isoformat(sep=" ", timespec="seconds"),
+            candidate["disappearance_time"].isoformat(sep=" ", timespec="seconds"),
+            str(candidate["observation_count"]),
+        )
+
+    console.print(table)
+
+    for index, candidate in enumerate(candidates, start=1):
+        related = []
+        for camera_id, event in events:
+            if str(camera_id) != str(candidate["camera_id"]):
+                continue
+            event_start = getattr(event, "start_time", None)
+            if event_start is None or event_start < candidate["disappearance_time"]:
+                continue
+            event_type = getattr(event, "event_type", "activity")
+            event_object = getattr(event, "object_type", None)
+            related.append(
+                f"{event_start.isoformat(sep=' ', timespec='seconds')} → "
+                f"{event_type}"
+                + (f" ({event_object})" if event_object else "")
+            )
+
+        description = (
+            f"Object: {candidate['object_type']}\n\n"
+            f"Camera: {candidate['camera_id']}\n\n"
+            f"First observed : {candidate['first_seen'].isoformat(sep=' ', timespec='seconds')}\n"
+            f"Last observed  : {candidate['last_seen'].isoformat(sep=' ', timespec='seconds')}\n"
+            f"No longer seen : {candidate['disappearance_time'].isoformat(sep=' ', timespec='seconds')}\n\n"
+            f"Observations   : {candidate['observation_count']}\n\n"
+            "Related activity after disappearance:\n"
+        )
+
+        description += "\n".join(f"• {item}" for item in related[:3]) if related else "No subsequent AI-detected activity was available."
+
+        console.print()
+        console.print(
+            Panel(
+                description,
+                title=f"OBJECT DISAPPEARANCE #{index}",
+                border_style="yellow",
+                expand=False,
+            )
+        )
+
+    warn(
+        console,
+        "Object disappearance is a forensic observation. It does not prove that the object was removed, stolen, hidden, or that the footage was manipulated.",
+    )
+
+    return candidates
+
+
+# =========================================================
 # MAIN PIPELINE
 # =========================================================
 
@@ -1809,6 +1959,15 @@ def _run_pipeline_once(console) -> None:
     integrity_results = _run_and_print_integrity_checks(
         console,
         recovered,
+    )
+
+    # =========================================================
+    # OBJECT DISAPPEARANCE DETECTION
+    # =========================================================
+
+    object_disappearance_results = _detect_object_disappearances(
+        console,
+        all_events,
     )
 
     # =========================================================

@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Menu, User, ShieldCheck, LogOut, Key } from 'lucide-react';
+import { Menu, User, ShieldCheck, LogOut, Key, CheckCircle2, ChevronDown, Layers, FileVideo, Database, Sparkles } from 'lucide-react';
 import { SupabaseUser } from '../types';
 import { TraceXLogo } from './TraceXLogo';
 
 interface HeaderProps {
   user: SupabaseUser;
+  activeNav: string;
   onNavChange: (nav: string) => void;
   onOpenAuth: () => void;
   onOpenActivityLog: () => void;
@@ -15,6 +16,7 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({
   user,
+  activeNav,
   onNavChange,
   onOpenAuth,
   onOpenActivityLog,
@@ -61,6 +63,13 @@ export const Header: React.FC<HeaderProps> = ({
               </span>
             </div>
           </div>
+        </div>
+
+        {/* Center: Current Context Badge */}
+        <div className="hidden md:flex items-center space-x-2 bg-[#eae2d5] border border-[#ded5c7] px-3.5 py-1.5 rounded-full text-xs text-[#4a423a]">
+          <span className="w-2 h-2 rounded-full bg-[#3b5749] animate-pulse"></span>
+          <span className="font-medium text-[#221e1b]">Active View:</span>
+          <span className="font-bold text-[#0f2338]">{activeNav}</span>
         </div>
 
         {/* Right: Quick Audit & User Profile */}

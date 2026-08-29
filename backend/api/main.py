@@ -454,7 +454,6 @@ def extract_evidence(
 
     return evidence
 
-<<<<<<< HEAD
 from pydantic import BaseModel
 from backend.db.models import Event
 from backend.db.schemas import EventRead
@@ -508,7 +507,6 @@ def search_case(case_id: str, payload: SearchRequest, db: Session = Depends(get_
     _require_case_access(case, user)
     service = SearchService(EventsRepository(db))
     return service.search(case_id=case_id, nl_query=payload.query)
-=======
 
 # =========================================================
 # AI VIDEO ANALYSIS
@@ -812,4 +810,3 @@ async def analyze_video(
 
         "timeline": timeline,
     }
->>>>>>> 905f04ca105dd3d99ea7785585c8d3ab1d005b7a

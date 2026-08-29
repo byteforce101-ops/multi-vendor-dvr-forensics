@@ -5,6 +5,7 @@ import { PipelineStep } from '../types';
 
 interface ProcessPipelineProps {
   currentStepId: number;
+  onSelectStep?: (stepId: number) => void;
 }
 
 const DEFAULT_STEPS: PipelineStep[] = [
@@ -21,6 +22,7 @@ const DEFAULT_STEPS: PipelineStep[] = [
 
 export const ProcessPipeline: React.FC<ProcessPipelineProps> = ({
   currentStepId = 3,
+  onSelectStep,
 }) => {
   return (
     <motion.section 
@@ -36,7 +38,7 @@ export const ProcessPipeline: React.FC<ProcessPipelineProps> = ({
             Process Pipeline
           </h1>
           <p className="text-[13.5px] sm:text-[14px] text-[#5c544c] mt-1 font-['Manrope',sans-serif] font-normal">
-            Complete each forensic stage manually. The highlighted step is the next action in your verified evidence path.
+            Ensure evidentiary integrity by following the verified path. Your current progress is highlighted below.
           </p>
         </div>
 
@@ -47,7 +49,7 @@ export const ProcessPipeline: React.FC<ProcessPipelineProps> = ({
 
       {/* Stepper Bar Container */}
       <div className="overflow-x-auto pb-2 scrollbar-none">
-        <div className="min-w-[1120px] relative px-3">
+        <div className="min-w-[760px] relative px-3">
           {/* Background Connecting Line */}
           <div 
             className="absolute top-[17px] left-[32px] right-[32px] h-[2px] bg-[#e3dad0] z-0" 
@@ -74,7 +76,8 @@ export const ProcessPipeline: React.FC<ProcessPipelineProps> = ({
               return (
                 <div
                   key={step.id}
-                  className="flex flex-col items-center group"
+                  onClick={() => onSelectStep && onSelectStep(step.id)}
+                  className="flex flex-col items-center group cursor-pointer"
                   style={{ width: `${100 / DEFAULT_STEPS.length}%` }}
                 >
                   {/* Circle Node */}
@@ -100,7 +103,7 @@ export const ProcessPipeline: React.FC<ProcessPipelineProps> = ({
 
                   {/* Label */}
                   <span
-                    className={`mt-2.5 min-h-[2.4rem] w-full max-w-[120px] px-1 text-[12px] sm:text-[12.5px] text-center whitespace-normal break-words transition-colors ${
+                    className={`mt-2.5 text-[12px] sm:text-[12.5px] text-center whitespace-nowrap transition-colors ${
                       isActive
                         ? 'font-bold text-[#1b4e39]'
                         : isCompleted

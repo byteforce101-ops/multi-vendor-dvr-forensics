@@ -122,6 +122,7 @@ export default function App() {
         {/* Header Bar */}
         <Header
           user={currentUser}
+          activeNav={activeNav}
           onNavChange={(nav) => setActiveNav(nav as any)}
           onOpenAuth={() => setIsAuthModalOpen(true)}
           onOpenActivityLog={() => setIsActivityLogOpen(true)}
@@ -137,7 +138,8 @@ export default function App() {
               {/* Top Stepper Card */}
               <ProcessPipeline
                 currentStepId={currentStepId}
-                  />
+                onSelectStep={(stepId) => setCurrentStepId(stepId)}
+              />
 
               {/* Middle Section: 2 Columns */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-7 items-stretch">
@@ -189,9 +191,7 @@ export default function App() {
         file={uploadedFile}
         onCompleteStep={(stepId) => {
           setCurrentStepId(stepId);
-          if (stepId >= 8) {
-            setActiveNav('Analyses');
-          }
+          setActiveNav('Analyses');
         }}
       />
 

@@ -51,6 +51,28 @@ def import_evidence(db: Session, case_id: str, source_path: str) -> Evidence:
     db.refresh(evidence)
     return evidence
 
+def reference_evidence(db: Session, case_id: str, source_path: str) -> Evidence:
+    """Register existing evidence without copying or modifying the source file."""
+
+    source = Path(source_path).resolve()
+
+    if not source.is_file():
+        raise FileNotFoundError(source)
+
+    evidence = Evidence(
+        case_id=case_id,
+        original_filename=source.name,
+        original_path=str(source),
+        working_copy_path=str(source),
+        status=EvidenceStatus.ACQUIRED,
+    )
+
+    db.add(evidence)
+    db.commit()
+    db.refresh(evidence)
+
+    return evidence
+
 
 def import_uploaded_evidence(db: Session, case_id: str, upload) -> Evidence:
     """Stage a browser upload before passing it through the normal evidence workflow."""
@@ -85,3 +107,4 @@ def verify_evidence(db: Session, evidence: Evidence) -> Evidence:
     db.commit()
     db.refresh(evidence)
     return evidence
+

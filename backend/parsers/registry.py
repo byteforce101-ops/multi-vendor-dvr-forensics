@@ -6,13 +6,14 @@ nothing else in the app should need to change to add one.
 
 from backend.parsers.common.base import BaseDVRParser, ParseResult, ParseError
 from backend.parsers.hikvision.parser import HikvisionParser
+from backend.parsers.heimvision.parser import HeimVisionParser
 from backend.parsers.generic.parser import GenericVideoParser
-
 # Order matters: more specific/proprietary parsers should be tried before
 # the generic fallback. Dahua's parser slots in here once it exists.
 PARSERS: list[BaseDVRParser] = [
     HikvisionParser(),
-    GenericVideoParser(),  # fallback — always matches known container formats
+    HeimVisionParser(),
+    GenericVideoParser(),
 ]
 
 

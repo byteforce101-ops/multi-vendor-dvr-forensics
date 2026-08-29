@@ -2,12 +2,14 @@ README.md
 pyproject.toml
 backend/ai/detectors/yolo_detector.py
 backend/ai/events/event_builder.py
+backend/ai/events/incident_heuristics.py
 backend/ai/pipeline/ai_service.py
 backend/api/auth.py
 backend/api/main.py
 backend/cli/__init__.py
 backend/cli/common.py
 backend/cli/exit_codes.py
+backend/cli/interactive.py
 backend/cli/main.py
 backend/cli/theme.py
 backend/cli/commands/__init__.py

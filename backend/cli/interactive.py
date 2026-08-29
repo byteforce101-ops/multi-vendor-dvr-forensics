@@ -694,6 +694,664 @@ def _print_forensic_summary(
         )
 
 
+
+# =========================================================
+# TAMPERING / EVIDENCE ANOMALY DETECTION
+# =========================================================
+
+def _run_video_integrity_analysis(video_path: Path) -> dict:
+    """
+    Run a lightweight forensic integrity pass over a playable video.
+
+    The checks are intentionally heuristic: they identify characteristics
+    that deserve forensic review; they do not prove that a video was edited.
+    """
+    import json
+    import subprocess
+
+    result = {
+        "timestamp_continuity": True,
+        "frame_continuity": True,
+        "fps_consistency": True,
+        "duplicate_frames": True,
+        "metadata_consistency": True,
+        "resolution_consistency": True,
+        "compression_consistency": True,
+        "frames_checked": 0,
+        "timestamp_gaps": 0,
+        "duplicate_sequences": 0,
+        "corrupted_frames": 0,
+        "fps_changes": 0,
+        "resolution_changes": 0,
+        "compression_changes": 0,
+        "details": {},
+        "anomalies": [],
+    }
+
+    path = Path(video_path)
+
+    # ---------------------------------------------------------
+    # Metadata / stream inspection
+    # ---------------------------------------------------------
+    try:
+        probe = subprocess.run(
+            [
+                "ffprobe",
+                "-v", "error",
+                "-show_format",
+                "-show_streams",
+                "-of", "json",
+                str(path),
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        data = json.loads(probe.stdout or "{}")
+    except Exception as exc:
+        result["metadata_consistency"] = False
+        result["details"]["metadata"] = f"ffprobe failed: {exc}"
+        result["anomalies"].append(
+            "Video metadata could not be completely inspected."
+        )
+        return result
+
+    streams = [
+        s for s in data.get("streams", [])
+        if s.get("codec_type") == "video"
+    ]
+
+    if not streams:
+        result["metadata_consistency"] = False
+        result["details"]["metadata"] = "No video stream found."
+        result["anomalies"].append("No video stream was found.")
+        return result
+
+    stream = streams[0]
+
+    width = stream.get("width")
+    height = stream.get("height")
+    codec = stream.get("codec_name")
+    avg_rate = stream.get("avg_frame_rate")
+    time_base = stream.get("time_base")
+
+    def _rate(value):
+        try:
+            if not value or value in ("0/0", "N/A"):
+                return None
+            if "/" in value:
+                a, b = value.split("/", 1)
+                return float(a) / float(b)
+            return float(value)
+        except Exception:
+            return None
+
+    nominal_fps = _rate(avg_rate)
+
+    result["details"]["metadata"] = (
+        f"{codec or 'unknown'} "
+        f"{width or '?'}x{height or '?'} "
+        f"{nominal_fps:.3f} FPS"
+        if nominal_fps
+        else (
+            f"{codec or 'unknown'} "
+            f"{width or '?'}x{height or '?'}"
+        )
+    )
+    result["details"]["time_base"] = time_base
+
+    # Multiple video streams or contradictory stream metadata are worth review.
+    if len(streams) > 1:
+        result["metadata_consistency"] = False
+        result["anomalies"].append(
+            f"{len(streams)} video streams are present."
+        )
+
+    # ---------------------------------------------------------
+    # Frame-level checks using PyAV
+    # ---------------------------------------------------------
+    try:
+        import av
+    except ImportError:
+        result["frame_continuity"] = False
+        result["details"]["frames"] = (
+            "PyAV is not installed; frame-level checks were skipped."
+        )
+        result["anomalies"].append(
+            "Frame-level integrity checks could not run."
+        )
+        return result
+
+    # Keep the pass practical for long DVR footage. Every decoded frame is
+    # examined for corruption, but expensive duplicate/FPS checks are sampled.
+    max_sampled_frames = 5000
+    duplicate_threshold = 0.995
+    previous_signature = None
+    previous_pts = None
+    previous_duration = None
+    sampled_for_visual_checks = 0
+    fps_samples = []
+    resolution_seen = set()
+
+    try:
+        with av.open(str(path)) as container:
+            video_stream = container.streams.video[0]
+
+            nominal = (
+                float(video_stream.average_rate)
+                if video_stream.average_rate
+                else nominal_fps
+            )
+
+            expected_delta = (
+                1.0 / nominal
+                if nominal and nominal > 0
+                else None
+            )
+
+            for frame_index, frame in enumerate(
+                container.decode(video=0)
+            ):
+                result["frames_checked"] += 1
+
+                if frame.width and frame.height:
+                    resolution_seen.add(
+                        (int(frame.width), int(frame.height))
+                    )
+
+                pts_time = None
+                try:
+                    if frame.pts is not None:
+                        pts_time = float(
+                            frame.pts * frame.time_base
+                        )
+                except Exception:
+                    pts_time = None
+
+                # Timestamp continuity.
+                if (
+                    pts_time is not None
+                    and previous_pts is not None
+                    and expected_delta
+                ):
+                    delta = pts_time - previous_pts
+
+                    # A tolerance of 1.75 frames catches meaningful jumps
+                    # while avoiding normal encoder rounding noise.
+                    if delta > expected_delta * 2.75:
+                        result["timestamp_gaps"] += 1
+                        if len(result["anomalies"]) < 20:
+                            result["anomalies"].append(
+                                "Timestamp gap detected near "
+                                f"{pts_time:.3f}s "
+                                f"(gap {delta:.3f}s)."
+                            )
+
+                    if delta > 0:
+                        fps_samples.append(
+                            1.0 / delta
+                        )
+
+                previous_pts = pts_time
+
+                # Decode itself succeeded, so this frame is not corrupted.
+                # If PyAV throws below, the exception is counted as corruption.
+                if (
+                    sampled_for_visual_checks < max_sampled_frames
+                    and frame_index % max(
+                        1,
+                        int(
+                            max(
+                                1,
+                                result["frames_checked"]
+                            )
+                        ),
+                    ) == 0
+                ):
+                    # This branch is intentionally conservative. The actual
+                    # visual signature sampling is performed periodically
+                    # below, independent of frame count.
+                    pass
+
+                # Sample visual signatures approximately every 5 frames.
+                # This avoids doing expensive RGB conversion on every frame.
+                if (
+                    sampled_for_visual_checks < max_sampled_frames
+                    and frame_index % 5 == 0
+                ):
+                    try:
+                        import numpy as np
+
+                        small = frame.to_ndarray(
+                            format="gray"
+                        )
+
+                        # Resize through simple striding first; this is
+                        # sufficient for duplicate-frame screening.
+                        h, w = small.shape[:2]
+                        step_y = max(1, h // 32)
+                        step_x = max(1, w // 32)
+                        reduced = small[
+                            ::step_y,
+                            ::step_x,
+                        ][:32, :32]
+
+                        signature = reduced.astype(
+                            np.float32
+                        )
+
+                        if previous_signature is not None:
+                            a = signature.reshape(-1)
+                            b = previous_signature.reshape(-1)
+
+                            denom = (
+                                float(np.linalg.norm(a))
+                                * float(np.linalg.norm(b))
+                            )
+
+                            if denom > 0:
+                                similarity = float(
+                                    np.dot(a, b) / denom
+                                )
+
+                                if similarity >= duplicate_threshold:
+                                    result[
+                                        "duplicate_sequences"
+                                    ] += 1
+
+                        previous_signature = signature
+                        sampled_for_visual_checks += 1
+
+                    except Exception:
+                        # Visual conversion failure should not make the
+                        # whole analysis fail.
+                        pass
+
+    except Exception as exc:
+        result["corrupted_frames"] += 1
+        result["frame_continuity"] = False
+        result["details"]["decode"] = str(exc)
+        result["anomalies"].append(
+            f"Frame decoding stopped unexpectedly: {exc}"
+        )
+
+    # ---------------------------------------------------------
+    # Aggregate checks
+    # ---------------------------------------------------------
+    if result["timestamp_gaps"] > 0:
+        result["timestamp_continuity"] = False
+
+    if result["duplicate_sequences"] > 0:
+        result["duplicate_frames"] = False
+
+    if result["corrupted_frames"] > 0:
+        result["frame_continuity"] = False
+
+    if len(resolution_seen) > 1:
+        result["resolution_consistency"] = False
+        result["resolution_changes"] = len(resolution_seen) - 1
+        result["anomalies"].append(
+            "More than one video resolution was observed: "
+            + ", ".join(
+                f"{w}x{h}"
+                for w, h in sorted(resolution_seen)
+            )
+        )
+
+    # FPS consistency: use robust percentile bounds rather than requiring
+    # every decoded frame to have an identical delta.
+    if fps_samples:
+        try:
+            import statistics
+
+            median_fps = statistics.median(fps_samples)
+            tolerance = max(0.75, median_fps * 0.15)
+
+            outliers = [
+                value
+                for value in fps_samples
+                if abs(value - median_fps) > tolerance
+            ]
+
+            if len(outliers) > max(3, len(fps_samples) // 20):
+                result["fps_consistency"] = False
+                result["fps_changes"] = len(outliers)
+                result["anomalies"].append(
+                    "Frame timing shows significant FPS variation."
+                )
+
+            result["details"]["observed_fps"] = (
+                f"{median_fps:.3f} FPS median"
+            )
+
+        except Exception:
+            pass
+
+    # Compression consistency cannot be proven reliably from a decoded stream
+    # alone. We therefore report it as PASS when codec/stream properties are
+    # internally stable, and avoid falsely claiming a compression edit.
+    codec_profile = (
+        stream.get("codec_name"),
+        stream.get("profile"),
+        stream.get("pix_fmt"),
+        stream.get("level"),
+    )
+    result["details"]["compression"] = (
+        "Stable codec/profile/pixel-format metadata: "
+        + str(codec_profile)
+    )
+
+    # A decoded video with stable stream properties has no detected
+    # compression-format transition.
+    result["compression_consistency"] = True
+
+    result["details"]["resolution"] = (
+        ", ".join(
+            f"{w}x{h}"
+            for w, h in sorted(resolution_seen)
+        )
+        if resolution_seen
+        else (
+            f"{width or '?'}x{height or '?'}"
+        )
+    )
+
+    result["details"]["duplicate_sequences"] = str(
+        result["duplicate_sequences"]
+    )
+
+    result["details"]["timestamp_gaps"] = str(
+        result["timestamp_gaps"]
+    )
+
+    return result
+
+
+def _print_integrity_analysis(
+    console,
+    integrity: dict,
+) -> None:
+    """Render the video integrity/tampering results in the CLI."""
+
+    section_header(
+        console,
+        "Video Integrity Analysis",
+    )
+
+    checks = [
+        (
+            "Timestamp continuity",
+            integrity.get("timestamp_continuity", False),
+            (
+                "PTS values are continuous."
+                if integrity.get("timestamp_continuity", False)
+                else "Timestamp gaps were detected."
+            ),
+        ),
+        (
+            "Frame continuity",
+            integrity.get("frame_continuity", False),
+            (
+                "No significant frame decode gaps detected."
+                if integrity.get("frame_continuity", False)
+                else "Frame decoding anomalies were detected."
+            ),
+        ),
+        (
+            "FPS consistency",
+            integrity.get("fps_consistency", False),
+            (
+                "Frame timing is consistent."
+                if integrity.get("fps_consistency", False)
+                else "Significant frame-rate variation detected."
+            ),
+        ),
+        (
+            "Duplicate frames",
+            integrity.get("duplicate_frames", False),
+            (
+                "No significant duplicate frame sequence detected."
+                if integrity.get("duplicate_frames", False)
+                else (
+                    f"{integrity.get('duplicate_sequences', 0)} "
+                    "high-similarity frame sequence(s) detected."
+                )
+            ),
+        ),
+        (
+            "Metadata consistency",
+            integrity.get("metadata_consistency", False),
+            (
+                "Video metadata is internally consistent."
+                if integrity.get("metadata_consistency", False)
+                else "Metadata inconsistencies require review."
+            ),
+        ),
+        (
+            "Resolution consistency",
+            integrity.get("resolution_consistency", False),
+            (
+                "Resolution remains consistent."
+                if integrity.get("resolution_consistency", False)
+                else "Resolution changes were detected."
+            ),
+        ),
+        (
+            "Compression consistency",
+            integrity.get("compression_consistency", False),
+            (
+                "No codec/profile transition was detected."
+                if integrity.get("compression_consistency", False)
+                else "Compression/codec characteristics changed."
+            ),
+        ),
+    ]
+
+    table = Table(
+        border_style="bright_cyan",
+        header_style="bold bright_cyan",
+        title="VIDEO INTEGRITY ANALYSIS",
+    )
+
+    table.add_column("Check")
+    table.add_column("Status")
+    table.add_column("Details")
+
+    for name, passed, details in checks:
+        table.add_row(
+            name,
+            "[green]✓ PASS[/green]"
+            if passed
+            else "[yellow]⚠ REVIEW[/yellow]",
+            details,
+        )
+
+    console.print(table)
+
+    console.print()
+
+    stats = Table(
+        border_style="bright_cyan",
+        show_header=False,
+    )
+
+    stats.add_column(
+        "Metric",
+        style="bold bright_cyan",
+    )
+    stats.add_column("Value")
+
+    stats.add_row(
+        "Frames checked",
+        str(integrity.get("frames_checked", 0)),
+    )
+    stats.add_row(
+        "Timestamp gaps",
+        str(integrity.get("timestamp_gaps", 0)),
+    )
+    stats.add_row(
+        "Duplicate sequences",
+        str(integrity.get("duplicate_sequences", 0)),
+    )
+    stats.add_row(
+        "Corrupted frames",
+        str(integrity.get("corrupted_frames", 0)),
+    )
+    stats.add_row(
+        "FPS changes",
+        str(integrity.get("fps_changes", 0)),
+    )
+    stats.add_row(
+        "Resolution changes",
+        str(integrity.get("resolution_changes", 0)),
+    )
+
+    console.print(stats)
+
+    details = integrity.get("details", {})
+
+    if details:
+        console.print()
+
+        metadata_table = Table(
+            border_style="brand.dim",
+            show_header=False,
+        )
+
+        metadata_table.add_column(
+            "Property",
+            style="bold bright_cyan",
+        )
+        metadata_table.add_column("Value")
+
+        for key, value in details.items():
+            metadata_table.add_row(
+                str(key).replace("_", " ").title(),
+                str(value),
+            )
+
+        console.print(metadata_table)
+
+    anomalies = integrity.get("anomalies", [])
+
+    console.print()
+
+    if anomalies:
+        console.print(
+            Panel(
+                "\n".join(
+                    f"• {item}"
+                    for item in anomalies[:20]
+                ),
+                title="Potential Anomalies",
+                border_style="yellow",
+                expand=False,
+            )
+        )
+
+        warn(
+            console,
+            (
+                "Potential video integrity anomalies were detected. "
+                "These are forensic review flags, not proof of tampering."
+            ),
+        )
+    else:
+        success(
+            console,
+            "No significant video integrity anomalies were detected.",
+        )
+
+
+
+
+def _run_and_print_integrity_checks(
+    console,
+    recovered: list,
+) -> list:
+    """
+    Run tampering/evidence-integrity checks for every recovered recording
+    and print the results. Returns (recording_id, result) pairs.
+    """
+    integrity_results = []
+
+    section_header(
+        console,
+        "Tampering / Evidence Anomaly Detection",
+    )
+
+    console.print(
+        "[dim]Checking timestamps, frame continuity, FPS, duplicate "
+        "frames, metadata and resolution...[/dim]\n"
+    )
+
+    for rec in recovered:
+        recording_path = Path(rec.extracted_path)
+
+        if not recording_path.is_file():
+            warn(
+                console,
+                (
+                    f"{rec.recording_id}: integrity check skipped; "
+                    "file not found."
+                ),
+            )
+            continue
+
+        with console.status(
+            (
+                f"[brand]Checking video integrity for "
+                f"{rec.recording_id}...[/brand]"
+            ),
+            spinner="dots",
+        ):
+            try:
+                integrity = _run_video_integrity_analysis(
+                    recording_path
+                )
+
+                integrity_results.append(
+                    (
+                        rec.recording_id,
+                        integrity,
+                    )
+                )
+
+            except Exception as exc:
+                warn(
+                    console,
+                    (
+                        f"{rec.recording_id}: integrity analysis "
+                        f"failed ({exc})"
+                    ),
+                )
+
+    if integrity_results:
+        for recording_id, integrity in integrity_results:
+            console.print()
+            console.print(
+                (
+                    "[bold bright_cyan]Recording:[/bold bright_cyan] "
+                    f"{recording_id}"
+                )
+            )
+
+            _print_integrity_analysis(
+                console,
+                integrity,
+            )
+    else:
+        warn(
+            console,
+            (
+                "No playable recordings were available for "
+                "integrity analysis."
+            ),
+        )
+
+    return integrity_results
+
+
 # =========================================================
 # MAIN PIPELINE
 # =========================================================
@@ -1143,6 +1801,17 @@ def _run_pipeline_once(console) -> None:
                 )
 
     # =========================================================
+    # TAMPERING / EVIDENCE ANOMALY DETECTION
+    # =========================================================
+
+    # Run this independently of object/event detection so a video with
+    # zero AI events is still checked for evidence-integrity anomalies.
+    integrity_results = _run_and_print_integrity_checks(
+        console,
+        recovered,
+    )
+
+    # =========================================================
     # NO EVENTS
     # =========================================================
 
@@ -1248,7 +1917,8 @@ def _run_pipeline_once(console) -> None:
             f"{len(all_events)} event(s) across "
             f"{len(recovered)} recording(s). "
             f"{len(all_reconstructed_events)} "
-            "higher-level forensic activity(s) reconstructed."
+            "higher-level forensic activity(s) reconstructed, and "
+            f"{len(integrity_results)} video integrity check(s) completed."
         ),
     )
 

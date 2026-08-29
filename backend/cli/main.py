@@ -1,5 +1,6 @@
 import typer
 
+from backend.cli import interactive
 from backend.cli.commands import case, detect, evidence
 from backend.cli.commands.extract import extract_evidence
 from backend.cli.commands.parse import parse_evidence
@@ -7,8 +8,15 @@ from backend.cli.commands.parse import parse_evidence
 
 app = typer.Typer(
     help="DVR Forensics Platform Command Line Interface",
-    no_args_is_help=True,
+    no_args_is_help=False,
 )
+
+
+@app.callback(invoke_without_command=True)
+def main(ctx: typer.Context):
+    """DVR Forensics Platform Command Line Interface."""
+    if ctx.invoked_subcommand is None:
+        interactive.run()
 
 
 app.add_typer(

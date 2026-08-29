@@ -51,6 +51,28 @@ def import_evidence(db: Session, case_id: str, source_path: str) -> Evidence:
     db.refresh(evidence)
     return evidence
 
+def reference_evidence(db: Session, case_id: str, source_path: str) -> Evidence:
+    """Register existing evidence without copying or modifying the source file."""
+
+    source = Path(source_path).resolve()
+
+    if not source.is_file():
+        raise FileNotFoundError(source)
+
+    evidence = Evidence(
+        case_id=case_id,
+        original_filename=source.name,
+        original_path=str(source),
+        working_copy_path=str(source),
+        status=EvidenceStatus.ACQUIRED,
+    )
+
+    db.add(evidence)
+    db.commit()
+    db.refresh(evidence)
+
+    return evidence
+
 
 def import_uploaded_evidence(db: Session, case_id: str, upload) -> Evidence:
     """Stage a browser upload before passing it through the normal evidence workflow."""
@@ -86,76 +108,3 @@ def verify_evidence(db: Session, evidence: Evidence) -> Evidence:
     db.refresh(evidence)
     return evidence
 
-
-def import_evidence_reference(db: Session, case_id: str, source_path: str) -> Evidence:
-    """Register evidence in place, without copying it.
-
-    Multi-gigabyte/terabyte raw disk images are often impractical to
-    duplicate onto local disk just to run the CLI against them. In this
-    mode `original_path` and `working_copy_path` both point at the
-    caller-supplied file — the file itself is never written to, but unlike
-    `import_evidence`, this tool cannot guarantee the file's permissions or
-    that nothing else on the system can touch it. Callers should mount/copy
-    such evidence read-only or write-blocked at the OS/hardware level
-    before using this mode; the CLI surfaces a warning to that effect.
-    """
-    if not os.path.isfile(source_path):
-        raise FileNotFoundError(source_path)
-
-    resolved = str(Path(source_path).resolve())
-    evidence = Evidence(
-        case_id=case_id,
-        original_filename=os.path.basename(resolved),
-        original_path=resolved,
-        working_copy_path=resolved,
-        status=EvidenceStatus.ACQUIRED,
-    )
-    db.add(evidence)
-    db.commit()
-    db.refresh(evidence)
-    return evidence
-
-
-def import_and_verify_evidence(
-    db: Session,
-    case_id: str,
-    source_path: str,
-    chunk_size: int | None = None,
-    on_progress=None,
-) -> tuple[Evidence, bool]:
-    """Copy-mode acquisition with an explicit original-vs-working-copy check.
-
-    Hashes the source file before copying, runs the existing
-    `import_evidence` copy flow unchanged, then hashes the resulting working
-    copy and compares the two digests. This is the integrity guarantee that
-    matters at acquisition time (did the copy operation preserve the
-    original bit-for-bit) — separate from `verify_evidence`, which re-checks
-    a working copy against its own previously stored hash later on.
-
-    Returns (evidence, hashes_matched). Evidence.status is left as
-    VERIFIED or TAMPERED accordingly and evidence.sha256/md5 are set to the
-    original file's digest.
-    """
-    from backend.core.integrity.hashing import compute_hashes_with_progress
-
-    kwargs = {}
-    if chunk_size is not None:
-        kwargs["chunk_size"] = chunk_size
-
-    original_hashes = compute_hashes_with_progress(
-        source_path, on_progress=on_progress, **kwargs
-    )
-
-    evidence = import_evidence(db, case_id, source_path)
-
-    working_hashes = compute_hashes_with_progress(
-        evidence.working_copy_path, on_progress=on_progress, **kwargs
-    )
-
-    matched = original_hashes["sha256"] == working_hashes["sha256"]
-    evidence.sha256 = original_hashes["sha256"]
-    evidence.md5 = original_hashes["md5"]
-    evidence.status = EvidenceStatus.VERIFIED if matched else EvidenceStatus.TAMPERED
-    db.commit()
-    db.refresh(evidence)
-    return evidence, matched

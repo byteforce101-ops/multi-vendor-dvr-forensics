@@ -9,4 +9,4 @@ backend/forensics.db
 __pycache__/
 *.pyc
 node_modules/
-output/.venv/
+output/

@@ -7,10 +7,6 @@ from pathlib import Path
 from backend.ai.pipeline.ai_service import (
     AIService,
 )
-
-from backend.ai.events.incident_heuristics import (
-    detect_incident_candidates,
-)
 from backend.ai.events.event_builder import (
     build_detection_events,
 )
@@ -117,10 +113,6 @@ class VideoAnalysisService:
             detections
         )
 
-        incident_flags = detect_incident_candidates(
-            detections
-        )
-
         converted_motion_events: list[VideoEvent] = []
 
         for motion in motion_events:
@@ -152,10 +144,7 @@ class VideoAnalysisService:
         all_events = (
             converted_motion_events
             + ai_events
-            + incident_flags
         )
-
-
 
         all_events.sort(
             key=lambda event: event.start_time

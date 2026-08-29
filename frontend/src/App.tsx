@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import type { Session } from '@supabase/supabase-js';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 import { ProcessPipeline } from './components/ProcessPipeline';
@@ -6,32 +7,79 @@ import { UploadSection } from './components/UploadSection';
 import { ChainOfCustody } from './components/ChainOfCustody';
 import { ArchitectureSection } from './components/ArchitectureSection';
 import { Footer } from './components/Footer';
-import { ProcessingModal } from './components/ProcessingModal';
+import { ProcessingModal, PipelineState } from './components/ProcessingModal';
 import { ActivityLogModal } from './components/ActivityLogModal';
 import { SupabaseAuthModal } from './components/SupabaseAuthModal';
 import { ComplianceModal } from './components/ComplianceModal';
 import { AnalysesView } from './components/AnalysesView';
 import { LibraryView } from './components/LibraryView';
-import { DEFAULT_USER } from './lib/supabase';
+import { AuthGate } from './components/AuthGate';
+import { supabase, isSupabaseConfigured } from './lib/supabase';
+import { api, CaseSummary, EvidenceSummary, ForensicEvent } from './api/client';
 import { EvidenceFile, SupabaseUser } from './types';
 
+function formatBytes(bytes: number): string {
+  if (bytes <= 0) return '—';
+  if (bytes > 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function toEvidenceFile(e: EvidenceSummary): EvidenceFile {
+  const totalBytes = e.recordings.reduce((sum, r) => sum + (r.file_size || 0), 0);
+  const status: EvidenceFile['status'] =
+    e.status === 'verified' ? 'verified' : e.status === 'tampered' ? 'error' : 'processing';
+  return {
+    id: e.id,
+    name: e.original_filename,
+    caseId: e.case_id,
+    size: formatBytes(totalBytes),
+    uploadedAt: e.acquired_at,
+    hash: e.sha256 || '',
+    status,
+  };
+}
+
+const EMPTY_PIPELINE: PipelineState = { phase: 1, progress: 0, logs: [], isCompleted: false, error: null };
+
 export default function App() {
-  const [currentUser, setCurrentUser] = useState<SupabaseUser>(DEFAULT_USER);
+  // ---- auth --------------------------------------------------------------
+  const [session, setSession] = useState<Session | null | undefined>(undefined); // undefined = not checked yet
+  const currentUser: SupabaseUser | null = session?.user
+    ? {
+        id: session.user.id,
+        email: session.user.email || '',
+        role: 'Investigator',
+        enterpriseId: session.user.id.slice(0, 8).toUpperCase(),
+        name: session.user.email?.split('@')[0] || 'User',
+        isLoggedIn: true,
+      }
+    : null;
+
+  useEffect(() => {
+    if (!isSupabaseConfigured || !supabase) {
+      setSession(null);
+      return;
+    }
+    supabase.auth.getSession().then(({ data }) => setSession(data.session));
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, sess) => setSession(sess));
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
+  // ---- navigation / layout -------------------------------------------------
   const [activeNav, setActiveNav] = useState<'Pipelines' | 'Analyses' | 'Library'>('Pipelines');
-  const [currentStepId, setCurrentStepId] = useState<number>(3); // Step 3: Upload Evidence is active
+  const [currentStepId, setCurrentStepId] = useState<number>(3);
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
-  
-  // Modals state
-  const [isProcessingOpen, setIsProcessingOpen] = useState(false);
   const [isActivityLogOpen, setIsActivityLogOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [complianceModalTab, setComplianceModalTab] = useState<'security' | 'compliance' | 'api' | null>(null);
-
-  // Active file & case state
-  const [activeCaseName, setActiveCaseName] = useState('V-2024-081A');
-  const [activeEvidenceId, setActiveEvidenceId] = useState('');
-  const [uploadedFile, setUploadedFile] = useState<EvidenceFile | null>(null);
   const [isArchitectureHighlighted, setIsArchitectureHighlighted] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => setIsSidebarOpen(window.innerWidth >= 1024);
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const handleNavigateToArchitecture = () => {
     setActiveNav('Pipelines');
@@ -40,70 +88,119 @@ export default function App() {
       if (el) {
         el.scrollIntoView({ behavior: 'smooth', block: 'start' });
         setIsArchitectureHighlighted(true);
-        setTimeout(() => {
-          setIsArchitectureHighlighted(false);
-        }, 3500);
+        setTimeout(() => setIsArchitectureHighlighted(false), 3500);
       }
     }, 100);
   };
 
-  // Handle responsive sidebar initial state
+  // ---- case / evidence / event data --------------------------------------
+  const [cases, setCases] = useState<CaseSummary[]>([]);
+  const [activeCaseId, setActiveCaseId] = useState<string | null>(null);
+  const [recentFiles, setRecentFiles] = useState<EvidenceFile[]>([]);
+  const [events, setEvents] = useState<ForensicEvent[]>([]);
+  const [eventsLoading, setEventsLoading] = useState(false);
+
   useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth < 1024) {
-        setIsSidebarOpen(false);
-      } else {
-        setIsSidebarOpen(true);
-      }
-    };
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+    if (!currentUser) return;
+    api
+      .listCases()
+      .then((list) => {
+        setCases(list);
+        if (list.length > 0) setActiveCaseId((prev) => prev ?? list[0].id);
+      })
+      .catch((err) => console.error('Failed to load cases', err));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.id]);
 
-  // Recent files list matching forensic pipeline
-  const [recentFiles, setRecentFiles] = useState<EvidenceFile[]>([
-    {
-      id: 'evd-1',
-      name: 'Interrogation_RM3_A.mp4',
-      caseId: 'V-050',
-      size: '5.2 GB',
-      uploadedAt: '2024-10-24T14:22:18Z',
-      hash: 'e3b0c44298fc1c149afbf4e8996fb92427ae41e4649b934ca495991b7852b855',
-      status: 'verified',
-    },
-    {
-      id: 'evd-2',
-      name: 'Dashcam_Unit42.mov',
-      caseId: 'V-079',
-      size: '1.1 GB',
-      uploadedAt: '2024-10-24T11:05:42Z',
-      hash: '8f434346648f6b96df89dda901c5176b10a6d83961dd3c1ac88b59b2dc327aa4',
-      status: 'verified',
-    },
-  ]);
+  useEffect(() => {
+    if (!activeCaseId) return;
+    setEventsLoading(true);
+    Promise.all([api.listEvidence(activeCaseId), api.getCaseEvents(activeCaseId)])
+      .then(([evidenceList, eventList]) => {
+        setRecentFiles(evidenceList.map(toEvidenceFile));
+        setEvents(eventList);
+      })
+      .catch((err) => console.error('Failed to load case data', err))
+      .finally(() => setEventsLoading(false));
+  }, [activeCaseId]);
 
-  const handleFileUploaded = (file: EvidenceFile) => {
-    setUploadedFile(file);
-    setRecentFiles((prev) => [file, ...prev]);
-  };
+  const activeCase = cases.find((c) => c.id === activeCaseId) || null;
 
-  const handleBeginProcessing = (data: { caseName: string; evidenceId: string; file: EvidenceFile | null }) => {
-    setActiveCaseName(data.caseName);
-    setActiveEvidenceId(data.evidenceId);
-    if (data.file) {
-      setUploadedFile(data.file);
-    }
+  // ---- pipeline (upload -> parse -> extract -> analyze) ------------------
+  const [isProcessingOpen, setIsProcessingOpen] = useState(false);
+  const [isPipelineBusy, setIsPipelineBusy] = useState(false);
+  const [pipelineState, setPipelineState] = useState<PipelineState>(EMPTY_PIPELINE);
+  const [pipelineFileName, setPipelineFileName] = useState('');
+  const [pipelineCaseName, setPipelineCaseName] = useState('');
+
+  const appendLog = (line: string) =>
+    setPipelineState((prev) => ({ ...prev, logs: [...prev.logs, line] }));
+  const setPhaseProgress = (phase: PipelineState['phase'], progress: number) =>
+    setPipelineState((prev) => ({ ...prev, phase, progress }));
+
+  const handleBeginProcessing = async ({ caseName, file }: { caseName: string; file: File }) => {
+    setPipelineState({ ...EMPTY_PIPELINE, logs: [`Uploading ${file.name}…`] });
+    setPipelineFileName(file.name);
+    setPipelineCaseName(caseName);
     setIsProcessingOpen(true);
+    setIsPipelineBusy(true);
+
+    try {
+      let targetCase = cases.find((c) => c.name === caseName) || null;
+      if (!targetCase) {
+        targetCase = await api.createCase(caseName);
+        setCases((prev) => [targetCase as CaseSummary, ...prev]);
+      }
+      setActiveCaseId(targetCase.id);
+
+      const evidence = await api.uploadEvidence(targetCase.id, file);
+      appendLog(`Uploaded & sealed. SHA-256: ${evidence.sha256}`);
+      setPhaseProgress(1, 25);
+
+      const parsed = await api.parseEvidence(evidence.id);
+      appendLog(`Parsed: ${parsed.recordings.length} recording(s) found (vendor: ${parsed.vendor ?? 'unknown'}).`);
+      if (parsed.parse_warnings.length) parsed.parse_warnings.forEach((w) => appendLog(`⚠ ${w}`));
+      setPhaseProgress(2, 50);
+
+      const extracted = await api.extractEvidence(evidence.id);
+      const recovered = extracted.recordings.filter((r) => r.extracted_path).length;
+      appendLog(`Extracted: ${recovered}/${extracted.recordings.length} recording(s) recovered.`);
+      setPhaseProgress(3, 75);
+
+      const analyzed = await api.analyzeEvidence(evidence.id);
+      appendLog(`Analyzed: ${analyzed.events.length} event(s) detected.`);
+      analyzed.errors.forEach((e) => appendLog(`⚠ ${e.recording_id}: ${e.error}`));
+      setPipelineState((prev) => ({ ...prev, phase: 4, progress: 100, isCompleted: true }));
+
+      const [freshEvidence, freshEvents] = await Promise.all([
+        api.listEvidence(targetCase.id),
+        api.getCaseEvents(targetCase.id),
+      ]);
+      setRecentFiles(freshEvidence.map(toEvidenceFile));
+      setEvents(freshEvents);
+      setCurrentStepId(8);
+    } catch (err) {
+      setPipelineState((prev) => ({
+        ...prev,
+        error: err instanceof Error ? err.message : 'Pipeline failed',
+      }));
+    } finally {
+      setIsPipelineBusy(false);
+    }
   };
 
-  const handleLogout = () => {
-    setIsAuthModalOpen(true);
-  };
+  // ---- render --------------------------------------------------------------
+
+  if (session === undefined) {
+    return <div className="min-h-screen bg-[#f4eee3]" />;
+  }
+
+  if (!currentUser) {
+    return <AuthGate onAuthenticated={() => {}} />;
+  }
 
   return (
     <div className="min-h-screen bg-[#faf8f5] text-[#142e2e] flex flex-row font-['DM_Sans',sans-serif]">
-      {/* Dynamic Collapsible Sidebar with Analyses, Library, Profile & Logout */}
       <Sidebar
         isOpen={isSidebarOpen}
         onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -111,15 +208,13 @@ export default function App() {
         onNavChange={(nav) => setActiveNav(nav)}
         user={currentUser}
         onOpenProfile={() => setIsAuthModalOpen(true)}
-        onLogout={handleLogout}
+        onLogout={() => setIsAuthModalOpen(true)}
         onOpenActivityLog={() => setIsActivityLogOpen(true)}
         onOpenCompliance={(tab) => setComplianceModalTab(tab)}
         onNavigateToArchitecture={handleNavigateToArchitecture}
       />
 
-      {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 transition-all">
-        {/* Header Bar */}
         <Header
           user={currentUser}
           onNavChange={(nav) => setActiveNav(nav as any)}
@@ -130,80 +225,51 @@ export default function App() {
           onNavigateToArchitecture={handleNavigateToArchitecture}
         />
 
-        {/* Main Workspace Container */}
         <main className="w-full max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8 pt-7 pb-12 flex-1">
           {activeNav === 'Pipelines' && (
             <div className="space-y-6 sm:space-y-7">
-              {/* Top Stepper Card */}
-              <ProcessPipeline
-                currentStepId={currentStepId}
-              />
+              <ProcessPipeline currentStepId={currentStepId} />
 
-              {/* Middle Section: 2 Columns */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-7 items-stretch">
-                {/* Left Column: Upload Evidence */}
                 <div className="lg:col-span-8 flex">
-                  <UploadSection
-                    onBeginProcessing={handleBeginProcessing}
-                    onFileUploaded={handleFileUploaded}
-                  />
+                  <UploadSection onBeginProcessing={handleBeginProcessing} busy={isPipelineBusy} />
                 </div>
-
-                {/* Right Column: Chain of Custody */}
                 <div className="lg:col-span-4 flex">
-                  <ChainOfCustody
-                    recentFiles={recentFiles}
-                    onOpenActivityLog={() => setIsActivityLogOpen(true)}
-                    onSelectFile={(f) => setUploadedFile(f)}
-                  />
+                  <ChainOfCustody recentFiles={recentFiles} onOpenActivityLog={() => setIsActivityLogOpen(true)} />
                 </div>
               </div>
 
-              {/* Bottom Architecture Section */}
               <ArchitectureSection isHighlighted={isArchitectureHighlighted} />
             </div>
           )}
 
-          {activeNav === 'Analyses' && <AnalysesView />}
+          {activeNav === 'Analyses' && (
+            <AnalysesView caseName={activeCase?.name ?? '—'} events={events} loading={eventsLoading} />
+          )}
 
           {activeNav === 'Library' && (
-            <LibraryView
-              files={recentFiles}
-              onOpenActivityLog={() => setIsActivityLogOpen(true)}
-            />
+            <LibraryView files={recentFiles} onOpenActivityLog={() => setIsActivityLogOpen(true)} />
           )}
         </main>
 
-        {/* Footer */}
-        <Footer
-          onOpenCompliance={(tab) => setComplianceModalTab(tab)}
-        />
+        <Footer onOpenCompliance={(tab) => setComplianceModalTab(tab)} />
       </div>
 
-      {/* Interactive Modals */}
       <ProcessingModal
         isOpen={isProcessingOpen}
         onClose={() => setIsProcessingOpen(false)}
-        caseName={activeCaseName}
-        evidenceId={activeEvidenceId || 'EVD-894102'}
-        file={uploadedFile}
-        onCompleteStep={(stepId) => {
-          setCurrentStepId(stepId);
+        caseName={pipelineCaseName}
+        fileName={pipelineFileName}
+        state={pipelineState}
+        onReviewTimeline={() => {
+          setIsProcessingOpen(false);
           setActiveNav('Analyses');
         }}
       />
 
-      <ActivityLogModal
-        isOpen={isActivityLogOpen}
-        onClose={() => setIsActivityLogOpen(false)}
-      />
+      <ActivityLogModal isOpen={isActivityLogOpen} onClose={() => setIsActivityLogOpen(false)} />
 
-      <SupabaseAuthModal
-        isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
-        currentUser={currentUser}
-        onUpdateUser={(u) => setCurrentUser(u)}
-      />
+      <SupabaseAuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} currentUser={currentUser} />
 
       <ComplianceModal
         isOpen={complianceModalTab !== null}

@@ -123,7 +123,7 @@ export const TraceXLogo: React.FC<TraceXLogoProps> = ({
       {showText && (
         <div className="flex flex-col">
           <span 
-            className="text-[18px] font-extrabold tracking-wider font-['Manrope'] uppercase"
+            className="text-[18px] font-extrabold tracking-wider font-['DM_Sans',sans-serif] uppercase"
             style={{ color: textColor }}
           >
             TraceX

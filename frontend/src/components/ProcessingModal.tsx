@@ -100,7 +100,7 @@ export const ProcessingModal: React.FC<ProcessingModalProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <span className="inline-block w-2.5 h-2.5 rounded-full bg-[#3b5749] animate-pulse"></span>
-              <h3 className="text-[18px] font-semibold text-[#221e1b] font-['EB_Garamond',serif]">
+              <h3 className="text-[18px] font-semibold text-[#221e1b] font-['DM_Sans',sans-serif]">
                 Forensic Pipeline Execution
               </h3>
             </div>

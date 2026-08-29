@@ -9,7 +9,7 @@ export const Footer: React.FC<FooterProps> = ({ onOpenCompliance }) => {
     <footer className="w-full mt-20 border-t border-[#ded4c5] bg-transparent py-8">
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
         {/* Left Copyright */}
-        <div className="text-[11px] font-medium text-[#7d7367] uppercase tracking-widest font-['Manrope',sans-serif]">
+        <div className="text-[11px] font-medium text-[#7d7367] uppercase tracking-widest font-['DM_Sans',sans-serif]">
           © 2024 TRACEX AI FORENSICS • NIST SP 800-86 AUDITED
         </div>
 

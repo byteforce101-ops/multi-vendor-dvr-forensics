@@ -24,7 +24,7 @@ export const ChainOfCustody: React.FC<ChainOfCustodyProps> = ({
     <motion.div 
       whileHover={{ y: -4, scale: 1.01 }}
       transition={{ duration: 0.25 }}
-      className="w-full bg-[#f3f7f4] border border-[#d2e2d8] hover:border-[#1b4e39]/35 rounded-2xl p-6 sm:p-7 relative overflow-hidden flex flex-col justify-between shadow-[0_4px_20px_-4px_rgba(34,30,27,0.04)] hover:shadow-[0_16px_30px_-6px_rgba(27,78,57,0.1)] transition-all"
+      className="w-full bg-[#f3f7f4] border border-[#d2e2d8] hover:border-[#1b4e39]/35 rounded-2xl p-5 sm:p-6 relative overflow-hidden flex flex-col justify-between shadow-[0_4px_20px_-4px_rgba(34,30,27,0.04)] hover:shadow-[0_16px_30px_-6px_rgba(27,78,57,0.1)] transition-all"
     >
       {/* Decorative Watermark Shield in Top-Right */}
       <div className="absolute -top-3 -right-3 text-[#cbdcd2] pointer-events-none select-none opacity-75" aria-hidden="true">
@@ -36,22 +36,19 @@ export const ChainOfCustody: React.FC<ChainOfCustodyProps> = ({
 
       <div className="relative z-10">
         {/* Title */}
-        <h3 className="text-[20px] sm:text-[21px] font-semibold text-[#221e1b] font-['EB_Garamond',serif] tracking-tight">
+        <h3 className="text-[20px] sm:text-[21px] font-semibold text-[#221e1b] font-['DM_Sans',sans-serif] tracking-tight">
           Chain of Custody
         </h3>
 
         {/* Informational Subtext */}
-        <p className="text-[13px] text-[#5c544c] mt-1.5 leading-relaxed font-['Manrope',sans-serif]">
-          Every file uploaded is immediately hashed (SHA-256) upon receipt. The original bitstream is stored in immutable cold storage.
+        <p className="text-[13px] text-[#5c544c] mt-1.5 leading-relaxed font-['DM_Sans',sans-serif]">
+          Hashed on upload. Immutable storage.
         </p>
 
-        {/* Recent Uploads Header */}
+        {/* Recent Files Header */}
         <div className="mt-6 mb-3 flex items-center justify-between">
           <span className="text-[11.5px] font-bold text-[#4a423a] uppercase tracking-wider">
-            Recent Uploads
-          </span>
-          <span className="text-[10.5px] font-mono text-[#3b5749] bg-[#eaf1ed] border border-[#c9dcd0] px-2.5 py-0.5 rounded-full font-semibold">
-            256-Bit Cryptosealed
+            Recent Files
           </span>
         </div>
 
@@ -67,9 +64,9 @@ export const ChainOfCustody: React.FC<ChainOfCustodyProps> = ({
                 transition={{ duration: 0.2 }}
                 className="bg-[#fcfbf8] hover:bg-[#ffffff] rounded-xl border border-[#ded5c7] hover:border-[#1b4e39]/40 p-3.5 transition-all shadow-2xs hover:shadow-md group cursor-pointer"
               >
-                <div className="flex items-center justify-between">
+                <div className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-3 gap-y-1">
                   <div 
-                    className="flex items-center space-x-3 min-w-0 cursor-pointer flex-1"
+                    className="flex items-start space-x-3 min-w-0 cursor-pointer flex-1"
                     onClick={() => {
                       toggleExpand(file.id);
                       if (onSelectFile) onSelectFile(file);
@@ -84,7 +81,7 @@ export const ChainOfCustody: React.FC<ChainOfCustodyProps> = ({
                       <div className="text-[13px] font-bold text-[#221e1b] truncate">
                         {file.name}
                       </div>
-                      <div className="text-[11.5px] text-[#6e6459] font-mono flex items-center gap-1.5">
+                      <div className="text-[11.5px] text-[#6e6459] font-mono flex flex-wrap items-center gap-x-1.5 gap-y-0.5 break-words">
                         <span>{file.size}</span>
                         <span>•</span>
                         <span className="text-[#4a423a] font-medium">Case: {file.caseId}</span>
@@ -114,21 +111,21 @@ export const ChainOfCustody: React.FC<ChainOfCustodyProps> = ({
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: 'auto' }}
                       exit={{ opacity: 0, height: 0 }}
-                      className="mt-3 pt-2.5 border-t border-[#ede5d8] text-[11px] font-mono text-[#5c544c] space-y-1.5 overflow-hidden"
+                      className="mt-3 pt-2.5 border-t border-[#ede5d8] text-[11px] font-mono text-[#5c544c] space-y-2 overflow-hidden"
                     >
-                      <div className="flex items-center justify-between">
+                      <div className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-3 gap-y-1">
                         <span className="text-[#8c8275]">HASH (SHA-256):</span>
-                        <span className="font-semibold text-[#221e1b] truncate max-w-[180px]">
+                        <span className="min-w-0 break-all text-right font-semibold text-[#221e1b]">
                           {file.hash}
                         </span>
                       </div>
-                      <div className="flex items-center justify-between">
+                      <div className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-3 gap-y-1">
                         <span className="text-[#8c8275]">TIMESTAMP:</span>
-                        <span>{new Date(file.uploadedAt).toLocaleString()}</span>
+                        <span className="min-w-0 break-words text-right">{new Date(file.uploadedAt).toLocaleString()}</span>
                       </div>
-                      <div className="flex items-center justify-between">
+                      <div className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-3 gap-y-1">
                         <span className="text-[#8c8275]">STATUS:</span>
-                        <span className="text-[#2b4d3a] font-semibold flex items-center gap-1">
+                        <span className="min-w-0 justify-self-end text-right text-[#2b4d3a] font-semibold flex flex-wrap items-center justify-end gap-1 break-words">
                           <CheckCircle className="w-3 h-3 text-[#3b5749]" /> Bitstream Verified
                         </span>
                       </div>
@@ -141,14 +138,14 @@ export const ChainOfCustody: React.FC<ChainOfCustodyProps> = ({
         </div>
       </div>
 
-      {/* View Activity Log link */}
+      {/* Activity Log link */}
       <div className="mt-6 pt-2 relative z-10">
         <button
           id="btn-view-activity-log"
           onClick={onOpenActivityLog}
           className="text-[13px] font-semibold text-[#0f2338] hover:text-[#c2593f] hover:underline flex items-center space-x-1.5 transition-colors group cursor-pointer"
         >
-          <span>View Activity Log</span>
+          <span>Activity Log</span>
           <ExternalLink className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform opacity-75" />
         </button>
       </div>

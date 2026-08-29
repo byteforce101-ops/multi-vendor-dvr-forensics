@@ -35,7 +35,7 @@ export const ComplianceModal: React.FC<ComplianceModalProps> = ({
               {activeTab === 'api' && <Code2 className="w-5 h-5" />}
             </div>
             <div>
-              <h3 className="text-[19px] font-semibold text-[#221e1b] font-['EB_Garamond',serif]">
+              <h3 className="text-[19px] font-semibold text-[#221e1b] font-['DM_Sans',sans-serif]">
                 {activeTab === 'security' && 'Security & Cryptographic Guarantees'}
                 {activeTab === 'compliance' && 'Forensic Compliance & Certifications'}
                 {activeTab === 'api' && 'Enterprise REST & Ingestion API Docs'}
@@ -72,7 +72,7 @@ export const ComplianceModal: React.FC<ComplianceModalProps> = ({
         </div>
 
         {/* Tab Body */}
-        <div className="p-6 overflow-y-auto space-y-4 text-xs font-['Manrope',sans-serif]">
+        <div className="p-6 overflow-y-auto space-y-4 text-xs font-['DM_Sans',sans-serif]">
           {activeTab === 'security' && (
             <div className="space-y-4">
               <div className="bg-[#eaf1ed] p-4 rounded-xl border border-[#c9dcd0]">

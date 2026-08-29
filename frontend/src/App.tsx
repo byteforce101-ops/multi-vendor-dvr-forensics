@@ -102,7 +102,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#faf8f5] text-[#142e2e] flex flex-row font-['Manrope',sans-serif]">
+    <div className="min-h-screen bg-[#faf8f5] text-[#142e2e] flex flex-row font-['DM_Sans',sans-serif]">
       {/* Dynamic Collapsible Sidebar with Analyses, Library, Profile & Logout */}
       <Sidebar
         isOpen={isSidebarOpen}
@@ -122,7 +122,6 @@ export default function App() {
         {/* Header Bar */}
         <Header
           user={currentUser}
-          activeNav={activeNav}
           onNavChange={(nav) => setActiveNav(nav as any)}
           onOpenAuth={() => setIsAuthModalOpen(true)}
           onOpenActivityLog={() => setIsActivityLogOpen(true)}
@@ -138,7 +137,6 @@ export default function App() {
               {/* Top Stepper Card */}
               <ProcessPipeline
                 currentStepId={currentStepId}
-                onSelectStep={(stepId) => setCurrentStepId(stepId)}
               />
 
               {/* Middle Section: 2 Columns */}

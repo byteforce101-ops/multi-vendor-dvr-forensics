@@ -5,24 +5,22 @@ import { PipelineStep } from '../types';
 
 interface ProcessPipelineProps {
   currentStepId: number;
-  onSelectStep?: (stepId: number) => void;
 }
 
 const DEFAULT_STEPS: PipelineStep[] = [
-  { id: 1, label: 'Sign In', status: 'completed', description: 'Enterprise identity verified' },
-  { id: 2, label: 'Create Case', status: 'completed', description: 'Case dossier registered' },
-  { id: 3, label: 'Upload Evidence', status: 'active', description: 'Raw video bitstream ingestion' },
+  { id: 1, label: 'Sign in', status: 'completed', description: 'Enterprise identity verified' },
+  { id: 2, label: 'Case', status: 'completed', description: 'Case dossier registered' },
+  { id: 3, label: 'Upload', status: 'active', description: 'Raw video bitstream ingestion' },
   { id: 4, label: 'Hash', status: 'pending', description: 'SHA-256 cryptographic bit-seal' },
   { id: 5, label: 'Parse', status: 'pending', description: 'FFmpeg demuxing & metadata dissection' },
-  { id: 6, label: 'Extract Recordings', status: 'pending', description: 'Telemetry & audio isolation' },
+  { id: 6, label: 'Extract', status: 'pending', description: 'Telemetry & audio isolation' },
   { id: 7, label: 'Analyze', status: 'pending', description: 'Object, facial, and audio transcription' },
-  { id: 8, label: 'Review Timeline', status: 'pending', description: 'Synchronized event verification' },
-  { id: 9, label: 'Export Report', status: 'pending', description: 'CJIS certified forensic dossier' },
+  { id: 8, label: 'Review', status: 'pending', description: 'Synchronized event verification' },
+  { id: 9, label: 'Export', status: 'pending', description: 'CJIS certified forensic dossier' },
 ];
 
 export const ProcessPipeline: React.FC<ProcessPipelineProps> = ({
   currentStepId = 3,
-  onSelectStep,
 }) => {
   return (
     <motion.section 
@@ -32,18 +30,18 @@ export const ProcessPipeline: React.FC<ProcessPipelineProps> = ({
       className="w-full bg-[#fcfbf8] rounded-2xl border border-[#e6ded2] shadow-[0_4px_20px_-4px_rgba(34,30,27,0.05)] p-6 sm:p-8 lg:p-9"
     >
       {/* Title & Subtitle */}
-      <div className="mb-7 flex flex-col sm:flex-row sm:items-baseline justify-between gap-2 border-b border-[#eee7db] pb-4">
+      <div className="mb-5 flex flex-col sm:flex-row sm:items-baseline justify-between gap-2 border-b border-[#eee7db] pb-4">
         <div>
-          <h1 className="text-[28px] sm:text-[32px] font-normal tracking-[-0.015em] text-[#221e1b] font-['EB_Garamond',serif]">
-            Process Pipeline
+          <h1 className="text-[28px] sm:text-[32px] font-normal tracking-[-0.015em] text-[#221e1b] font-['DM_Sans',sans-serif]">
+            Evidence Workflow
           </h1>
-          <p className="text-[13.5px] sm:text-[14px] text-[#5c544c] mt-1 font-['Manrope',sans-serif] font-normal">
-            Ensure evidentiary integrity by following the verified path. Your current progress is highlighted below.
+          <p className="text-[13.5px] sm:text-[14px] text-[#5c544c] mt-1 font-['DM_Sans',sans-serif] font-normal">
+            Upload → verify → review.
           </p>
         </div>
 
         <span className="text-[11.5px] font-mono text-[#3b5749] bg-[#eaf1ed] border border-[#c9dcd0] px-3 py-1 rounded-md self-start sm:self-auto font-semibold">
-          STEP {currentStepId} OF 9 ACTIVE
+          STEP {currentStepId} / 9
         </span>
       </div>
 
@@ -76,8 +74,7 @@ export const ProcessPipeline: React.FC<ProcessPipelineProps> = ({
               return (
                 <div
                   key={step.id}
-                  onClick={() => onSelectStep && onSelectStep(step.id)}
-                  className="flex flex-col items-center group cursor-pointer"
+                  className="flex flex-col items-center group"
                   style={{ width: `${100 / DEFAULT_STEPS.length}%` }}
                 >
                   {/* Circle Node */}
@@ -103,7 +100,7 @@ export const ProcessPipeline: React.FC<ProcessPipelineProps> = ({
 
                   {/* Label */}
                   <span
-                    className={`mt-2.5 text-[12px] sm:text-[12.5px] text-center whitespace-nowrap transition-colors ${
+                    className={`mt-2.5 min-h-[2rem] max-w-[88px] text-[12px] sm:text-[12.5px] leading-tight text-center transition-colors ${
                       isActive
                         ? 'font-bold text-[#1b4e39]'
                         : isCompleted

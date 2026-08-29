@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
-import { Menu, User, ShieldCheck, LogOut, Key, CheckCircle2, ChevronDown, Layers, FileVideo, Database, Sparkles } from 'lucide-react';
+import { Menu, User, ShieldCheck, LogOut, Key } from 'lucide-react';
 import { SupabaseUser } from '../types';
 import { TraceXLogo } from './TraceXLogo';
 
 interface HeaderProps {
   user: SupabaseUser;
-  activeNav: string;
   onNavChange: (nav: string) => void;
   onOpenAuth: () => void;
   onOpenActivityLog: () => void;
@@ -16,7 +15,6 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({
   user,
-  activeNav,
   onNavChange,
   onOpenAuth,
   onOpenActivityLog,
@@ -55,7 +53,7 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <TraceXLogo size={32} variant="gold" bgColor="#0f1715" />
             <div className="flex items-baseline space-x-2">
-              <span className="text-[19px] font-extrabold tracking-tight text-[#221e1b] font-['Manrope'] group-hover:text-[#1b4e39] transition-colors">
+              <span className="text-[19px] font-extrabold tracking-tight text-[#221e1b] font-['DM_Sans',sans-serif] group-hover:text-[#1b4e39] transition-colors">
                 TraceX
               </span>
               <span className="hidden sm:inline-block text-[11px] font-mono text-[#1b4e39] font-bold bg-[#eaf1ed] border border-[#c9dcd0] px-2 py-0.5 rounded-md">
@@ -65,12 +63,6 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* Center: Current Context Badge */}
-        <div className="hidden md:flex items-center space-x-2 bg-[#eae2d5] border border-[#ded5c7] px-3.5 py-1.5 rounded-full text-xs text-[#4a423a]">
-          <span className="w-2 h-2 rounded-full bg-[#3b5749] animate-pulse"></span>
-          <span className="font-medium text-[#221e1b]">Active View:</span>
-          <span className="font-bold text-[#0f2338]">{activeNav}</span>
-        </div>
 
         {/* Right: Quick Audit & User Profile */}
         <div className="flex items-center space-x-3">
@@ -79,7 +71,7 @@ export const Header: React.FC<HeaderProps> = ({
             className="hidden sm:flex items-center space-x-1.5 text-xs font-semibold text-[#221e1b] bg-[#eaf1ed] hover:bg-[#dde9e2] border border-[#c9dcd0] px-3 py-1.5 rounded-xl transition-all shadow-2xs cursor-pointer"
           >
             <ShieldCheck className="w-3.5 h-3.5 text-[#3b5749]" />
-            <span>Audit Ledger</span>
+            <span>Audit</span>
           </button>
 
           <div className="relative">

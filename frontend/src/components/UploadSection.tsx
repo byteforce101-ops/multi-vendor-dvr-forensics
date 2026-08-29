@@ -109,11 +109,11 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
     >
       <div>
         {/* Title */}
-        <h2 className="text-[24px] sm:text-[26px] font-normal tracking-[-0.015em] text-[#221e1b] font-['EB_Garamond',serif]">
+        <h2 className="text-[24px] sm:text-[26px] font-normal tracking-[-0.015em] text-[#221e1b] font-['DM_Sans',sans-serif]">
           Upload Evidence
         </h2>
-        <p className="text-[13.5px] text-[#5c544c] mt-1 font-['Manrope',sans-serif]">
-          Securely upload video files. Original metadata will be preserved prior to analysis.
+        <p className="text-[13.5px] text-[#5c544c] mt-1 font-['DM_Sans',sans-serif]">
+          Add a video file to begin.
         </p>
 
         {/* Input Fields Row */}
@@ -123,7 +123,7 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
               htmlFor="case-name-input"
               className="block text-[11.5px] font-bold text-[#4a423a] mb-1.5 uppercase tracking-wider"
             >
-              Case Name
+              Case
             </label>
             <input
               id="case-name-input"
@@ -185,16 +185,16 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
               </div>
 
               <div className="text-[16px] font-semibold text-[#221e1b] tracking-tight">
-                Drag & Drop files here
+                Drop video here
               </div>
 
               <div className="text-[13px] text-[#635b52] mt-0.5">
-                or <span className="text-[#1b4e39] font-bold hover:underline">browse files</span>
+                or <span className="text-[#1b4e39] font-bold hover:underline">browse</span>
               </div>
 
               {/* Format Badge Pill */}
               <div className="mt-4 px-4 py-1.5 bg-white/90 backdrop-blur-xs border border-[#ded4c5] rounded-full text-[11.5px] font-semibold text-[#4a423a] tracking-wide">
-                MP4, MOV, AVI up to 50GB
+                MP4, MOV, AVI · 50GB max
               </div>
             </motion.div>
           ) : (
@@ -227,12 +227,12 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
               <div className="mt-3.5 pt-3 border-t border-[#c9dcd0] flex items-center justify-between text-[11.5px]">
                 <div className="flex items-center space-x-1.5 text-[#2b4d3a] font-mono">
                   <CheckCircle2 className="w-3.5 h-3.5 text-[#3b5749]" />
-                  <span className="font-bold">SHA-256 Bitstream Sealed:</span>
+                  <span className="font-bold">SHA-256 sealed:</span>
                   <span className="truncate max-w-[150px] sm:max-w-[240px] text-[#4a423a]">
                     {selectedFile.hash}
                   </span>
                 </div>
-                <span className="text-[#5c544c] font-mono hidden sm:inline font-semibold">100% Bit-Preserved</span>
+                <span className="text-[#5c544c] font-mono hidden sm:inline font-semibold">Verified</span>
               </div>
             </div>
           )}
@@ -240,7 +240,7 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
           {isHashing && (
             <div className="mt-3 flex items-center justify-center space-x-2 text-xs text-[#3b5749] font-mono animate-pulse">
               <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-              <span>Calculating SHA-256 integrity hash and extracting metadata...</span>
+              <span>Securing file...</span>
             </div>
           )}
         </div>
@@ -254,7 +254,7 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
           onClick={handleSubmit}
           className="btn-primary-green px-6 py-3 rounded-full text-white text-[14px] font-semibold flex items-center space-x-2 tracking-wide cursor-pointer group"
         >
-          <span>Begin Processing</span>
+          <span>Start</span>
           <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform stroke-[2.3]" />
         </button>
       </div>

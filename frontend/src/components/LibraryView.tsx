@@ -68,7 +68,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ files, onOpenActivityL
           <span className="text-xs font-mono font-bold text-[#3b5749] uppercase tracking-wider bg-[#eaf1ed] border border-[#c9dcd0] px-3 py-0.5 rounded-md">
             Evidence Vault & Archive
           </span>
-          <h2 className="text-2xl sm:text-3xl font-['EB_Garamond',serif] text-[#221e1b] mt-2 font-normal">
+          <h2 className="text-2xl sm:text-3xl font-['DM_Sans',sans-serif] text-[#221e1b] mt-2 font-normal">
             Certified Evidence Repository
           </h2>
           <p className="text-xs text-[#6e6459] font-mono mt-1">

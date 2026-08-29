@@ -82,7 +82,7 @@ export const ActivityLogModal: React.FC<ActivityLogModalProps> = ({ isOpen, onCl
               <ShieldCheck className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-[19px] font-semibold text-[#221e1b] font-['EB_Garamond',serif]">
+              <h3 className="text-[19px] font-semibold text-[#221e1b] font-['DM_Sans',sans-serif]">
                 Chain of Custody — Cryptographic Ledger
               </h3>
               <p className="text-xs text-[#6e6459] font-mono">

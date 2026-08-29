@@ -112,7 +112,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 {/* TraceX Golden Fingerprint Logo */}
                 <TraceXLogo size={36} variant="gold" bgColor="#0f1715" />
                 <div>
-                  <span className="text-[20px] font-extrabold tracking-tight text-[#221e1b] font-['Manrope'] block leading-none group-hover:text-[#1b4e39] transition-colors">
+                  <span className="text-[20px] font-extrabold tracking-tight text-[#221e1b] font-['DM_Sans',sans-serif] block leading-none group-hover:text-[#1b4e39] transition-colors">
                     TraceX
                   </span>
                   <span className="text-[10.5px] font-mono text-[#1b4e39] font-bold tracking-wider uppercase mt-1 block">
@@ -133,7 +133,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
             {/* Navigation Buttons Group */}
             <div className="mt-6 space-y-1.5">
-              <div className="text-[10.5px] font-bold uppercase tracking-[0.18em] text-[#7d7367] px-3 mb-2 font-['Manrope']">
+              <div className="text-[10.5px] font-bold uppercase tracking-[0.18em] text-[#7d7367] px-3 mb-2 font-['DM_Sans',sans-serif]">
                 Workspace
               </div>
 
@@ -182,7 +182,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
             {/* Secondary Audit & Security Links */}
             <div className="mt-7 pt-5 border-t border-[#eee6da] space-y-1.5">
-              <div className="text-[10.5px] font-bold uppercase tracking-[0.18em] text-[#7d7367] px-3 mb-2 font-['Manrope']">
+              <div className="text-[10.5px] font-bold uppercase tracking-[0.18em] text-[#7d7367] px-3 mb-2 font-['DM_Sans',sans-serif]">
                 Forensic Ledger
               </div>
 

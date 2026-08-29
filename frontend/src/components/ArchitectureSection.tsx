@@ -6,9 +6,9 @@ import { ArchitectureCardItem } from '../types';
 const ARCHITECTURE_CARDS: ArchitectureCardItem[] = [
   {
     id: 'hashing',
-    title: '1. Cryptographic Sealing (SHA-256)',
+    title: '1. Seal',
     description:
-      'Preserving original bitstream integrity. Before demuxing or inference begins, raw evidence files are bit-copied and sealed using NIST FIPS 180-4 SHA-256 hashing to guarantee court admissibility.',
+      'Create a SHA-256 seal before processing.',
     iconType: 'fingerprint',
     iconColor: 'sage',
     codeLines: [
@@ -19,9 +19,9 @@ const ARCHITECTURE_CARDS: ArchitectureCardItem[] = [
   },
   {
     id: 'parsing',
-    title: '2. Deep Demuxing & Telemetry Extraction',
+    title: '2. Parse',
     description:
-      'Extracting structured data and sensor streams. Video containers (MP4, MOV, AVI, MKV) are disassembled into raw video, synchronized audio, GPS coordinates, and camera EXIF telemetry.',
+      'Read video, audio, and camera metadata.',
     iconType: 'parse',
     iconColor: 'sage',
     codeLines: [
@@ -32,9 +32,9 @@ const ARCHITECTURE_CARDS: ArchitectureCardItem[] = [
   },
   {
     id: 'analysis',
-    title: '3. Neural Timeline & Forensic Analysis',
+    title: '3. Analyze',
     description:
-      'AI-driven timeline synthesis. High-precision neural models concurrently detect persons, track vehicles, transcribe audio dialogues, and flag critical anomalies into a searchable forensic index.',
+      'Turn recordings into searchable events.',
     iconType: 'analysis',
     iconColor: 'sage',
     codeLines: [
@@ -70,15 +70,15 @@ export const ArchitectureSection: React.FC<ArchitectureSectionProps> = ({ isHigh
     >
       {/* Section Header */}
       <div className="text-center max-w-3xl mx-auto mb-10 sm:mb-12">
-        <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[#1b4e39] uppercase tracking-[0.2em] font-['Manrope',sans-serif] bg-[#eaf1ed] border border-[#c9dcd0] px-3.5 py-1 rounded-full">
+        <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[#1b4e39] uppercase tracking-[0.2em] font-['DM_Sans',sans-serif] bg-[#eaf1ed] border border-[#c9dcd0] px-3.5 py-1 rounded-full">
           <ShieldCheck className="w-3.5 h-3.5" />
-          TraceX Architecture & Mission
+          Architecture
         </span>
-        <h2 className="text-[28px] sm:text-[36px] font-normal tracking-[-0.015em] text-[#221e1b] font-['EB_Garamond',serif] mt-3">
-          What Does TraceX Do?
+        <h2 className="text-[28px] sm:text-[36px] font-normal tracking-[-0.015em] text-[#221e1b] font-['DM_Sans',sans-serif] mt-3">
+          How it works
         </h2>
-        <p className="text-[14px] sm:text-[15.5px] text-[#5c544c] mt-2.5 font-['Manrope',sans-serif] leading-relaxed">
-          TraceX is an enterprise-grade digital forensic intelligence platform engineered to ingest, verify, analyze, and preserve video evidence with cryptographically unbreakable chain-of-custody standards.
+        <p className="text-[14px] sm:text-[15.5px] text-[#5c544c] mt-2.5 font-['DM_Sans',sans-serif] leading-relaxed">
+          Upload evidence, preserve integrity, and review events.
         </p>
       </div>
 
@@ -86,32 +86,32 @@ export const ArchitectureSection: React.FC<ArchitectureSectionProps> = ({ isHigh
       <div className="bg-[#fcfbf8] border border-[#e6ded2] rounded-2xl p-6 sm:p-8 mb-8 shadow-[0_4px_20px_-4px_rgba(34,30,27,0.05)]">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 divide-y md:divide-y-0 md:divide-x divide-[#ede5d8]">
           <div className="pr-0 md:pr-4 space-y-2">
-            <div className="flex items-center gap-2 text-[#1b4e39] font-bold text-sm font-['Manrope']">
+            <div className="flex items-center gap-2 text-[#1b4e39] font-bold text-sm font-['DM_Sans',sans-serif]">
               <Scale className="w-4 h-4" />
-              <span>Courtroom Admissibility</span>
+              <span>Integrity</span>
             </div>
             <p className="text-xs text-[#6e6459] leading-relaxed">
-              Every digital asset uploaded is bound to an immutable SHA-256 cryptographic hash compliant with ISO/IEC 27037 and FBI CJIS Level 4 policies.
+              SHA-256 hash for every file.
             </p>
           </div>
 
           <div className="pt-4 md:pt-0 px-0 md:px-4 space-y-2">
-            <div className="flex items-center gap-2 text-[#1b4e39] font-bold text-sm font-['Manrope']">
+            <div className="flex items-center gap-2 text-[#1b4e39] font-bold text-sm font-['DM_Sans',sans-serif]">
               <Sparkles className="w-4 h-4" />
-              <span>AI Automated Chronology</span>
+              <span>Analysis</span>
             </div>
             <p className="text-xs text-[#6e6459] leading-relaxed">
-              Concurrently executes face recognition, object tracking, and speech-to-text to automatically generate frame-accurate event chronologies.
+              Find objects, faces, and events.
             </p>
           </div>
 
           <div className="pt-4 md:pt-0 pl-0 md:pl-4 space-y-2">
-            <div className="flex items-center gap-2 text-[#1b4e39] font-bold text-sm font-['Manrope']">
+            <div className="flex items-center gap-2 text-[#1b4e39] font-bold text-sm font-['DM_Sans',sans-serif]">
               <Database className="w-4 h-4" />
-              <span>Tamper-Evident Ledger</span>
+              <span>Audit trail</span>
             </div>
             <p className="text-xs text-[#6e6459] leading-relaxed">
-              Maintains an immutable chain-of-custody ledger with operator attribution and exportable JSON audit packages for legal scrutiny.
+              Track every action and export a record.
             </p>
           </div>
         </div>
@@ -154,12 +154,12 @@ export const ArchitectureSection: React.FC<ArchitectureSectionProps> = ({ isHigh
                 </div>
 
                 {/* Card Title */}
-                <h3 className="text-[19px] sm:text-[20px] font-semibold text-[#221e1b] font-['EB_Garamond',serif] tracking-tight">
+                <h3 className="text-[19px] sm:text-[20px] font-semibold text-[#221e1b] font-['DM_Sans',sans-serif] tracking-tight">
                   {card.title}
                 </h3>
 
                 {/* Card Description */}
-                <p className="text-[13px] sm:text-[13.5px] text-[#5c544c] mt-2 leading-relaxed font-['Manrope',sans-serif]">
+                <p className="text-[13px] sm:text-[13.5px] text-[#5c544c] mt-2 leading-relaxed font-['DM_Sans',sans-serif]">
                   {card.description}
                 </p>
               </div>

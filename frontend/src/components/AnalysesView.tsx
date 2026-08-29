@@ -27,7 +27,7 @@ export const AnalysesView: React.FC = () => {
           <span className="text-xs font-mono font-bold text-[#3b5749] uppercase tracking-wider bg-[#eaf1ed] border border-[#c9dcd0] px-3 py-0.5 rounded-md">
             Active Forensic Analysis
           </span>
-          <h2 className="text-2xl sm:text-3xl font-['EB_Garamond',serif] text-[#221e1b] mt-2 font-normal">
+          <h2 className="text-2xl sm:text-3xl font-['DM_Sans',sans-serif] text-[#221e1b] mt-2 font-normal">
             Case V-2024-081A • Multi-Track Video Timeline
           </h2>
           <p className="text-xs text-[#6e6459] font-mono mt-1">
@@ -95,7 +95,7 @@ export const AnalysesView: React.FC = () => {
         {/* Right Col: Event Index */}
         <div className="bg-[#fcfbf8] rounded-2xl border border-[#e6ded2] p-6 shadow-[0_4px_20px_-4px_rgba(34,30,27,0.05)]">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-[#221e1b] font-['EB_Garamond',serif] text-xl">
+            <h3 className="font-semibold text-[#221e1b] font-['DM_Sans',sans-serif] text-xl">
               AI-Detected Chronology
             </h3>
             <span className="text-xs font-mono text-[#3b5749] bg-[#eaf1ed] px-2.5 py-0.5 rounded font-semibold">4 Events</span>

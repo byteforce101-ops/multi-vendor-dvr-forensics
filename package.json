@@ -1,13 +1,17 @@
 {
   "name": "multi-vendor-dvr-forensics",
   "private": true,
-     "scripts": {
-     "dev": "npm --prefix frontend run dev",
-     "build": "npm --prefix frontend run build",
-     "preview": "npm --prefix frontend run preview"
-   },
+  "scripts": {
+    "dev": "concurrently -k -n BACKEND,FRONTEND \".venv\\Scripts\\python.exe -m uvicorn backend.api.main:app --reload --host 127.0.0.1 --port 8000\" \"npm --prefix frontend run dev\"",
+    "backend": ".venv\\Scripts\\python.exe -m uvicorn backend.api.main:app --reload --host 127.0.0.1 --port 8000",
+    "frontend": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend run build",
+    "preview": "npm --prefix frontend run preview"
+  },
   "dependencies": {
-    "@supabase/supabase-js": "^2.112.4",
-    "requirements": "^4.0.2"
+    "@supabase/supabase-js": "^2.112.4"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.5"
   }
 }

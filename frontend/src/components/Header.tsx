@@ -40,7 +40,7 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={() => onNavChange('Pipelines')}
             className="flex items-center gap-2.5 cursor-pointer select-none group"
           >
-            <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-xs shadow-xs group-hover:bg-indigo-700 transition-colors">
+            <div className="w-7 h-7 rounded-md bg-blue-800 flex items-center justify-center text-white font-bold text-xs shadow-xs group-hover:bg-blue-900 transition-colors">
               <span>TX</span>
             </div>
             <div>
@@ -58,7 +58,7 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="flex items-center gap-2.5">
           <button
             onClick={onOpenActivityLog}
-            className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-700 hover:text-slate-900 bg-slate-50 hover:bg-slate-100/90 border border-slate-200/80 transition-all cursor-pointer shadow-xs active:scale-98"
+            className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-700 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 transition-all cursor-pointer shadow-xs active:scale-98"
           >
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -74,7 +74,7 @@ export const Header: React.FC<HeaderProps> = ({
               onClick={() => setUserDropdownOpen(!userDropdownOpen)}
               className="flex items-center gap-2 py-1.5 px-2.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-900 transition-all cursor-pointer shadow-xs active:scale-98"
             >
-              <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200 flex items-center justify-center font-bold text-xs">
+              <div className="w-6 h-6 rounded-md bg-blue-50 text-blue-800 border border-blue-200 flex items-center justify-center font-bold text-xs">
                 {user.name.charAt(0).toUpperCase()}
               </div>
               <div className="hidden sm:block text-left text-xs font-semibold text-slate-800 leading-tight">

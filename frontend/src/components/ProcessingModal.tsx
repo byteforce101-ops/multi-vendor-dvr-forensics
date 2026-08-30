@@ -152,18 +152,18 @@ export const ProcessingModal: React.FC<ProcessingModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl max-w-3xl w-full border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col">
+      <div className="bg-white rounded-xl max-w-3xl w-full border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col">
         {/* Modal Header */}
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
           <div>
             <div className="flex items-center gap-2">
-              <span className={`w-2.5 h-2.5 rounded-full ${error ? 'bg-rose-500' : 'bg-indigo-600 animate-pulse'}`} />
+              <span className={`w-2.5 h-2.5 rounded-full ${error ? 'bg-rose-500' : 'bg-blue-800 animate-pulse'}`} />
               <h3 className="text-base font-bold text-slate-900 tracking-tight">
                 Forensic Pipeline Execution
               </h3>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
-              Case: <span className="text-slate-800 font-semibold">{caseName}</span> • Evidence: <span className="text-slate-800 font-semibold">{evidenceId}</span> • File: <span className="text-indigo-600 font-semibold">{fileName}</span>
+              Case: <span className="text-slate-800 font-semibold">{caseName}</span> • Evidence: <span className="text-slate-800 font-semibold">{evidenceId}</span> • File: <span className="text-blue-800 font-semibold">{fileName}</span>
             </p>
           </div>
 
@@ -183,11 +183,11 @@ export const ProcessingModal: React.FC<ProcessingModalProps> = ({
               <span>
                 {error ? 'Execution Failed' : isCompleted ? 'Analysis Completed' : 'Running Neural Tracking & Telemetry Pipeline...'}
               </span>
-              <span className="font-bold text-indigo-600">{progress}%</span>
+              <span className="font-bold text-blue-800">{progress}%</span>
             </div>
             <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
               <div
-                className={`h-full transition-all duration-300 rounded-full ${error ? 'bg-rose-500' : 'bg-indigo-600'}`}
+                className={`h-full transition-all duration-300 rounded-full ${error ? 'bg-rose-500' : 'bg-blue-800'}`}
                 style={{ width: `${progress}%` }}
               />
             </div>

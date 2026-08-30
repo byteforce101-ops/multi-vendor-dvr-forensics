@@ -3,7 +3,7 @@
 
 @layer base {
   :root {
-    /* State of AI Design & Studio Palette */
+    /* Royal Blue Forensic Enterprise Theme */
     --color-txt: #0F172A;
     --color-txt-muted: #475569;
     --color-txt-dim: #64748B;
@@ -15,10 +15,11 @@
     --color-brd: #E2E8F0;
     --color-brd-subtle: #F1F5F9;
     
-    --color-primary: #4F46E5;
-    --color-accent-blue: #3B82F6;
-    --color-accent-cyan: #06B6D4;
-    --color-verified-emerald: #10B981;
+    --color-primary: #1E40AF;
+    --color-primary-hover: #1D4ED8;
+    --color-accent-blue: #2563EB;
+    --color-accent-light: #EFF6FF;
+    --color-verified-emerald: #059669;
   }
 
   body {
@@ -47,31 +48,33 @@
 }
 ::-webkit-scrollbar-thumb {
   background: #CBD5E1;
-  border-radius: 9999px;
+  border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #94A3B8;
 }
 
 .shimmer-badge {
-  background-color: #EEF2F6;
+  background-color: #EFF6FF;
+  border-radius: 6px;
 }
 
 .shimmer-emerald {
   background-color: #ECFDF5;
+  border-radius: 6px;
 }
 
-/* Solid Kinetic Buttons */
+/* Solid Royal Blue Action Buttons (Rectangular, not circular) */
 .btn-kinetic-primary {
-  background-color: #4F46E5;
+  background-color: #1E40AF;
   color: #FFFFFF;
   font-weight: 600;
-  border-radius: 10px;
+  border-radius: 8px;
   transition: all 0.15s ease;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
 }
 .btn-kinetic-primary:hover {
-  background-color: #4338CA;
+  background-color: #1D4ED8;
   transform: translateY(-1px);
 }
 .btn-kinetic-primary:active {
@@ -82,27 +85,26 @@
   background-color: #0F172A;
   color: #F8FAFC;
   font-weight: 600;
-  border-radius: 10px;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+  border-radius: 8px;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
 }
 .btn-kinetic-dark:hover {
   background-color: #1E293B;
   transform: translateY(-1px);
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.18);
 }
 
-/* React Bits: Spotlight Card Styling */
+/* Modern Enterprise Spotlight Card (Crisp rectangular corners) */
 .spotlight-card {
   position: relative;
   background-color: #FFFFFF;
   border: 1px solid #E2E8F0;
-  border-radius: 16px;
-  transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
+  border-radius: 12px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 .spotlight-card:hover {
   border-color: #CBD5E1;
-  box-shadow: 0 10px 30px -10px rgba(15, 23, 42, 0.07), 0 4px 12px -2px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 4px 16px -4px rgba(15, 23, 42, 0.06), 0 2px 6px -1px rgba(15, 23, 42, 0.03);
   transform: translateY(-1px);
 }
 

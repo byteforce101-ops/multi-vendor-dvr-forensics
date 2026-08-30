@@ -231,7 +231,7 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({
       <div className="spotlight-card p-6 sm:p-7 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2.5">
-            <span className="shimmer-badge text-[11px] font-semibold px-2.5 py-0.5 rounded-full text-indigo-900 border border-indigo-200/80">
+            <span className="shimmer-badge text-[11px] font-semibold px-2.5 py-0.5 rounded-md text-blue-950 border border-blue-200/80">
               Analysis #{analysis?.analysis_id ? analysis.analysis_id.slice(0, 8) : 'ACTIVE'}
             </span>
             <span className="text-xs text-slate-500 font-medium truncate">
@@ -260,7 +260,7 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({
       </div>
 
       {/* Action Buttons Bar / React Bits Animated Sliding Tabs */}
-      <div className="bg-slate-100/80 p-1.5 rounded-2xl border border-slate-200/80 flex flex-wrap items-center gap-1">
+      <div className="bg-slate-100/80 p-1.5 rounded-lg border border-slate-200 flex flex-wrap items-center gap-1">
         {[
           { id: 'video', label: 'Video Player', icon: Film },
           { id: 'events', label: 'Event Chronology', icon: Clock, badge: events.length },
@@ -276,7 +276,7 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`relative flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-medium transition-colors cursor-pointer select-none ${
+              className={`relative flex items-center gap-2 px-3.5 py-2 rounded-md text-xs font-medium transition-colors cursor-pointer select-none ${
                 isActive
                   ? 'text-white font-semibold'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
@@ -287,22 +287,22 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({
                 <motion.div
                   layoutId="activeTabPill"
                   transition={{ type: 'spring', stiffness: 450, damping: 35 }}
-                  className="absolute inset-0 bg-slate-900 rounded-xl shadow-xs"
+                  className="absolute inset-0 bg-blue-800 rounded-md shadow-xs"
                 />
               )}
 
               <span className="relative z-10 flex items-center gap-2">
-                <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-indigo-300' : 'text-indigo-600'}`} />
+                <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-blue-200' : 'text-blue-700'}`} />
                 <span>{tab.label}</span>
                 {tab.badge !== undefined && tab.badge > 0 && (
-                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                    isActive ? 'bg-indigo-500/30 text-indigo-200' : 'bg-slate-200 text-slate-700'
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-sm font-bold ${
+                    isActive ? 'bg-blue-500/30 text-blue-100' : 'bg-slate-200 text-slate-700'
                   }`}>
                     {tab.badge}
                   </span>
                 )}
                 {tab.status && (
-                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-sm font-bold ${
                     tab.status === 'PASS'
                       ? isActive
                         ? 'bg-emerald-500/30 text-emerald-200'
@@ -363,7 +363,7 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({
                   <motion.button
                     whileTap={{ scale: 0.9 }}
                     onClick={togglePlay}
-                    className="w-9 h-9 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center transition-colors cursor-pointer shadow-xs"
+                    className="w-8 h-8 rounded-md bg-blue-800 hover:bg-blue-900 text-white flex items-center justify-center transition-colors cursor-pointer shadow-xs"
                   >
                     {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
                   </motion.button>
@@ -380,7 +380,7 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({
                     step={0.1}
                     value={currentTime}
                     onChange={(e) => seekToTime(parseFloat(e.target.value))}
-                    className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                    className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-800"
                   />
                 </div>
 
@@ -423,7 +423,7 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({
 
               {analysis?.forensic_summary && (
                 <div className="pt-2">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">Forensic Brief</span>
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-blue-700">Forensic Brief</span>
                   <p className="text-xs font-bold text-slate-900 mt-1">{analysis.forensic_summary.headline}</p>
                   <p className="text-xs text-slate-600 mt-1 leading-relaxed">{analysis.forensic_summary.summary}</p>
                 </div>
@@ -489,12 +489,12 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({
                   </thead>
                   <tbody>
                     {filteredEvents.map((ev, idx) => (
-                      <tr key={idx} className="hover:bg-indigo-50/20 transition-colors">
-                        <td className="font-mono text-xs text-indigo-600 font-semibold whitespace-nowrap">
+                      <tr key={idx} className="hover:bg-blue-50/20 transition-colors">
+                        <td className="font-mono text-xs text-blue-700 font-semibold whitespace-nowrap">
                           {formatEventTime(ev.start_time)}
                         </td>
                         <td>
-                          <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-800 border border-slate-200">
+                          <span className="inline-block px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-slate-100 text-slate-800 border border-slate-200">
                             {ev.event_type}
                           </span>
                         </td>
@@ -521,7 +521,7 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({
                               seekToTime(targetSec);
                               setActiveTab('video');
                             }}
-                            className="px-2.5 py-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
+                            className="px-2.5 py-1 text-xs font-semibold text-blue-700 hover:text-blue-900 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
                           >
                             Jump to Video →
                           </button>
@@ -560,11 +560,11 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({
                   <motion.div
                     key={idx}
                     whileHover={{ y: -2 }}
-                    className="p-5 rounded-2xl border border-slate-200 bg-white space-y-3 shadow-xs"
+                    className="p-5 rounded-lg border border-slate-200 bg-white space-y-3 shadow-xs"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider">
+                        <span className="text-[10px] font-bold text-blue-700 uppercase tracking-wider">
                           {rec.event_type.replaceAll('_', ' ')}
                         </span>
                         <h4 className="text-sm font-bold text-slate-900 mt-0.5">{rec.title}</h4>
@@ -611,7 +611,7 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({
                 </p>
               </div>
 
-              <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+              <span className={`px-2.5 py-1 rounded-md text-xs font-bold ${
                 integrity?.overall_status === 'PASS'
                   ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                   : 'bg-amber-50 text-amber-900 border border-amber-200'
@@ -621,19 +621,19 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/60">
+              <div className="p-4 rounded-md border border-slate-200 bg-slate-50/60">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Integrity Score</span>
                 <p className="text-2xl font-extrabold text-slate-900 mt-1">{integrity?.integrity_score ?? 100}%</p>
               </div>
-              <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/60">
+              <div className="p-4 rounded-md border border-slate-200 bg-slate-50/60">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Frames Inspected</span>
                 <p className="text-2xl font-extrabold text-slate-900 mt-1">{integrity?.frames_checked ?? analysis?.frames_analyzed ?? 0}</p>
               </div>
-              <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/60">
+              <div className="p-4 rounded-md border border-slate-200 bg-slate-50/60">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Timestamp Gaps</span>
                 <p className="text-2xl font-extrabold text-slate-900 mt-1">{integrity?.timestamp_gaps ?? 0}</p>
               </div>
-              <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/60">
+              <div className="p-4 rounded-md border border-slate-200 bg-slate-50/60">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Duplicate Sequences</span>
                 <p className="text-2xl font-extrabold text-slate-900 mt-1">{integrity?.duplicate_sequences ?? 0}</p>
               </div>
@@ -647,7 +647,7 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({
                 ['Duplicate frame analysis', integrity?.duplicate_frames ?? true],
                 ['Metadata & container consistency', integrity?.metadata_consistency ?? true],
               ].map(([label, passed]) => (
-                <div key={String(label)} className="flex items-center justify-between p-3 rounded-xl border border-slate-100 bg-slate-50/40 text-xs">
+                <div key={String(label)} className="flex items-center justify-between p-3 rounded-md border border-slate-100 bg-slate-50/40 text-xs">
                   <span className="font-medium text-slate-800">{String(label)}</span>
                   {passed ? (
                     <span className="flex items-center gap-1.5 font-semibold text-emerald-600">
@@ -684,7 +684,7 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({
             </div>
 
             {disappearances.length === 0 ? (
-              <div className="p-8 text-center text-xs text-slate-400 bg-slate-50/60 rounded-xl border border-slate-200/80">
+              <div className="p-8 text-center text-xs text-slate-400 bg-slate-50/60 rounded-md border border-slate-200/80">
                 No stationary object disappearance anomalies flagged in this footage.
               </div>
             ) : (
@@ -703,13 +703,13 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({
                     <motion.div
                       key={idx}
                       whileHover={{ y: -2 }}
-                      className="p-4 rounded-xl border border-slate-200 bg-white space-y-2 text-xs shadow-xs"
+                      className="p-4 rounded-md border border-slate-200 bg-white space-y-2 text-xs shadow-xs"
                     >
                       <div className="flex items-center justify-between">
                         <span className="font-bold text-slate-900 uppercase">
                           {disp.object_type} ({dispCamera})
                         </span>
-                        <span className="text-[10px] bg-rose-50 text-rose-700 px-2 py-0.5 rounded-full font-bold border border-rose-200">
+                        <span className="text-[10px] bg-rose-50 text-rose-700 px-2 py-0.5 rounded-md font-bold border border-rose-200">
                           LOST @ {formatEventTime(dispTime)}
                         </span>
                       </div>
@@ -737,7 +737,7 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({
           >
             <div className="pb-4 border-b border-slate-100">
               <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-indigo-600" />
+                <Sparkles className="w-4 h-4 text-blue-700" />
                 <h3 className="text-base font-bold text-slate-900 tracking-tight">
                   Conversational Video Intelligence (CLI Query Engine)
                 </h3>
@@ -759,7 +759,7 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({
                 <button
                   key={promptText}
                   onClick={() => handleSendQuery(promptText)}
-                  className="text-xs px-3 py-1.5 rounded-full bg-slate-50 hover:bg-slate-100 text-slate-700 hover:text-slate-900 border border-slate-200 font-medium transition-colors cursor-pointer"
+                  className="text-xs px-3 py-1.5 rounded-md bg-slate-50 hover:bg-slate-100 text-slate-700 hover:text-slate-900 border border-slate-200 font-medium transition-colors cursor-pointer"
                 >
                   {promptText}
                 </button>
@@ -767,7 +767,7 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({
             </div>
 
             {/* Chat Messages Log */}
-            <div className="space-y-3 min-h-[240px] max-h-[380px] overflow-y-auto p-4 rounded-2xl bg-slate-50/60 border border-slate-200/80">
+            <div className="space-y-3 min-h-[240px] max-h-[380px] overflow-y-auto p-4 rounded-lg bg-slate-50/60 border border-slate-200/80">
               {chatMessages.map((msg, i) => (
                 <div
                   key={i}
@@ -776,13 +776,13 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({
                   }`}
                 >
                   {msg.sender === 'assistant' && (
-                    <div className="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center shrink-0">
+                    <div className="w-7 h-7 rounded-md bg-blue-100 text-blue-800 flex items-center justify-center shrink-0">
                       <Bot className="w-4 h-4" />
                     </div>
                   )}
 
                   <div
-                    className={`p-4 rounded-2xl max-w-xl space-y-2 ${
+                    className={`p-4 rounded-lg max-w-xl space-y-2 ${
                       msg.sender === 'user'
                         ? 'bg-slate-900 text-white rounded-tr-none shadow-xs'
                         : 'bg-white text-slate-900 border border-slate-200/80 rounded-tl-none shadow-xs'
@@ -808,7 +808,7 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({
                                 seekToTime(targetSec);
                                 setActiveTab('video');
                               }}
-                              className="text-[11px] px-2.5 py-0.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-mono flex items-center gap-1 cursor-pointer transition-colors"
+                              className="text-[11px] px-2.5 py-0.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 font-mono flex items-center gap-1 cursor-pointer transition-colors"
                             >
                               <span>{ev.event_type || 'EVENT'}</span>
                               <span className="font-bold">@{formatEventTime(ev.start_time || '')}</span>
@@ -820,7 +820,7 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({
                   </div>
 
                   {msg.sender === 'user' && (
-                    <div className="w-7 h-7 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center shrink-0">
+                    <div className="w-7 h-7 rounded-md bg-slate-200 text-slate-700 flex items-center justify-center shrink-0">
                       <User className="w-4 h-4" />
                     </div>
                   )}
@@ -829,11 +829,11 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({
 
               {isQuerying && (
                 <div className="flex gap-3 text-xs justify-start">
-                  <div className="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center shrink-0">
+                  <div className="w-7 h-7 rounded-md bg-blue-100 text-blue-800 flex items-center justify-center shrink-0">
                     <Bot className="w-4 h-4" />
                   </div>
-                  <div className="p-3.5 bg-white text-slate-600 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-indigo-600 animate-ping" />
+                  <div className="p-3.5 bg-white text-slate-600 rounded-lg border border-slate-200 shadow-xs flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-blue-800 animate-ping" />
                     <span>Querying forensic event chronology...</span>
                   </div>
                 </div>
@@ -853,7 +853,7 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({
                 value={queryInput}
                 onChange={(e) => setQueryInput(e.target.value)}
                 placeholder="Ask anything about this video (e.g. 'What happened between 12:00 and 12:15?')"
-                className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 shadow-xs"
+                className="flex-1 px-4 py-2.5 rounded-md border border-slate-200 bg-white text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-700/15 shadow-xs"
               />
               <motion.button
                 whileHover={{ scale: 1.02 }}

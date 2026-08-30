@@ -77,7 +77,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 }}
                 className="flex items-center space-x-2.5 cursor-pointer group"
               >
-                <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-xs shadow-xs group-hover:bg-indigo-700 transition-colors">
+                <div className="w-8 h-8 rounded-md bg-blue-800 flex items-center justify-center text-white font-bold text-xs shadow-xs group-hover:bg-blue-900 transition-colors">
                   <span>TX</span>
                 </div>
                 <div>
@@ -92,7 +92,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
               <button
                 onClick={onToggle}
-                className="w-7 h-7 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors flex items-center justify-center cursor-pointer"
+                className="w-7 h-7 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors flex items-center justify-center cursor-pointer"
                 title="Close sidebar"
               >
                 <X className="w-4 h-4" />
@@ -116,13 +116,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       onNavChange(item.id);
                       onToggle();
                     }}
-                    className={`w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+                    className={`w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
                       isActive
-                        ? 'bg-indigo-50 text-indigo-950 font-semibold border border-indigo-200/80 shadow-xs'
+                        ? 'bg-blue-50 text-blue-900 font-semibold border-l-4 border-blue-800 shadow-xs'
                         : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                     }`}
                   >
-                    <Icon size={16} className={isActive ? 'text-indigo-600' : 'text-slate-400'} />
+                    <Icon size={16} className={isActive ? 'text-blue-800' : 'text-slate-400'} />
                     <div className="min-w-0 flex-1">
                       <div className="truncate">{item.label}</div>
                       <div className="text-[10px] text-slate-400 font-normal truncate">{item.description}</div>
@@ -143,7 +143,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   onOpenActivityLog();
                   onToggle();
                 }}
-                className="w-full text-left flex items-center justify-between px-3 py-2 rounded-xl text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors cursor-pointer"
+                className="w-full text-left flex items-center justify-between px-3 py-2 rounded-lg text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors cursor-pointer"
               >
                 <div className="flex items-center gap-2.5">
                   <ShieldCheck className="w-4 h-4 text-emerald-600" />
@@ -157,9 +157,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   onOpenCompliance('security');
                   onToggle();
                 }}
-                className="w-full text-left flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors cursor-pointer"
+                className="w-full text-left flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors cursor-pointer"
               >
-                <FileCheck className="w-4 h-4 text-indigo-500" />
+                <FileCheck className="w-4 h-4 text-blue-700" />
                 <span>Forensic Standards</span>
               </button>
             </div>
@@ -173,9 +173,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 onOpenProfile();
                 onToggle();
               }}
-              className="w-full text-left p-2.5 rounded-xl border border-slate-200 hover:border-slate-300 bg-slate-50 hover:bg-white transition-all flex items-center gap-2.5 cursor-pointer shadow-xs"
+              className="w-full text-left p-2.5 rounded-lg border border-slate-200 hover:border-slate-300 bg-slate-50 hover:bg-white transition-all flex items-center gap-2.5 cursor-pointer shadow-xs"
             >
-              <div className="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xs shrink-0">
+              <div className="w-7 h-7 rounded-md bg-blue-50 text-blue-800 border border-blue-200 flex items-center justify-center font-bold text-xs shrink-0">
                 {user.name.charAt(0).toUpperCase()}
               </div>
 

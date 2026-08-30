@@ -132,8 +132,8 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <span className="shimmer-emerald text-[11px] font-semibold px-3 py-1 rounded-full text-emerald-800 border border-emerald-300/80 flex items-center gap-1.5 shadow-2xs">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span className="shimmer-emerald text-[11px] font-semibold px-2.5 py-1 rounded-md text-emerald-800 border border-emerald-300/80 flex items-center gap-1.5 shadow-2xs">
+            <span className="w-1.5 h-1.5 rounded-sm bg-emerald-600 animate-pulse"></span>
             WORM Immutable Storage
           </span>
         </div>
@@ -148,7 +148,7 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
             <input
               value={caseName}
               onChange={(e) => setCaseName(e.target.value)}
-              className="w-full rounded-xl bg-slate-50/70 border border-slate-200 px-3.5 py-2.5 text-xs text-slate-900 font-medium focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 focus:outline-none transition-all"
+              className="w-full rounded-lg bg-slate-50/70 border border-slate-200 px-3.5 py-2 text-xs text-slate-900 font-medium focus:bg-white focus:border-blue-700 focus:ring-1 focus:ring-blue-700 focus:outline-none transition-all"
               placeholder="e.g. V-2024-081A"
             />
           </div>
@@ -160,7 +160,7 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
             <input
               value={evidenceId}
               onChange={(e) => setEvidenceId(e.target.value)}
-              className="w-full rounded-xl bg-slate-50/70 border border-slate-200 px-3.5 py-2.5 text-xs text-slate-900 font-medium focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 focus:outline-none transition-all"
+              className="w-full rounded-lg bg-slate-50/70 border border-slate-200 px-3.5 py-2 text-xs text-slate-900 font-medium focus:bg-white focus:border-blue-700 focus:ring-1 focus:ring-blue-700 focus:outline-none transition-all"
               placeholder="e.g. EVD-CAM-01"
             />
           </div>
@@ -177,10 +177,10 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
           onDragLeave={() => setIsDragging(false)}
           onDrop={handleDrop}
           onClick={() => fileInputRef.current?.click()}
-          className={`cursor-pointer rounded-2xl border-2 border-dashed p-9 text-center transition-all ${
+          className={`cursor-pointer rounded-xl border-2 border-dashed p-8 text-center transition-all ${
             isDragging
-              ? 'border-indigo-500 bg-indigo-50/50 shadow-inner'
-              : 'border-slate-300/90 bg-slate-50/50 hover:bg-indigo-50/20 hover:border-indigo-400'
+              ? 'border-blue-700 bg-blue-50/60 shadow-inner'
+              : 'border-slate-300 bg-slate-50/50 hover:bg-blue-50/30 hover:border-blue-500'
           }`}
         >
           <input
@@ -191,8 +191,8 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
             onChange={handleInputChange}
           />
 
-          <div className="w-12 h-12 mx-auto rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center justify-center mb-3 shadow-xs">
-            <UploadCloud className="w-6 h-6" />
+          <div className="w-11 h-11 mx-auto rounded-lg bg-blue-50 text-blue-700 border border-blue-200 flex items-center justify-center mb-3 shadow-2xs">
+            <UploadCloud className="w-5 h-5" />
           </div>
 
           <h3 className="text-sm font-bold text-slate-800">
@@ -205,8 +205,8 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
         </motion.div>
 
         {isHashing && (
-          <div className="flex items-center gap-2.5 p-3.5 rounded-xl bg-indigo-50/70 border border-indigo-200/80 text-xs text-indigo-900 font-medium">
-            <RefreshCw className="w-4 h-4 animate-spin text-indigo-600" />
+          <div className="flex items-center gap-2.5 p-3 rounded-lg bg-blue-50 border border-blue-200 text-xs text-blue-900 font-medium">
+            <RefreshCw className="w-4 h-4 animate-spin text-blue-700" />
             <span>Calculating client-side SHA-256 cryptographic seal...</span>
           </div>
         )}
@@ -215,11 +215,11 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
           <motion.div
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="rounded-xl border border-slate-200 bg-slate-50/80 p-4 space-y-3 shadow-xs"
+            className="rounded-lg border border-slate-200 bg-slate-50/90 p-4 space-y-3 shadow-xs"
           >
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
-                <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-lg bg-blue-100 text-blue-800 flex items-center justify-center shrink-0">
                   <FileVideo className="w-5 h-5" />
                 </div>
 
@@ -239,13 +239,13 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
                   e.stopPropagation();
                   setSelectedFile(null);
                 }}
-                className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 rounded-md transition-colors"
+                className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-200 rounded-md transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="pt-2.5 border-t border-slate-200/80 flex items-center gap-2 text-xs">
+            <div className="pt-2.5 border-t border-slate-200 flex items-center gap-2 text-xs">
               <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
               <div className="min-w-0 flex-1">
                 <span className="text-[10px] uppercase font-bold text-emerald-700">

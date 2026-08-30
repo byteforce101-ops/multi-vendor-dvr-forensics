@@ -50,10 +50,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, isAuthent
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl max-w-sm w-full border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+      <div className="bg-white rounded-xl max-w-sm w-full border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-indigo-50 text-slate-900 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-blue-50 text-slate-900 flex items-center justify-center">
               <ShieldCheck className="w-4 h-4" />
             </div>
             <h3 className="text-sm font-bold text-slate-900">
@@ -67,12 +67,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, isAuthent
 
         {!isSupabaseConfigured ? (
           <div className="p-6 text-xs text-slate-500 leading-relaxed">
-            Local workstation mode active (Supabase optional). For multi-user ledger sync, configure <code className="text-indigo-600 font-semibold">VITE_SUPABASE_URL</code> in environment.
+            Local workstation mode active (Supabase optional). For multi-user ledger sync, configure <code className="text-blue-800 font-semibold">VITE_SUPABASE_URL</code> in environment.
           </div>
         ) : isAuthenticated ? (
           <div className="p-6 space-y-4 text-xs">
             <div className="flex items-center gap-2.5 text-slate-900 bg-slate-50 p-3 rounded-lg border border-slate-200">
-              <Mail className="w-4 h-4 text-indigo-600" />
+              <Mail className="w-4 h-4 text-blue-800" />
               <span className="font-semibold">{userEmail}</span>
             </div>
             <button
@@ -94,7 +94,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, isAuthent
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white transition-colors"
+                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-700 focus:bg-white transition-colors"
                 />
               </div>
             </div>
@@ -109,7 +109,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, isAuthent
                   minLength={6}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white transition-colors"
+                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-700 focus:bg-white transition-colors"
                 />
               </div>
             </div>
@@ -129,7 +129,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, isAuthent
             <button
               type="button"
               onClick={() => { setMode(mode === 'signin' ? 'signup' : 'signin'); setError(null); setInfo(null); }}
-              className="w-full text-center text-xs text-indigo-600 hover:text-indigo-800 pt-1 cursor-pointer font-medium"
+              className="w-full text-center text-xs text-blue-800 hover:text-indigo-800 pt-1 cursor-pointer font-medium"
             >
               {mode === 'signin' ? 'Register new examiner credentials' : 'Already registered? Sign in'}
             </button>

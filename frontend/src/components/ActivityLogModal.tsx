@@ -74,7 +74,7 @@ export const ActivityLogModal: React.FC<ActivityLogModalProps> = ({ isOpen, onCl
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl max-w-4xl w-full border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[85vh]">
+      <div className="bg-white rounded-xl max-w-4xl w-full border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[85vh]">
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -108,7 +108,7 @@ export const ActivityLogModal: React.FC<ActivityLogModalProps> = ({ isOpen, onCl
               placeholder="Filter by filename, case ID, or event..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition-colors"
+              className="w-full pl-9 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-700 transition-colors"
             />
           </div>
 
@@ -139,11 +139,11 @@ export const ActivityLogModal: React.FC<ActivityLogModalProps> = ({ isOpen, onCl
                 <tr key={log.id} className="hover:bg-slate-50 transition-colors">
                   <td className="py-3 text-slate-500 whitespace-nowrap font-mono text-[11px]">{log.timestamp}</td>
                   <td className="py-3 font-semibold text-slate-900">{log.action}</td>
-                  <td className="py-3 text-indigo-600 font-medium">{log.fileName}</td>
+                  <td className="py-3 text-blue-800 font-medium">{log.fileName}</td>
                   <td className="py-3 text-slate-900">{log.caseId}</td>
                   <td className="py-3 text-slate-500 truncate max-w-[150px]">{log.operator}</td>
                   <td className="py-3 text-right">
-                    <span className="inline-flex items-center gap-1 text-slate-900 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full font-semibold text-[10px]">
+                    <span className="inline-flex items-center gap-1 text-slate-900 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md font-semibold text-[10px]">
                       <CheckCircle2 className="w-3 h-3 text-emerald-600" />
                       SHA-256 SEAL VALID
                     </span>

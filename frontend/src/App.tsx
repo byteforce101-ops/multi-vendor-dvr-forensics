@@ -3,17 +3,17 @@ import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 import { ProcessPipeline } from './components/ProcessPipeline';
 import { UploadSection } from './components/UploadSection';
-import { ChainOfCustody } from './components/ChainOfCustody';
 import { ArchitectureSection } from './components/ArchitectureSection';
 import { Footer } from './components/Footer';
 import { ProcessingModal } from './components/ProcessingModal';
 import { ActivityLogModal } from './components/ActivityLogModal';
 import { SupabaseAuthModal } from './components/SupabaseAuthModal';
+import { LoginModal } from './components/LoginModal';
 import { ComplianceModal } from './components/ComplianceModal';
 import { AnalysesView } from './components/AnalysesView';
 import { LibraryView } from './components/LibraryView';
 import { DEFAULT_USER } from './lib/supabase';
-import { EvidenceFile, SupabaseUser } from './types';
+import { EvidenceFile, SupabaseUser, VideoAnalysisResult } from './types';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<SupabaseUser>(DEFAULT_USER);
@@ -25,12 +25,15 @@ export default function App() {
   const [isProcessingOpen, setIsProcessingOpen] = useState(false);
   const [isActivityLogOpen, setIsActivityLogOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [hasUploadAccess, setHasUploadAccess] = useState(false);
   const [complianceModalTab, setComplianceModalTab] = useState<'security' | 'compliance' | 'api' | null>(null);
 
   // Active file & case state
   const [activeCaseName, setActiveCaseName] = useState('V-2024-081A');
   const [activeEvidenceId, setActiveEvidenceId] = useState('');
   const [uploadedFile, setUploadedFile] = useState<EvidenceFile | null>(null);
+  const [analysisResult, setAnalysisResult] = useState<VideoAnalysisResult | null>(null);
   const [isArchitectureHighlighted, setIsArchitectureHighlighted] = useState(false);
 
   const handleNavigateToArchitecture = () => {
@@ -85,6 +88,7 @@ export default function App() {
 
   const handleFileUploaded = (file: EvidenceFile) => {
     setUploadedFile(file);
+    setAnalysisResult(null);
     setRecentFiles((prev) => [file, ...prev]);
   };
 
@@ -93,6 +97,7 @@ export default function App() {
     setActiveEvidenceId(data.evidenceId);
     if (data.file) {
       setUploadedFile(data.file);
+      setAnalysisResult(null);
     }
     setIsProcessingOpen(true);
   };
@@ -138,23 +143,14 @@ export default function App() {
               <ProcessPipeline
                 currentStepId={currentStepId}
               />
-
-              {/* Middle Section: 2 Columns */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-7 items-stretch">
-                {/* Left Column: Upload Evidence */}
-                <div className="lg:col-span-8 flex">
+              {/* Centered Upload Workspace */}
+              <div className="flex justify-center">
+                <div className="w-full max-w-4xl">
                   <UploadSection
                     onBeginProcessing={handleBeginProcessing}
                     onFileUploaded={handleFileUploaded}
-                  />
-                </div>
-
-                {/* Right Column: Chain of Custody */}
-                <div className="lg:col-span-4 flex">
-                  <ChainOfCustody
-                    recentFiles={recentFiles}
-                    onOpenActivityLog={() => setIsActivityLogOpen(true)}
-                    onSelectFile={(f) => setUploadedFile(f)}
+                    isAuthenticated={hasUploadAccess}
+                    onRequestLogin={() => setIsLoginModalOpen(true)}
                   />
                 </div>
               </div>
@@ -164,7 +160,7 @@ export default function App() {
             </div>
           )}
 
-          {activeNav === 'Analyses' && <AnalysesView />}
+          {activeNav === 'Analyses' && <AnalysesView analysis={analysisResult} />}
 
           {activeNav === 'Library' && (
             <LibraryView
@@ -187,6 +183,7 @@ export default function App() {
         caseName={activeCaseName}
         evidenceId={activeEvidenceId || 'EVD-894102'}
         file={uploadedFile}
+        onAnalysisComplete={(result) => setAnalysisResult(result)}
         onCompleteStep={(stepId) => {
           setCurrentStepId(stepId);
           setActiveNav('Analyses');
@@ -203,6 +200,15 @@ export default function App() {
         onClose={() => setIsAuthModalOpen(false)}
         currentUser={currentUser}
         onUpdateUser={(u) => setCurrentUser(u)}
+      />
+
+      <LoginModal
+        isOpen={isLoginModalOpen}
+        onClose={() => setIsLoginModalOpen(false)}
+        onAuthenticated={(user) => {
+          setCurrentUser(user);
+          setHasUploadAccess(true);
+        }}
       />
 
       <ComplianceModal

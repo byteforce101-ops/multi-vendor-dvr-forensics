@@ -1,18 +1,56 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Play, Pause, FastForward, Rewind, Eye, Shield, Tag, User, MapPin, Clock, Volume2, Sparkles, Download, CheckCircle } from 'lucide-react';
 import { motion } from 'motion/react';
+import { VideoAnalysisResult } from '../types';
 
-export const AnalysesView: React.FC = () => {
+interface AnalysesViewProps {
+  analysis?: VideoAnalysisResult | null;
+}
+
+const formatEventTime = (value: string) => {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toISOString().slice(11, 23);
+};
+
+const formatDuration = (seconds: number | null | undefined) => {
+  if (seconds == null) return '--:--:--';
+  const wholeSeconds = Math.max(0, Math.floor(seconds));
+  const hours = Math.floor(wholeSeconds / 3600);
+  const minutes = Math.floor((wholeSeconds % 3600) / 60);
+  const remainder = wholeSeconds % 60;
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${remainder.toString().padStart(2, '0')}`;
+};
+
+export const AnalysesView: React.FC<AnalysesViewProps> = ({ analysis }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState('00:14:22.050');
   const [selectedEventId, setSelectedEventId] = useState<number>(2);
 
-  const timelineEvents = [
+  const sampleTimelineEvents = [
     { id: 1, time: '00:04:15.100', type: 'Face_Identified', label: 'Person of Interest (POI-902)', confidence: 99.1, tagColor: 'sage' },
     { id: 2, time: '00:14:22.050', type: 'Person_Detected', label: 'Subject enters West Corridors', confidence: 98.4, tagColor: 'sage' },
     { id: 3, time: '00:18:05.800', type: 'Vehicle_Plate', label: 'License Plate OCR: CA 8XKL912', confidence: 97.2, tagColor: 'navy' },
     { id: 4, time: '00:23:40.300', type: 'Audio_Spike', label: 'Acoustic Stress Peak (Decibel > 88dB)', confidence: 94.6, tagColor: 'terracotta' },
   ];
+  const timelineEvents = analysis
+    ? analysis.events.map((event, index) => ({
+        id: index + 1,
+        time: formatEventTime(event.start_time),
+        type: event.event_type,
+        label: `${event.event_type.replaceAll('_', ' ')}${event.object_type ? ` · ${event.object_type}` : ''}`,
+        confidence: event.confidence == null ? 0 : event.confidence <= 1 ? event.confidence * 100 : event.confidence,
+        tagColor: index % 3 === 0 ? 'terracotta' : 'sage',
+      }))
+    : sampleTimelineEvents;
+
+  useEffect(() => {
+    setSelectedEventId(analysis ? 1 : 2);
+    if (analysis?.events[0]) setCurrentTime(formatEventTime(analysis.events[0].start_time));
+  }, [analysis]);
+
+  const eventCount = analysis?.event_count ?? sampleTimelineEvents.length;
+  const duration = analysis ? formatDuration(analysis.metadata.duration_seconds) : '00:28:40';
+  const sourceName = analysis?.filename ?? 'Interrogation_RM3_A.mp4';
 
   return (
     <motion.div 
@@ -28,10 +66,10 @@ export const AnalysesView: React.FC = () => {
             Active Forensic Analysis
           </span>
           <h2 className="text-2xl sm:text-3xl font-['DM_Sans',sans-serif] text-[#221e1b] mt-2 font-normal">
-            Case V-2024-081A • Multi-Track Video Timeline
+            {analysis ? 'Backend Analysis • Multi-Track Video Timeline' : 'Case V-2024-081A • Multi-Track Video Timeline'}
           </h2>
           <p className="text-xs text-[#6e6459] font-mono mt-1">
-            Source: Interrogation_RM3_A.mp4 • Hash: e3b0c44298fc1c149afbf4e8...
+            Source: {sourceName} • {analysis ? `Analysis ID: ${analysis.analysis_id} • ${analysis.frames_analyzed} frames analyzed` : 'Hash: e3b0c44298fc1c149afbf4e8...'}
           </p>
         </div>
 
@@ -71,7 +109,7 @@ export const AnalysesView: React.FC = () => {
             <div className="absolute bottom-0 left-0 right-0 p-4 flex items-center justify-between text-white text-xs font-mono">
               <div className="flex items-center gap-3">
                 <span className="text-[#c2593f] font-bold">{currentTime}</span>
-                <span className="text-stone-300">/ 00:28:40.000</span>
+                <span className="text-stone-300">/ {duration}</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="bg-white/10 px-2 py-0.5 rounded text-[11px]">1080p60</span>
@@ -98,7 +136,7 @@ export const AnalysesView: React.FC = () => {
             <h3 className="font-semibold text-[#221e1b] font-['DM_Sans',sans-serif] text-xl">
               AI-Detected Chronology
             </h3>
-            <span className="text-xs font-mono text-[#3b5749] bg-[#eaf1ed] px-2.5 py-0.5 rounded font-semibold">4 Events</span>
+            <span className="text-xs font-mono text-[#3b5749] bg-[#eaf1ed] px-2.5 py-0.5 rounded font-semibold">{eventCount} Events</span>
           </div>
 
           <div className="space-y-3">
@@ -121,7 +159,7 @@ export const AnalysesView: React.FC = () => {
                 >
                   <div className="flex items-center justify-between text-xs font-mono">
                     <span className="font-bold text-[#0f2338]">{evt.time}</span>
-                    <span className="text-[#2b4d3a] font-semibold">{evt.confidence}% match</span>
+                    <span className="text-[#2b4d3a] font-semibold">{evt.confidence.toFixed(1)}% match</span>
                   </div>
                   <div className="text-xs font-semibold text-[#221e1b] mt-1">
                     {evt.label}
@@ -133,8 +171,18 @@ export const AnalysesView: React.FC = () => {
 
           <div className="mt-5 p-3.5 bg-[#f5efe4] rounded-xl text-xs font-mono text-[#4a423a] space-y-1 border border-[#ded5c7]">
             <div className="text-[#7d7367] uppercase text-[10px] font-bold">Metadata Telemetry</div>
-            <div>GPS: 37.7749° N, 122.4194° W</div>
-            <div>Cam ID: AXIS-Q1786-E-04</div>
+            {analysis ? (
+              <>
+                <div>Resolution: {analysis.metadata.width ?? '—'}x{analysis.metadata.height ?? '—'}</div>
+                <div>Codec: {analysis.metadata.codec ?? 'Unknown'} • {analysis.metadata.fps == null ? '—' : `${analysis.metadata.fps.toFixed(2)} FPS`}</div>
+                <div>Audio: {analysis.metadata.has_audio ? 'Present' : 'None'}</div>
+              </>
+            ) : (
+              <>
+                <div>GPS: 37.7749° N, 122.4194° W</div>
+                <div>Cam ID: AXIS-Q1786-E-04</div>
+              </>
+            )}
           </div>
         </div>
       </div>

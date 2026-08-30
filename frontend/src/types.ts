@@ -12,6 +12,7 @@ export interface EvidenceFile {
   caseId: string;
   size: string;
   rawSizeBytes?: number;
+  sourceFile?: File;
   uploadedAt: string;
   hash: string;
   status: 'verified' | 'processing' | 'queued' | 'error';
@@ -24,6 +25,43 @@ export interface EvidenceFile {
     fps?: number;
     audioChannels?: number;
   };
+}
+
+export interface VideoAnalysisEvent {
+  event_type: string;
+  video_id: string;
+  camera_id: string;
+  start_time: string;
+  end_time: string;
+  confidence: number | null;
+  track_id: string | null;
+  object_type: string | null;
+  metadata?: Record<string, unknown>;
+}
+
+export interface VideoAnalysisMetadata {
+  duration_seconds: number | null;
+  width: number | null;
+  height: number | null;
+  fps: number | null;
+  codec: string | null;
+  format: string | null;
+  pixel_format: string | null;
+  frame_count: number | null;
+  has_audio: boolean;
+}
+
+export interface VideoAnalysisResult {
+  status: string;
+  analysis_id: string;
+  filename: string;
+  video_path: string;
+  metadata: VideoAnalysisMetadata;
+  frames_analyzed: number;
+  event_count: number;
+  events: VideoAnalysisEvent[];
+  timeline_count: number;
+  timeline: Array<Record<string, unknown>>;
 }
 
 export interface ActivityLogItem {

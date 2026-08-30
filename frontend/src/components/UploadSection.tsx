@@ -6,17 +6,22 @@ import { EvidenceFile } from '../types';
 interface UploadSectionProps {
   onBeginProcessing: (data: { caseName: string; evidenceId: string; file: EvidenceFile | null }) => void;
   onFileUploaded?: (file: EvidenceFile) => void;
+  isAuthenticated: boolean;
+  onRequestLogin: () => void;
 }
 
 export const UploadSection: React.FC<UploadSectionProps> = ({
   onBeginProcessing,
   onFileUploaded,
+  isAuthenticated,
+  onRequestLogin,
 }) => {
   const [caseName, setCaseName] = useState('V-2024-081A');
   const [evidenceId, setEvidenceId] = useState('');
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFile, setSelectedFile] = useState<EvidenceFile | null>(null);
   const [isHashing, setIsHashing] = useState(false);
+  const [validationError, setValidationError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Generates a mock SHA-256 hash from file attributes
@@ -32,6 +37,7 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
   };
 
   const handleFile = (file: File) => {
+    setValidationError('');
     setIsHashing(true);
     const sizeInMB = (file.size / (1024 * 1024)).toFixed(1);
     const sizeFormatted = file.size > 1024 * 1024 * 1024 
@@ -46,6 +52,7 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
         caseId: caseName || 'V-2024-081A',
         size: sizeFormatted,
         rawSizeBytes: file.size,
+        sourceFile: file,
         uploadedAt: new Date().toISOString(),
         hash: hash,
         status: 'verified',
@@ -71,6 +78,10 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setIsDragging(false);
+    if (!isAuthenticated) {
+      onRequestLogin();
+      return;
+    }
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       handleFile(e.dataTransfer.files[0]);
     }
@@ -87,6 +98,10 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!isAuthenticated) {
+      onRequestLogin();
+      return;
+    }
     if (e.target.files && e.target.files.length > 0) {
       handleFile(e.target.files[0]);
     }
@@ -94,6 +109,15 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isAuthenticated) {
+      onRequestLogin();
+      return;
+    }
+    if (!selectedFile) {
+      setValidationError('Choose a video file before starting.');
+      return;
+    }
+    setValidationError('');
     onBeginProcessing({
       caseName: caseName || 'V-2024-081A',
       evidenceId: evidenceId || `EVD-${Math.floor(100000 + Math.random() * 900000)}`,
@@ -172,7 +196,13 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
               onDrop={handleDrop}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => {
+                if (isAuthenticated) {
+                  fileInputRef.current?.click();
+                } else {
+                  onRequestLogin();
+                }
+              }}
               className={`w-full rounded-2xl border-2 border-dashed transition-all cursor-pointer p-8 sm:p-10 flex flex-col items-center justify-center text-center shadow-xs hover:shadow-md ${
                 isDragging
                   ? 'border-[#1b4e39] bg-[#eaf1ed]/80 scale-[0.99]'
@@ -242,6 +272,9 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
               <RefreshCw className="w-3.5 h-3.5 animate-spin" />
               <span>Securing file...</span>
             </div>
+          )}
+          {validationError && (
+            <p className="mt-3 text-center text-xs font-semibold text-[#a34a32]">{validationError}</p>
           )}
         </div>
       </div>

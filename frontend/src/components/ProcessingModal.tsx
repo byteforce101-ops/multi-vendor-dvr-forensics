@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, CheckCircle2, RefreshCw, Shield, Cpu, Activity, FileText, ArrowRight, Play, Check } from 'lucide-react';
-import { EvidenceFile } from '../types';
+import { EvidenceFile, VideoAnalysisResult } from '../types';
 
 interface ProcessingModalProps {
   isOpen: boolean;
@@ -9,6 +9,7 @@ interface ProcessingModalProps {
   evidenceId: string;
   file: EvidenceFile | null;
   onCompleteStep: (stepId: number) => void;
+  onAnalysisComplete: (result: VideoAnalysisResult) => void;
 }
 
 export const ProcessingModal: React.FC<ProcessingModalProps> = ({
@@ -18,11 +19,13 @@ export const ProcessingModal: React.FC<ProcessingModalProps> = ({
   evidenceId,
   file,
   onCompleteStep,
+  onAnalysisComplete,
 }) => {
   const [progress, setProgress] = useState(0);
   const [currentPhase, setCurrentPhase] = useState(1);
   const [logs, setLogs] = useState<string[]>([]);
   const [isCompleted, setIsCompleted] = useState(false);
+  const [error, setError] = useState('');
 
   const fileName = file?.name || 'Interrogation_RM3_A.mp4';
   const fileHash = file?.hash || 'e3b0c44298fc1c149afbf4e8996fb92427ae41e4649b934ca495991b7852b855';
@@ -33,62 +36,82 @@ export const ProcessingModal: React.FC<ProcessingModalProps> = ({
       setCurrentPhase(1);
       setLogs([]);
       setIsCompleted(false);
+      setError('');
       return;
     }
 
-    const timer1 = setTimeout(() => {
-      setProgress(20);
+    const sourceFile = file?.sourceFile;
+    if (!sourceFile) {
+      setError('Select a video file before starting the forensic pipeline.');
+      return;
+    }
+
+    const controller = new AbortController();
+    let isActive = true;
+
+    const runAnalysis = async () => {
+      setError('');
+      setProgress(10);
       setCurrentPhase(1);
-      setLogs((prev) => [
-        ...prev,
-        `[00:00.12] INGEST: Bitstream locked. Reading 524288000 bytes into volatile memory.`,
-        `[00:00.45] CRYPTO: SHA-256 generated: ${fileHash.substring(0, 32)}...`,
-        `[00:00.80] STORAGE: Bit-exact replica committed to immutable cold tier (WORM).`,
+      setLogs([
+        `[INGEST] Uploading ${sourceFile.name} to the FastAPI analysis service.`,
+        `[CRYPTO] Client-side seal: ${fileHash.substring(0, 32)}...`,
       ]);
-    }, 400);
 
-    const timer2 = setTimeout(() => {
-      setProgress(45);
-      setCurrentPhase(2);
-      setLogs((prev) => [
-        ...prev,
-        `[00:01.30] FFPROBE: Dissecting container headers. FourCC: avc1, 1080p @ 29.97fps.`,
-        `[00:01.65] METADATA: Extracted EXIF/GPS telemetry [37.7749° N, 122.4194° W].`,
-        `[00:01.90] DEMUX: Demuxed 2 audio streams (PCM 48kHz, 24-bit stereo).`,
-      ]);
-    }, 1500);
+      try {
+        const formData = new FormData();
+        formData.append('file', sourceFile, sourceFile.name);
+        setProgress(25);
+        setCurrentPhase(2);
+        setLogs((prev) => [...prev, '[FFPROBE] Backend is inspecting the video container and metadata.']);
 
-    const timer3 = setTimeout(() => {
-      setProgress(75);
-      setCurrentPhase(3);
-      setLogs((prev) => [
-        ...prev,
-        `[00:02.40] AI_INFERENCE: Executing spatial-temporal neural network model v4.8.`,
-        `[00:02.80] DETECTION: 14 Person_Detected events (Confidence: 98.4%).`,
-        `[00:03.10] OCR: Timestamp watermark verified: 2024-10-24T14:22:05.`,
-        `[00:03.40] ASR: Whisper transcription complete. 182 utterances indexed.`,
-      ]);
-    }, 2800);
+        const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
+        const response = await fetch(`${apiBaseUrl}/video/analyze`, {
+          method: 'POST',
+          body: formData,
+          signal: controller.signal,
+        });
 
-    const timer4 = setTimeout(() => {
-      setProgress(100);
-      setCurrentPhase(4);
-      setIsCompleted(true);
-      setLogs((prev) => [
-        ...prev,
-        `[00:03.90] LEDGER: Cryptographic Chain of Custody signed by Enterprise User (ID: 10D11A8).`,
-        `[00:04.10] READY: Forensic timeline generated and ready for auditable review.`,
-      ]);
-      onCompleteStep(8); // Advances stepper to timeline review
-    }, 4000);
+        if (!response.ok) {
+          let detail = `Backend analysis failed (${response.status}).`;
+          try {
+            const body = await response.json();
+            if (typeof body.detail === 'string') detail = body.detail;
+          } catch {
+            // Keep the status-based message when the backend did not return JSON.
+          }
+          throw new Error(detail);
+        }
 
-    return () => {
-      clearTimeout(timer1);
-      clearTimeout(timer2);
-      clearTimeout(timer3);
-      clearTimeout(timer4);
+        const result = await response.json() as VideoAnalysisResult;
+        if (!isActive) return;
+
+        setProgress(75);
+        setCurrentPhase(3);
+        setLogs((prev) => [
+          ...prev,
+          `[AI_INFERENCE] ${result.frames_analyzed} frames analyzed by the backend pipeline.`,
+          `[DETECTION] ${result.event_count} forensic events reconstructed.`,
+        ]);
+        onAnalysisComplete(result);
+        setProgress(100);
+        setCurrentPhase(4);
+        setIsCompleted(true);
+        setLogs((prev) => [...prev, '[READY] Backend timeline returned and ready for auditable review.']);
+        onCompleteStep(8);
+      } catch (caught) {
+        if (!isActive || (caught instanceof DOMException && caught.name === 'AbortError')) return;
+        setError(caught instanceof Error ? caught.message : 'The backend analysis could not be completed.');
+        setLogs((prev) => [...prev, '[ERROR] The forensic pipeline stopped before completion.']);
+      }
     };
-  }, [isOpen]);
+
+    void runAnalysis();
+    return () => {
+      isActive = false;
+      controller.abort();
+    };
+  }, [isOpen, file]);
 
   if (!isOpen) return null;
 
@@ -194,12 +217,13 @@ export const ProcessingModal: React.FC<ProcessingModalProps> = ({
                   )}
                 </div>
               ))}
-              {!isCompleted && (
+              {!isCompleted && !error && (
                 <div className="flex items-center gap-1.5 text-[#eaf1ed]">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#5e7d6f] animate-ping"></span>
                   <span>Processing video frames in parallel...</span>
                 </div>
               )}
+              {error && <div className="text-[#ffb39d]">{error}</div>}
             </div>
           </div>
         </div>

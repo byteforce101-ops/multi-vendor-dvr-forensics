@@ -1,17 +1,16 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
-const API_BASE = (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_API_BASE_URL
+export const API_BASE = (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_API_BASE_URL
   || 'http://127.0.0.1:8000';
 
-async function authHeaders(): Promise<HeadersInit> {
+export async function getAuthHeaders(): Promise<HeadersInit> {
   if (!isSupabaseConfigured || !supabase) return {};
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
-
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const headers: HeadersInit = { ...(await authHeaders()), ...(init.headers || {}) };
+  const headers: HeadersInit = { ...(await getAuthHeaders()), ...(init.headers || {}) };
   const res = await fetch(`${API_BASE}${path}`, { ...init, headers });
 
   if (!res.ok) {

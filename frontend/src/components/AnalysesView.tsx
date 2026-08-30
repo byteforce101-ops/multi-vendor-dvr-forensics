@@ -1,19 +1,45 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Play, Pause, Download } from 'lucide-react';
 import { motion } from 'motion/react';
-import { ForensicEvent } from '../api/client';
+import { VideoAnalysisResult } from '../types';
 
 interface AnalysesViewProps {
-  caseName: string;
-  events: ForensicEvent[];
-  loading?: boolean;
+  analysis?: VideoAnalysisResult | null;
 }
 
-export const AnalysesView: React.FC<AnalysesViewProps> = ({ caseName, events, loading }) => {
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [selectedEventId, setSelectedEventId] = useState<string | null>(events[0]?.id ?? null);
+const formatEventTime = (value: string) => {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toISOString().slice(11, 23);
+};
 
-  const selected = events.find((e) => e.id === selectedEventId) ?? events[0] ?? null;
+const formatDuration = (seconds: number | null | undefined) => {
+  if (seconds == null) return '--:--:--';
+  const wholeSeconds = Math.max(0, Math.floor(seconds));
+  const hours = Math.floor(wholeSeconds / 3600);
+  const minutes = Math.floor((wholeSeconds % 3600) / 60);
+  const remainder = wholeSeconds % 60;
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${remainder.toString().padStart(2, '0')}`;
+};
+
+export const AnalysesView: React.FC<AnalysesViewProps> = ({ analysis }) => {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [selectedEventId, setSelectedEventId] = useState<number>(1);
+
+  const timelineEvents = (analysis?.events ?? []).map((event, index) => ({
+    id: index + 1,
+    time: formatEventTime(event.start_time),
+    type: event.event_type,
+    label: `${event.event_type.replaceAll('_', ' ')}${event.object_type ? ` · ${event.object_type}` : ''}`,
+    confidence: event.confidence == null ? 0 : event.confidence <= 1 ? event.confidence * 100 : event.confidence,
+  }));
+
+  useEffect(() => {
+    setSelectedEventId(1);
+  }, [analysis]);
+
+  const eventCount = analysis?.event_count ?? 0;
+  const duration = formatDuration(analysis?.metadata.duration_seconds);
+  const sourceName = analysis?.filename ?? 'No file analyzed yet';
 
   return (
     <motion.div
@@ -28,15 +54,16 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({ caseName, events, lo
             Active Forensic Analysis
           </span>
           <h2 className="text-2xl sm:text-3xl font-['DM_Sans',sans-serif] text-[#221e1b] mt-2 font-normal">
-            Case {caseName} • Event Timeline
+            {analysis ? 'Backend Analysis • Multi-Track Video Timeline' : 'No analysis run yet'}
           </h2>
           <p className="text-xs text-[#6e6459] font-mono mt-1">
-            {loading ? 'Loading events…' : `${events.length} detected event(s)`}
+            Source: {sourceName}
+            {analysis ? ` • Analysis ID: ${analysis.analysis_id} • ${analysis.frames_analyzed} frames analyzed` : ''}
           </p>
         </div>
         <button className="btn-primary-navy px-5 py-2.5 rounded-xl text-white text-xs font-semibold flex items-center gap-2 self-start sm:self-auto cursor-pointer">
           <Download className="w-4 h-4" />
-          <span>Export Dossier</span>
+          <span>Export Certified Dossier</span>
         </button>
       </div>
 
@@ -44,12 +71,6 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({ caseName, events, lo
         <div className="lg:col-span-2 bg-[#fcfbf8] rounded-2xl border border-[#e6ded2] p-6 shadow-[0_4px_20px_-4px_rgba(34,30,27,0.05)] flex flex-col justify-between">
           <div className="relative aspect-video bg-[#141b22] rounded-xl overflow-hidden flex items-center justify-center group shadow-inner">
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30 pointer-events-none" />
-
-            {selected && (
-              <div className="absolute top-4 left-4 text-[11px] font-mono text-white/80 pointer-events-none">
-                {selected.event_type} [{selected.camera_id}]
-              </div>
-            )}
 
             <button
               onClick={() => setIsPlaying(!isPlaying)}
@@ -59,31 +80,30 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({ caseName, events, lo
             </button>
 
             <div className="absolute bottom-0 left-0 right-0 p-4 flex items-center justify-between text-white text-xs font-mono">
-              <span className="text-[#c2593f] font-bold">
-                {selected ? new Date(selected.start_time).toLocaleTimeString() : '--:--:--'}
-              </span>
-              <span className="bg-white/10 px-2 py-0.5 rounded text-[11px]">Video playback wiring pending</span>
+              <span className="text-stone-300">/ {duration}</span>
+              <div className="flex items-center gap-2">
+                <span className="bg-[#0f2338] px-2 py-0.5 rounded text-[11px]">
+                  {analysis?.metadata.codec ?? 'Unknown codec'}
+                </span>
+              </div>
             </div>
           </div>
         </div>
 
         <div className="bg-[#fcfbf8] rounded-2xl border border-[#e6ded2] p-6 shadow-[0_4px_20px_-4px_rgba(34,30,27,0.05)]">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-[#221e1b] font-['DM_Sans',sans-serif] text-xl">Detected Events</h3>
+            <h3 className="font-semibold text-[#221e1b] font-['DM_Sans',sans-serif] text-xl">AI-Detected Chronology</h3>
             <span className="text-xs font-mono text-[#3b5749] bg-[#eaf1ed] px-2.5 py-0.5 rounded font-semibold">
-              {events.length}
+              {eventCount} Events
             </span>
           </div>
 
-          {events.length === 0 && !loading && (
-            <p className="text-xs text-[#6e6459]">
-              No events yet. Run a file through the pipeline from the Pipelines tab, or an evidence file has been
-              parsed/extracted but not analyzed.
-            </p>
+          {timelineEvents.length === 0 && (
+            <p className="text-xs text-[#6e6459]">Run a file through the pipeline from the Pipelines tab.</p>
           )}
 
           <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
-            {events.map((evt) => {
+            {timelineEvents.map((evt) => {
               const isSelected = selectedEventId === evt.id;
               return (
                 <motion.div
@@ -98,20 +118,25 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({ caseName, events, lo
                   }`}
                 >
                   <div className="flex items-center justify-between text-xs font-mono">
-                    <span className="font-bold text-[#0f2338]">
-                      {new Date(evt.start_time).toLocaleTimeString()}
-                    </span>
-                    <span className="text-[#2b4d3a] font-semibold">
-                      {evt.confidence !== null ? `${(evt.confidence * 100).toFixed(0)}%` : '—'}
-                    </span>
+                    <span className="font-bold text-[#0f2338]">{evt.time}</span>
+                    <span className="text-[#2b4d3a] font-semibold">{evt.confidence.toFixed(1)}% match</span>
                   </div>
-                  <div className="text-xs font-semibold text-[#221e1b] mt-1">
-                    {evt.event_type} {evt.object_type ? `· ${evt.object_type}` : ''}
-                  </div>
-                  <div className="text-[10.5px] text-[#8c8275] font-mono mt-0.5">{evt.camera_id}</div>
+                  <div className="text-xs font-semibold text-[#221e1b] mt-1">{evt.label}</div>
                 </motion.div>
               );
             })}
+          </div>
+
+          <div className="mt-5 p-3.5 bg-[#f5efe4] rounded-xl text-xs font-mono text-[#4a423a] space-y-1 border border-[#ded5c7]">
+            <div className="text-[#7d7367] uppercase text-[10px] font-bold">Metadata Telemetry</div>
+            <div>
+              Resolution: {analysis?.metadata.width ?? '—'}x{analysis?.metadata.height ?? '—'}
+            </div>
+            <div>
+              Codec: {analysis?.metadata.codec ?? 'Unknown'} •{' '}
+              {analysis?.metadata.fps == null ? '—' : `${analysis.metadata.fps.toFixed(2)} FPS`}
+            </div>
+            <div>Audio: {analysis?.metadata.has_audio ? 'Present' : 'None'}</div>
           </div>
         </div>
       </div>

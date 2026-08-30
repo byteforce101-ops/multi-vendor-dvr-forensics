@@ -1,43 +1,106 @@
 import React, { useState, useRef } from 'react';
-import { UploadCloud, ArrowRight, FileVideo, X } from 'lucide-react';
+import { UploadCloud, ArrowRight, FileVideo, CheckCircle2, X, RefreshCw } from 'lucide-react';
 import { motion } from 'motion/react';
-
-interface PendingFile {
-  file: File;
-  name: string;
-  sizeLabel: string;
-}
+import { EvidenceFile } from '../types';
 
 interface UploadSectionProps {
-  onBeginProcessing: (data: { caseName: string; file: File }) => void;
-  busy?: boolean;
+  onBeginProcessing: (data: { caseName: string; evidenceId: string; file: EvidenceFile | null }) => void;
+  onFileUploaded?: (file: EvidenceFile) => void;
+  isAuthenticated: boolean;
+  onRequestLogin: () => void;
 }
 
-function formatBytes(bytes: number): string {
-  if (bytes > 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+function generateSimulatedHash(fileName: string, size: number): string {
+  const chars = '0123456789abcdef';
+  let hash = '';
+  const seed = fileName + size.toString();
+  for (let i = 0; i < 64; i++) {
+    const charCode = seed.charCodeAt(i % seed.length) || i * 7;
+    hash += chars[(charCode * (i + 13)) % 16];
+  }
+  return hash;
 }
 
-export const UploadSection: React.FC<UploadSectionProps> = ({ onBeginProcessing, busy = false }) => {
+export const UploadSection: React.FC<UploadSectionProps> = ({
+  onBeginProcessing,
+  onFileUploaded,
+  isAuthenticated,
+  onRequestLogin,
+}) => {
   const [caseName, setCaseName] = useState('V-2024-081A');
+  const [evidenceId, setEvidenceId] = useState('');
   const [isDragging, setIsDragging] = useState(false);
-  const [pending, setPending] = useState<PendingFile | null>(null);
+  const [selectedFile, setSelectedFile] = useState<EvidenceFile | null>(null);
+  const [isHashing, setIsHashing] = useState(false);
+  const [validationError, setValidationError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFile = (file: File) => {
-    setPending({ file, name: file.name, sizeLabel: formatBytes(file.size) });
+    setValidationError('');
+    setIsHashing(true);
+    const sizeInMB = (file.size / (1024 * 1024)).toFixed(1);
+    const sizeFormatted =
+      file.size > 1024 * 1024 * 1024
+        ? `${(file.size / (1024 * 1024 * 1024)).toFixed(2)} GB`
+        : `${sizeInMB} MB`;
+
+    setTimeout(() => {
+      const hash = generateSimulatedHash(file.name, file.size);
+      const newFile: EvidenceFile = {
+        id: `evd-${Date.now().toString(36)}`,
+        name: file.name,
+        caseId: caseName || 'V-2024-081A',
+        size: sizeFormatted,
+        rawSizeBytes: file.size,
+        sourceFile: file,
+        uploadedAt: new Date().toISOString(),
+        hash,
+        status: 'verified',
+        codec: file.name.endsWith('.mov') ? 'ProRes / H.264 (avc1)' : 'H.264 (High) / AAC',
+      };
+
+      setSelectedFile(newFile);
+      setIsHashing(false);
+      onFileUploaded?.(newFile);
+    }, 400);
+  };
+
+  const guardedThen = (fn: () => void) => {
+    if (!isAuthenticated) {
+      onRequestLogin();
+      return;
+    }
+    fn();
   };
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setIsDragging(false);
-    if (e.dataTransfer.files?.length) handleFile(e.dataTransfer.files[0]);
+    guardedThen(() => {
+      if (e.dataTransfer.files?.length) handleFile(e.dataTransfer.files[0]);
+    });
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    guardedThen(() => {
+      if (e.target.files?.length) handleFile(e.target.files[0]);
+    });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!pending) return;
-    onBeginProcessing({ caseName: caseName || 'V-2024-081A', file: pending.file });
+    guardedThen(() => {
+      if (!selectedFile) {
+        setValidationError('Choose a video file before starting.');
+        return;
+      }
+      setValidationError('');
+      onBeginProcessing({
+        caseName: caseName || 'V-2024-081A',
+        evidenceId: evidenceId || `EVD-${Math.floor(100000 + Math.random() * 900000)}`,
+        file: selectedFile,
+      });
+    });
   };
 
   return (
@@ -51,37 +114,49 @@ export const UploadSection: React.FC<UploadSectionProps> = ({ onBeginProcessing,
           Upload Evidence
         </h2>
         <p className="text-[13.5px] text-[#5c544c] mt-1 font-['DM_Sans',sans-serif]">
-          Add a video file to begin. Hashing happens on the server.
+          Add a video file to begin.
         </p>
 
-        <div className="mt-6">
-          <label htmlFor="case-name-input" className="block text-[11.5px] font-bold text-[#4a423a] mb-1.5 uppercase tracking-wider">
-            Case
-          </label>
-          <input
-            id="case-name-input"
-            type="text"
-            value={caseName}
-            onChange={(e) => setCaseName(e.target.value)}
-            placeholder="e.g. V-2024-081A"
-            className="w-full px-3.5 py-2.5 bg-[#fffdfa] border border-[#ded4c5] rounded-xl text-[13.5px] text-[#221e1b] placeholder-[#a69c90] focus:outline-none focus:ring-2 focus:ring-[#0f2338]/20 focus:border-[#0f2338] transition-all font-mono shadow-2xs"
-          />
-          <p className="text-[11px] text-[#8c8275] mt-1">
-            Reuses an existing case with this exact name, or creates a new one.
-          </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">
+          <div>
+            <label htmlFor="case-name-input" className="block text-[11.5px] font-bold text-[#4a423a] mb-1.5 uppercase tracking-wider">
+              Case
+            </label>
+            <input
+              id="case-name-input"
+              type="text"
+              value={caseName}
+              onChange={(e) => setCaseName(e.target.value)}
+              placeholder="e.g. V-2024-081A"
+              className="w-full px-3.5 py-2.5 bg-[#fffdfa] border border-[#ded4c5] rounded-xl text-[13.5px] text-[#221e1b] placeholder-[#a69c90] focus:outline-none focus:ring-2 focus:ring-[#0f2338]/20 focus:border-[#0f2338] transition-all font-mono shadow-2xs"
+            />
+          </div>
+          <div>
+            <label htmlFor="evidence-id-input" className="block text-[11.5px] font-bold text-[#4a423a] mb-1.5 uppercase tracking-wider">
+              Evidence ID
+            </label>
+            <input
+              id="evidence-id-input"
+              type="text"
+              value={evidenceId}
+              onChange={(e) => setEvidenceId(e.target.value)}
+              placeholder="Auto-generated if left blank"
+              className="w-full px-3.5 py-2.5 bg-[#fffdfa] border border-[#ded4c5] rounded-xl text-[13.5px] text-[#221e1b] placeholder-[#a69c90] focus:outline-none focus:ring-2 focus:ring-[#0f2338]/20 focus:border-[#0f2338] transition-all font-mono shadow-2xs"
+            />
+          </div>
         </div>
 
         <div className="mt-5">
           <input
             ref={fileInputRef}
             type="file"
-            accept="video/mp4,video/quicktime,video/x-msvideo,.mp4,.mov,.avi,.dd,.img,.bin,.dat"
-            onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
+            accept="video/mp4,video/quicktime,video/x-msvideo,.mp4,.mov,.avi"
+            onChange={handleFileChange}
             className="hidden"
             id="evidence-file-input"
           />
 
-          {!pending ? (
+          {!selectedFile ? (
             <motion.div
               id="dropzone-evidence"
               whileHover={{ scale: 1.02, y: -2 }}
@@ -89,7 +164,7 @@ export const UploadSection: React.FC<UploadSectionProps> = ({ onBeginProcessing,
               onDrop={handleDrop}
               onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
               onDragLeave={(e) => { e.preventDefault(); setIsDragging(false); }}
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => guardedThen(() => fileInputRef.current?.click())}
               className={`w-full rounded-2xl border-2 border-dashed transition-all cursor-pointer p-8 sm:p-10 flex flex-col items-center justify-center text-center shadow-xs hover:shadow-md ${
                 isDragging
                   ? 'border-[#1b4e39] bg-[#eaf1ed]/80 scale-[0.99]'
@@ -104,8 +179,11 @@ export const UploadSection: React.FC<UploadSectionProps> = ({ onBeginProcessing,
                 or <span className="text-[#1b4e39] font-bold hover:underline">browse</span>
               </div>
               <div className="mt-4 px-4 py-1.5 bg-white/90 backdrop-blur-xs border border-[#ded4c5] rounded-full text-[11.5px] font-semibold text-[#4a423a] tracking-wide">
-                MP4, MOV, AVI, or raw .dd images
+                MP4, MOV, AVI · 50GB max
               </div>
+              {!isAuthenticated && (
+                <div className="mt-3 text-[11.5px] text-[#a34a32] font-semibold">Sign in to upload</div>
+              )}
             </motion.div>
           ) : (
             <div className="w-full rounded-2xl border border-[#c9dcd0] bg-[#eef4f0] p-4 sm:p-5">
@@ -116,24 +194,40 @@ export const UploadSection: React.FC<UploadSectionProps> = ({ onBeginProcessing,
                   </div>
                   <div className="min-w-0">
                     <h4 className="text-[14px] font-bold text-[#221e1b] truncate max-w-[260px] sm:max-w-md">
-                      {pending.name}
+                      {selectedFile.name}
                     </h4>
-                    <p className="text-[12px] text-[#5c544c] mt-0.5 font-mono">{pending.sizeLabel}</p>
+                    <p className="text-[12px] text-[#5c544c] mt-0.5 font-mono">
+                      {selectedFile.size} • {selectedFile.codec}
+                    </p>
                   </div>
                 </div>
                 <button
                   type="button"
-                  onClick={() => setPending(null)}
-                  disabled={busy}
-                  className="p-1 text-[#7d7367] hover:text-[#221e1b] rounded-lg hover:bg-black/5 cursor-pointer disabled:opacity-50"
+                  onClick={() => setSelectedFile(null)}
+                  className="p-1 text-[#7d7367] hover:text-[#221e1b] rounded-lg hover:bg-black/5 cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
-              <div className="mt-3.5 pt-3 border-t border-[#c9dcd0] text-[11.5px] text-[#5c544c] font-mono">
-                Not yet uploaded — SHA-256 will be computed once processing starts.
+
+              <div className="mt-3.5 pt-3 border-t border-[#c9dcd0] flex items-center justify-between text-[11.5px]">
+                <div className="flex items-center space-x-1.5 text-[#2b4d3a] font-mono">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-[#3b5749]" />
+                  <span className="font-bold">Preview hash:</span>
+                  <span className="truncate max-w-[150px] sm:max-w-[240px] text-[#4a423a]">{selectedFile.hash}</span>
+                </div>
               </div>
             </div>
+          )}
+
+          {isHashing && (
+            <div className="mt-3 flex items-center justify-center space-x-2 text-xs text-[#3b5749] font-mono animate-pulse">
+              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+              <span>Securing file...</span>
+            </div>
+          )}
+          {validationError && (
+            <p className="mt-3 text-center text-xs font-semibold text-[#a34a32]">{validationError}</p>
           )}
         </div>
       </div>
@@ -143,11 +237,10 @@ export const UploadSection: React.FC<UploadSectionProps> = ({ onBeginProcessing,
           id="btn-begin-processing"
           type="button"
           onClick={handleSubmit}
-          disabled={!pending || busy}
-          className="btn-primary-green px-6 py-3 rounded-full text-white text-[14px] font-semibold flex items-center space-x-2 tracking-wide cursor-pointer group disabled:opacity-50 disabled:cursor-not-allowed"
+          className="btn-primary-green px-6 py-3 rounded-full text-white text-[14px] font-semibold flex items-center space-x-2 tracking-wide cursor-pointer group"
         >
-          <span>{busy ? 'Processing…' : 'Start'}</span>
-          {!busy && <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform stroke-[2.3]" />}
+          <span>Start</span>
+          <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform stroke-[2.3]" />
         </button>
       </div>
     </motion.div>

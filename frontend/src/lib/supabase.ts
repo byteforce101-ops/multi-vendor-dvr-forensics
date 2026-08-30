@@ -12,7 +12,6 @@ export const supabase = isSupabaseConfigured
   ? createClient(supabaseUrl, supabaseAnonKey)
   : null;
 
-// Local fallback user state for instant preview functionality
 export const DEFAULT_USER: SupabaseUser = {
   id: 'usr_ent_9924820',
   email: 'enterprise-ops@visionstream.ai',
@@ -21,4 +20,3 @@ export const DEFAULT_USER: SupabaseUser = {
   name: 'Enterprise User',
   isLoggedIn: true,
 };
-

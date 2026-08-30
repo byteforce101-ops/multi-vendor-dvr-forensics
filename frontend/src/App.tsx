@@ -7,44 +7,20 @@ import { UploadSection } from './components/UploadSection';
 import { ChainOfCustody } from './components/ChainOfCustody';
 import { ArchitectureSection } from './components/ArchitectureSection';
 import { Footer } from './components/Footer';
-import { ProcessingModal, PipelineState } from './components/ProcessingModal';
+import { ProcessingModal } from './components/ProcessingModal';
 import { ActivityLogModal } from './components/ActivityLogModal';
-import { SupabaseAuthModal } from './components/SupabaseAuthModal';
+import { AuthModal } from './components/AuthModal';
 import { ComplianceModal } from './components/ComplianceModal';
 import { AnalysesView } from './components/AnalysesView';
 import { LibraryView } from './components/LibraryView';
-import { AuthGate } from './components/AuthGate';
-import { supabase, isSupabaseConfigured } from './lib/supabase';
-import { api, CaseSummary, EvidenceSummary, ForensicEvent } from './api/client';
-import { EvidenceFile, SupabaseUser } from './types';
-
-function formatBytes(bytes: number): string {
-  if (bytes <= 0) return '—';
-  if (bytes > 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function toEvidenceFile(e: EvidenceSummary): EvidenceFile {
-  const totalBytes = e.recordings.reduce((sum, r) => sum + (r.file_size || 0), 0);
-  const status: EvidenceFile['status'] =
-    e.status === 'verified' ? 'verified' : e.status === 'tampered' ? 'error' : 'processing';
-  return {
-    id: e.id,
-    name: e.original_filename,
-    caseId: e.case_id,
-    size: formatBytes(totalBytes),
-    uploadedAt: e.acquired_at,
-    hash: e.sha256 || '',
-    status,
-  };
-}
-
-const EMPTY_PIPELINE: PipelineState = { phase: 1, progress: 0, logs: [], isCompleted: false, error: null };
+import { supabase, isSupabaseConfigured, DEFAULT_USER } from './lib/supabase';
+import { EvidenceFile, SupabaseUser, VideoAnalysisResult } from './types';
 
 export default function App() {
-  // ---- auth --------------------------------------------------------------
-  const [session, setSession] = useState<Session | null | undefined>(undefined); // undefined = not checked yet
-  const currentUser: SupabaseUser | null = session?.user
+  // ---- auth (real Supabase session; UI stays visible either way) --------
+  const [session, setSession] = useState<Session | null>(null);
+  const isAuthenticated = !!session;
+  const currentUser: SupabaseUser = session?.user
     ? {
         id: session.user.id,
         email: session.user.email || '',
@@ -53,13 +29,10 @@ export default function App() {
         name: session.user.email?.split('@')[0] || 'User',
         isLoggedIn: true,
       }
-    : null;
+    : { ...DEFAULT_USER, isLoggedIn: false };
 
   useEffect(() => {
-    if (!isSupabaseConfigured || !supabase) {
-      setSession(null);
-      return;
-    }
+    if (!isSupabaseConfigured || !supabase) return;
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
     const { data: sub } = supabase.auth.onAuthStateChange((_event, sess) => setSession(sess));
     return () => sub.subscription.unsubscribe();
@@ -93,111 +66,32 @@ export default function App() {
     }, 100);
   };
 
-  // ---- case / evidence / event data --------------------------------------
-  const [cases, setCases] = useState<CaseSummary[]>([]);
-  const [activeCaseId, setActiveCaseId] = useState<string | null>(null);
+  // ---- evidence + processing (client-side only, no case DB) -------------
   const [recentFiles, setRecentFiles] = useState<EvidenceFile[]>([]);
-  const [events, setEvents] = useState<ForensicEvent[]>([]);
-  const [eventsLoading, setEventsLoading] = useState(false);
-
-  useEffect(() => {
-    if (!currentUser) return;
-    api
-      .listCases()
-      .then((list) => {
-        setCases(list);
-        if (list.length > 0) setActiveCaseId((prev) => prev ?? list[0].id);
-      })
-      .catch((err) => console.error('Failed to load cases', err));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser?.id]);
-
-  useEffect(() => {
-    if (!activeCaseId) return;
-    setEventsLoading(true);
-    Promise.all([api.listEvidence(activeCaseId), api.getCaseEvents(activeCaseId)])
-      .then(([evidenceList, eventList]) => {
-        setRecentFiles(evidenceList.map(toEvidenceFile));
-        setEvents(eventList);
-      })
-      .catch((err) => console.error('Failed to load case data', err))
-      .finally(() => setEventsLoading(false));
-  }, [activeCaseId]);
-
-  const activeCase = cases.find((c) => c.id === activeCaseId) || null;
-
-  // ---- pipeline (upload -> parse -> extract -> analyze) ------------------
+  const [processingData, setProcessingData] = useState<{ caseName: string; evidenceId: string; file: EvidenceFile | null }>({
+    caseName: '',
+    evidenceId: '',
+    file: null,
+  });
   const [isProcessingOpen, setIsProcessingOpen] = useState(false);
-  const [isPipelineBusy, setIsPipelineBusy] = useState(false);
-  const [pipelineState, setPipelineState] = useState<PipelineState>(EMPTY_PIPELINE);
-  const [pipelineFileName, setPipelineFileName] = useState('');
-  const [pipelineCaseName, setPipelineCaseName] = useState('');
+  const [analysis, setAnalysis] = useState<VideoAnalysisResult | null>(null);
 
-  const appendLog = (line: string) =>
-    setPipelineState((prev) => ({ ...prev, logs: [...prev.logs, line] }));
-  const setPhaseProgress = (phase: PipelineState['phase'], progress: number) =>
-    setPipelineState((prev) => ({ ...prev, phase, progress }));
-
-  const handleBeginProcessing = async ({ caseName, file }: { caseName: string; file: File }) => {
-    setPipelineState({ ...EMPTY_PIPELINE, logs: [`Uploading ${file.name}…`] });
-    setPipelineFileName(file.name);
-    setPipelineCaseName(caseName);
-    setIsProcessingOpen(true);
-    setIsPipelineBusy(true);
-
-    try {
-      let targetCase = cases.find((c) => c.name === caseName) || null;
-      if (!targetCase) {
-        targetCase = await api.createCase(caseName);
-        setCases((prev) => [targetCase as CaseSummary, ...prev]);
-      }
-      setActiveCaseId(targetCase.id);
-
-      const evidence = await api.uploadEvidence(targetCase.id, file);
-      appendLog(`Uploaded & sealed. SHA-256: ${evidence.sha256}`);
-      setPhaseProgress(1, 25);
-
-      const parsed = await api.parseEvidence(evidence.id);
-      appendLog(`Parsed: ${parsed.recordings.length} recording(s) found (vendor: ${parsed.vendor ?? 'unknown'}).`);
-      if (parsed.parse_warnings.length) parsed.parse_warnings.forEach((w) => appendLog(`⚠ ${w}`));
-      setPhaseProgress(2, 50);
-
-      const extracted = await api.extractEvidence(evidence.id);
-      const recovered = extracted.recordings.filter((r) => r.extracted_path).length;
-      appendLog(`Extracted: ${recovered}/${extracted.recordings.length} recording(s) recovered.`);
-      setPhaseProgress(3, 75);
-
-      const analyzed = await api.analyzeEvidence(evidence.id);
-      appendLog(`Analyzed: ${analyzed.events.length} event(s) detected.`);
-      analyzed.errors.forEach((e) => appendLog(`⚠ ${e.recording_id}: ${e.error}`));
-      setPipelineState((prev) => ({ ...prev, phase: 4, progress: 100, isCompleted: true }));
-
-      const [freshEvidence, freshEvents] = await Promise.all([
-        api.listEvidence(targetCase.id),
-        api.getCaseEvents(targetCase.id),
-      ]);
-      setRecentFiles(freshEvidence.map(toEvidenceFile));
-      setEvents(freshEvents);
-      setCurrentStepId(8);
-    } catch (err) {
-      setPipelineState((prev) => ({
-        ...prev,
-        error: err instanceof Error ? err.message : 'Pipeline failed',
-      }));
-    } finally {
-      setIsPipelineBusy(false);
-    }
+  const handleFileUploaded = (file: EvidenceFile) => {
+    setRecentFiles((prev) => [file, ...prev]);
   };
 
-  // ---- render --------------------------------------------------------------
+  const handleBeginProcessing = (data: { caseName: string; evidenceId: string; file: EvidenceFile | null }) => {
+    setProcessingData(data);
+    setIsProcessingOpen(true);
+  };
 
-  if (session === undefined) {
-    return <div className="min-h-screen bg-[#f4eee3]" />;
-  }
-
-  if (!currentUser) {
-    return <AuthGate onAuthenticated={() => {}} />;
-  }
+  const handleLogout = async () => {
+    if (session) {
+      if (supabase) await supabase.auth.signOut();
+    } else {
+      setIsAuthModalOpen(true);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#faf8f5] text-[#142e2e] flex flex-row font-['DM_Sans',sans-serif]">
@@ -208,7 +102,7 @@ export default function App() {
         onNavChange={(nav) => setActiveNav(nav)}
         user={currentUser}
         onOpenProfile={() => setIsAuthModalOpen(true)}
-        onLogout={() => setIsAuthModalOpen(true)}
+        onLogout={handleLogout}
         onOpenActivityLog={() => setIsActivityLogOpen(true)}
         onOpenCompliance={(tab) => setComplianceModalTab(tab)}
         onNavigateToArchitecture={handleNavigateToArchitecture}
@@ -232,7 +126,12 @@ export default function App() {
 
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-7 items-stretch">
                 <div className="lg:col-span-8 flex">
-                  <UploadSection onBeginProcessing={handleBeginProcessing} busy={isPipelineBusy} />
+                  <UploadSection
+                    onBeginProcessing={handleBeginProcessing}
+                    onFileUploaded={handleFileUploaded}
+                    isAuthenticated={isAuthenticated}
+                    onRequestLogin={() => setIsAuthModalOpen(true)}
+                  />
                 </div>
                 <div className="lg:col-span-4 flex">
                   <ChainOfCustody recentFiles={recentFiles} onOpenActivityLog={() => setIsActivityLogOpen(true)} />
@@ -243,9 +142,7 @@ export default function App() {
             </div>
           )}
 
-          {activeNav === 'Analyses' && (
-            <AnalysesView caseName={activeCase?.name ?? '—'} events={events} loading={eventsLoading} />
-          )}
+          {activeNav === 'Analyses' && <AnalysesView analysis={analysis} />}
 
           {activeNav === 'Library' && (
             <LibraryView files={recentFiles} onOpenActivityLog={() => setIsActivityLogOpen(true)} />
@@ -258,18 +155,24 @@ export default function App() {
       <ProcessingModal
         isOpen={isProcessingOpen}
         onClose={() => setIsProcessingOpen(false)}
-        caseName={pipelineCaseName}
-        fileName={pipelineFileName}
-        state={pipelineState}
-        onReviewTimeline={() => {
-          setIsProcessingOpen(false);
+        caseName={processingData.caseName}
+        evidenceId={processingData.evidenceId}
+        file={processingData.file}
+        onCompleteStep={(stepId) => {
+          setCurrentStepId(stepId);
           setActiveNav('Analyses');
         }}
+        onAnalysisComplete={(result) => setAnalysis(result)}
       />
 
       <ActivityLogModal isOpen={isActivityLogOpen} onClose={() => setIsActivityLogOpen(false)} />
 
-      <SupabaseAuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} currentUser={currentUser} />
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        isAuthenticated={isAuthenticated}
+        userEmail={currentUser.email}
+      />
 
       <ComplianceModal
         isOpen={complianceModalTab !== null}

@@ -12,6 +12,7 @@ export interface EvidenceFile {
   caseId: string;
   size: string;
   rawSizeBytes?: number;
+  sourceFile?: File;
   uploadedAt: string;
   hash: string;
   status: 'verified' | 'processing' | 'queued' | 'error';
@@ -54,4 +55,31 @@ export interface SupabaseUser {
   name: string;
   isLoggedIn: boolean;
   avatarUrl?: string;
+}
+
+export interface VideoAnalysisResult {
+  status: string;
+  analysis_id: string;
+  filename: string;
+  metadata: {
+    duration_seconds: number | null;
+    width: number | null;
+    height: number | null;
+    fps: number | null;
+    codec: string | null;
+    has_audio: boolean;
+  };
+  frames_analyzed: number;
+  event_count: number;
+  events: Array<{
+    event_type: string;
+    video_id: string;
+    camera_id: string;
+    start_time: string;
+    end_time: string;
+    confidence: number | null;
+    track_id: number | null;
+    object_type: string | null;
+    metadata: Record<string, unknown>;
+  }>;
 }

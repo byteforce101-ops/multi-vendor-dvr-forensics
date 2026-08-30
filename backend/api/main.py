@@ -341,7 +341,10 @@ def search_case(
 # =========================================================
 
 @app.post("/video/analyze")
-async def analyze_video(file: UploadFile = File(...)):
+async def analyze_video(
+    file: UploadFile = File(...),
+    user: AuthenticatedUser | None = Depends(get_current_user),
+):
     """Upload a video and run the AI pipeline without a case/evidence
     record. Kept for ad-hoc analysis; the case-integrated flow above
     (/evidence/{id}/analyze) is what the main UI uses."""
@@ -402,6 +405,7 @@ async def analyze_video(file: UploadFile = File(...)):
             "height": result.metadata.height,
             "fps": result.metadata.fps,
             "codec": result.metadata.codec,
+            "has_audio": result.metadata.has_audio,
         },
         "frames_analyzed": result.frame_count_analyzed,
         "event_count": len(events),

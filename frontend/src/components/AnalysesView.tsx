@@ -20,6 +20,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { VideoAnalysisResult } from '../types';
 import { API_BASE, getAuthHeaders } from '../api/client';
+import { jsPDF } from 'jspdf';
 
 interface AnalysesViewProps {
   analysis?: VideoAnalysisResult | null;
@@ -134,15 +135,371 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({
     }
   };
 
-  const handleExportJSON = () => {
+  const handleExportPDF = () => {
     if (!analysis) return;
-    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(analysis, null, 2));
-    const downloadAnchor = document.createElement('a');
-    downloadAnchor.setAttribute('href', dataStr);
-    downloadAnchor.setAttribute('download', `tracex-forensic-dossier-${analysis.analysis_id || String(Date.now())}.json`);
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
+
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 14;
+    const contentWidth = pageWidth - margin * 2;
+    let y = 16;
+
+    const safe = (value: unknown, fallback = '—') => {
+      if (value === null || value === undefined || value === '') return fallback;
+      if (typeof value === 'object') {
+        try { return JSON.stringify(value); } catch { return fallback; }
+      }
+      return String(value);
+    };
+
+    const drawPageChrome = () => {
+      pdf.setDrawColor(220, 226, 232);
+      pdf.line(margin, 10, pageWidth - margin, 10);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(7);
+      pdf.setTextColor(120, 130, 140);
+      pdf.text('TRACEX • FORENSIC VIDEO DOSSIER', margin, 7);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(`Analysis ${safe(analysis.analysis_id, 'ACTIVE').slice(0, 18)}`, pageWidth - margin, 7, { align: 'right' });
+    };
+
+    const addPageIfNeeded = (needed = 12) => {
+      if (y + needed > pageHeight - 16) {
+        pdf.addPage();
+        y = 16;
+        drawPageChrome();
+      }
+    };
+
+    const sectionTitle = (title: string, subtitle?: string) => {
+      addPageIfNeeded(22);
+      pdf.setFillColor(22, 52, 79);
+      pdf.roundedRect(margin, y, contentWidth, 10, 2, 2, 'F');
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(10.5);
+      pdf.setTextColor(255, 255, 255);
+      pdf.text(title, margin + 4, y + 6.6);
+      y += 14;
+
+      if (subtitle) {
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(7.5);
+        pdf.setTextColor(105, 115, 125);
+        const lines = pdf.splitTextToSize(subtitle, contentWidth);
+        pdf.text(lines, margin, y);
+        y += lines.length * 3.7 + 4;
+      }
+    };
+
+    const paragraph = (value: unknown, size = 8.2) => {
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(size);
+      pdf.setTextColor(45, 55, 65);
+      const lines = pdf.splitTextToSize(safe(value), contentWidth);
+      const lineHeight = size * 0.48;
+      lines.forEach((line: string) => {
+        addPageIfNeeded(lineHeight + 2);
+        pdf.text(line, margin, y);
+        y += lineHeight;
+      });
+      y += 2;
+    };
+
+    const labelValue = (label: string, value: unknown) => {
+      addPageIfNeeded(8);
+      const labelWidth = 43;
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(7.8);
+      pdf.setTextColor(75, 85, 95);
+      pdf.text(label, margin, y);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(25, 35, 45);
+      const lines = pdf.splitTextToSize(safe(value), contentWidth - labelWidth);
+      pdf.text(lines, margin + labelWidth, y);
+      y += Math.max(5, lines.length * 3.7);
+    };
+
+    const drawMetric = (x: number, width: number, label: string, value: unknown) => {
+      pdf.setFillColor(246, 248, 250);
+      pdf.setDrawColor(222, 227, 232);
+      pdf.roundedRect(x, y, width, 18, 2, 2, 'FD');
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(6.8);
+      pdf.setTextColor(105, 115, 125);
+      pdf.text(label.toUpperCase(), x + 3, y + 5);
+      pdf.setFontSize(11.5);
+      pdf.setTextColor(22, 52, 79);
+      pdf.text(safe(value), x + 3, y + 13);
+    };
+
+    const drawTable = (headers: string[], rows: string[][], widths: number[], fontSize = 6.5) => {
+      const lineHeight = 3.1;
+      const drawHeader = () => {
+        addPageIfNeeded(8);
+        let x = margin;
+        pdf.setFillColor(22, 52, 79);
+        pdf.setTextColor(255, 255, 255);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(fontSize);
+        headers.forEach((header, i) => {
+          pdf.rect(x, y, widths[i], 7, 'F');
+          pdf.text(header, x + 1.5, y + 4.5);
+          x += widths[i];
+        });
+        y += 7;
+      };
+
+      drawHeader();
+      rows.forEach((row, rowIndex) => {
+        const wrapped = row.map((cell, i) => pdf.splitTextToSize(safe(cell), Math.max(5, widths[i] - 3)));
+        const height = Math.max(7, Math.max(...wrapped.map((lines) => lines.length), 1) * lineHeight + 3);
+
+        if (y + height > pageHeight - 16) {
+          pdf.addPage();
+          y = 16;
+          drawPageChrome();
+          drawHeader();
+        }
+
+        let x = margin;
+        pdf.setFillColor(rowIndex % 2 === 0 ? 249 : 244, rowIndex % 2 === 0 ? 251 : 247, 250);
+        pdf.setDrawColor(228, 232, 236);
+        pdf.setTextColor(40, 50, 60);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(fontSize);
+        row.forEach((_, i) => {
+          pdf.rect(x, y, widths[i], height, 'FD');
+          pdf.text(wrapped[i], x + 1.5, y + 4.5);
+          x += widths[i];
+        });
+        y += height;
+      });
+      y += 4;
+    };
+
+    drawPageChrome();
+
+    // Cover / executive summary.
+    pdf.setFillColor(22, 52, 79);
+    pdf.roundedRect(margin, y, contentWidth, 37, 4, 4, 'F');
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(8.5);
+    pdf.setTextColor(184, 219, 201);
+    pdf.text('FORENSIC ANALYSIS DOSSIER', margin + 6, y + 8);
+    pdf.setFontSize(19);
+    pdf.setTextColor(255, 255, 255);
+    const titleLines = pdf.splitTextToSize('Forensic Inspection & Intelligence Report', contentWidth - 12);
+    pdf.text(titleLines, margin + 6, y + 17);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(8);
+    pdf.setTextColor(220, 230, 238);
+    pdf.text(`Analysis ID: ${safe(analysis.analysis_id, 'ACTIVE')}`, margin + 6, y + 30);
+    y += 45;
+
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(8);
+    pdf.setTextColor(75, 85, 95);
+    pdf.text('SOURCE EVIDENCE', margin, y);
+    y += 5;
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(9);
+    pdf.setTextColor(25, 35, 45);
+    const filenameLines = pdf.splitTextToSize(safe(analysis.filename, 'evidence.mp4'), contentWidth);
+    pdf.text(filenameLines, margin, y);
+    y += filenameLines.length * 4.5 + 5;
+
+    const metricGap = 4;
+    const metricWidth = (contentWidth - metricGap * 3) / 4;
+    const metrics: [string, unknown][] = [
+      ['Frames', analysis.frames_analyzed ?? 0],
+      ['Events', analysis.event_count ?? events.length],
+      ['Reconstructions', analysis.reconstruction_count ?? analysis.reconstructed_events?.length ?? 0],
+      ['Duration', formatDuration(duration)],
+    ];
+    metrics.forEach(([label, value], index) => drawMetric(margin + index * (metricWidth + metricGap), metricWidth, label, value));
+    y += 24;
+
+    sectionTitle('Executive Finding');
+    if (analysis.forensic_summary) {
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(10.5);
+      pdf.setTextColor(22, 52, 79);
+      paragraph(analysis.forensic_summary.headline, 10);
+      paragraph(analysis.forensic_summary.summary, 8.2);
+    } else {
+      paragraph('No forensic summary was supplied by the analysis result.');
+    }
+
+    sectionTitle('Evidence & Media Profile', 'Core metadata captured in the analysis result.');
+    labelValue('Analysis ID', analysis.analysis_id);
+    labelValue('Filename', analysis.filename);
+    labelValue('Codec', analysis.metadata?.codec || 'H.264 / AVC');
+    labelValue('Resolution', `${analysis.metadata?.width || 1920} × ${analysis.metadata?.height || 1080}`);
+    labelValue('Duration', formatDuration(duration));
+    labelValue('FPS', analysis.metadata?.fps || 30);
+    labelValue('Frames analyzed', analysis.frames_analyzed);
+    labelValue('Audio track', analysis.metadata?.has_audio ? 'Embedded' : 'None');
+
+    sectionTitle('Event Chronology', `${filteredEvents.length} event(s) from the current filter: ${selectedEventType}.`);
+    if (filteredEvents.length === 0) {
+      paragraph('No events were available for the selected filter.');
+    } else {
+      drawTable(
+        ['Timecode', 'Type', 'Object / Track', 'Confidence', 'Notes'],
+        filteredEvents.map((ev: any) => [
+          formatEventTime(ev.start_time),
+          safe(ev.event_type, 'EVENT'),
+          ev.object_type ? `${safe(ev.object_type)}${ev.track_id ? ` (#${safe(ev.track_id)})` : ''}` : 'General',
+          formatConfidence(ev.confidence),
+          safe(ev.metadata?.note, 'Standard detection'),
+        ]),
+        [27, 36, 39, 23, contentWidth - 125],
+        6.2
+      );
+    }
+
+    sectionTitle('Activity Reconstruction', 'Correlated detections grouped into higher-level activity incidents.');
+    if (analysis.reconstructed_events?.length) {
+      drawTable(
+        ['Class', 'Activity', 'Time Window', 'Confidence', 'Objects'],
+        analysis.reconstructed_events.map((rec: any) => [
+          safe(rec.event_type, 'ACTIVITY').replaceAll('_', ' '),
+          safe(rec.title),
+          `${formatEventTime(rec.start_time)} → ${formatEventTime(rec.end_time)}`,
+          formatConfidence(rec.confidence),
+          Array.isArray(rec.objects) ? rec.objects.join(', ') : safe(rec.objects),
+        ]),
+        [29, 53, 42, 25, contentWidth - 149],
+        6.2
+      );
+
+      analysis.reconstructed_events.forEach((rec: any, idx: number) => {
+        addPageIfNeeded(18);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(8.5);
+        pdf.setTextColor(22, 52, 79);
+        pdf.text(`${idx + 1}. ${safe(rec.title)}`, margin, y);
+        y += 4.5;
+        paragraph(rec.description, 7.8);
+      });
+    } else {
+      paragraph('No reconstructed high-level activities were detected.');
+    }
+
+    sectionTitle('Stream Integrity & Bitstream Diagnostics', 'PTS/DTS continuity, frame sequence, cadence, duplicate-frame and metadata consistency checks.');
+    const integrityStatus = integrity?.overall_status || 'PASS';
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(10);
+    pdf.setTextColor(integrityStatus === 'PASS' ? 35 : 150, integrityStatus === 'PASS' ? 115 : 90, 70);
+    pdf.text(`Overall status: ${integrityStatus}`, margin, y);
+    y += 7;
+
+    const integrityMetrics: [string, unknown][] = [
+      ['Integrity score', `${safe(integrity?.integrity_score, 100)}%`],
+      ['Frames inspected', safe(integrity?.frames_checked, analysis.frames_analyzed ?? 0)],
+      ['Timestamp gaps', safe(integrity?.timestamp_gaps, 0)],
+      ['Duplicate sequences', safe(integrity?.duplicate_sequences, 0)],
+    ];
+    integrityMetrics.forEach(([label, value], index) => drawMetric(margin + index * (metricWidth + metricGap), metricWidth, label, value));
+    y += 24;
+
+    drawTable(
+      ['Diagnostic', 'Result'],
+      [
+        ['Timestamp continuity scan', integrity?.timestamp_continuity ?? true ? 'PASS' : 'REVIEW'],
+        ['Frame sequence continuity', integrity?.frame_continuity ?? true ? 'PASS' : 'REVIEW'],
+        ['FPS cadence stability', integrity?.fps_consistency ?? true ? 'PASS' : 'REVIEW'],
+        ['Duplicate frame analysis', integrity?.duplicate_frames ?? true ? 'PASS' : 'REVIEW'],
+        ['Metadata & container consistency', integrity?.metadata_consistency ?? true ? 'PASS' : 'REVIEW'],
+      ],
+      [contentWidth * 0.72, contentWidth * 0.28],
+      7
+    );
+
+    sectionTitle('Object Disappearance Watchlist', 'Stationary objects that ceased to be detected abruptly.');
+    if (disappearances.length === 0) {
+      paragraph('No stationary object disappearance anomalies were flagged.');
+    } else {
+      drawTable(
+        ['Object / Camera', 'Lost At', 'Observed', 'Context'],
+        disappearances.map((disp: any) => {
+          const dispTime = disp.disappearance_time || disp.disappearance_timestamp;
+          const dispCamera = disp.camera_id || 'CH-01';
+          const dispCount = disp.observation_count ?? 1;
+          const dispDesc = disp.context_description ||
+            (disp.related_activity?.length
+              ? `Stationary across ${dispCount} observation(s) in: ${disp.related_activity.join(', ')}`
+              : `Stationary ${safe(disp.object_type)} ceased detection abruptly in feed.`);
+          return [
+            `${safe(disp.object_type)} (${dispCamera})`,
+            formatEventTime(dispTime),
+            `${formatEventTime(disp.first_seen)} → ${formatEventTime(disp.last_seen)}`,
+            dispDesc,
+          ];
+        }),
+        [39, 29, 45, contentWidth - 113],
+        6.3
+      );
+    }
+
+    sectionTitle('Forensic Query Transcript', 'Questions and answers generated during this analysis session.');
+    if (chatMessages.length === 0) {
+      paragraph('No query messages were recorded.');
+    } else {
+      chatMessages.forEach((msg, idx) => {
+        addPageIfNeeded(18);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(8);
+        pdf.setTextColor(22, 52, 79);
+        pdf.text(msg.sender === 'user' ? 'USER' : 'ASSISTANT', margin, y);
+        y += 4;
+        paragraph(msg.text, 7.8);
+        if (msg.events?.length) {
+          pdf.setFont('helvetica', 'bold');
+          pdf.setFontSize(7);
+          pdf.setTextColor(105, 115, 125);
+          pdf.text('Referenced timestamps:', margin, y);
+          y += 3.5;
+          msg.events.forEach((ev: any) => {
+            addPageIfNeeded(7);
+            pdf.setFont('helvetica', 'normal');
+            pdf.setFontSize(7.2);
+            pdf.setTextColor(45, 55, 65);
+            pdf.text(`• ${safe(ev.event_type, 'EVENT')} @ ${formatEventTime(ev.start_time)}`, margin + 2, y);
+            y += 3.5;
+          });
+          y += 2;
+        }
+        if (idx < chatMessages.length - 1) {
+          pdf.setDrawColor(230, 234, 238);
+          pdf.line(margin, y, pageWidth - margin, y);
+          y += 4;
+        }
+      });
+    }
+
+    sectionTitle('Report Notes');
+    paragraph(
+      'This PDF is an export of the analysis result currently available in the frontend. '
+      + 'It does not alter the underlying evidence, hashes, detection results, or backend processing pipeline.'
+    );
+
+    // Footer on every page, including pages added while building tables.
+    const totalPages = pdf.getNumberOfPages();
+    for (let page = 1; page <= totalPages; page += 1) {
+      pdf.setPage(page);
+      pdf.setDrawColor(220, 226, 232);
+      pdf.line(margin, pageHeight - 11, pageWidth - margin, pageHeight - 11);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(7);
+      pdf.setTextColor(120, 130, 140);
+      pdf.text('Forensic analysis report • Current frontend analysis snapshot', margin, pageHeight - 6);
+      pdf.text(`Page ${page} of ${totalPages}`, pageWidth - margin, pageHeight - 6, { align: 'right' });
+    }
+
+    const analysisId = safe(analysis.analysis_id, String(Date.now())).replace(/[^a-zA-Z0-9_-]/g, '_');
+    pdf.save(`tracex-forensic-dossier-${analysisId}.pdf`);
   };
 
   const handleSendQuery = async (queryText: string) => {
@@ -250,11 +607,11 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            onClick={handleExportJSON}
+            onClick={handleExportPDF}
             className="btn-kinetic-primary px-4 py-2 text-xs font-semibold tracking-wide flex items-center gap-2 cursor-pointer"
           >
             <Download className="w-3.5 h-3.5" />
-            <span>Export Certified Dossier (JSON)</span>
+            <span>Export Dossier (PDF)</span>
           </motion.button>
         </div>
       </div>

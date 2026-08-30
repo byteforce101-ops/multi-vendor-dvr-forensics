@@ -9,7 +9,7 @@ export const Footer: React.FC<FooterProps> = ({ onOpenCompliance }) => {
     <footer className="w-full mt-16 border-t border-slate-200 bg-white/60 py-6">
       <div className="max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
         <div>
-          © 2024 TraceX Forensic Intelligence Studio • NIST SP 800-86 & ISO/IEC 27037 Compliant
+          TraceX 
         </div>
 
         <div className="flex items-center space-x-4">

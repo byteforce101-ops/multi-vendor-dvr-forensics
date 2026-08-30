@@ -26,20 +26,27 @@ interface AnalysesViewProps {
   videoUrl?: string | null;
 }
 
-const formatEventTime = (value: string) => {
+const formatEventTime = (value?: string | null) => {
+  if (!value) return '--:--:--';
   const date = new Date(value);
   return Number.isNaN(date.getTime())
-    ? value
+    ? String(value)
     : date.toISOString().slice(11, 23);
 };
 
 const formatDuration = (seconds: number | null | undefined) => {
-  if (seconds == null) return '--:--:--';
+  if (seconds == null || Number.isNaN(seconds)) return '--:--:--';
   const wholeSeconds = Math.max(0, Math.floor(seconds));
   const hours = Math.floor(wholeSeconds / 3600);
   const minutes = Math.floor((wholeSeconds % 3600) / 60);
   const remainder = wholeSeconds % 60;
   return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${remainder.toString().padStart(2, '0')}`;
+};
+
+const formatConfidence = (conf?: number | null) => {
+  if (conf == null || Number.isNaN(conf)) return '—';
+  const val = conf <= 1 ? conf * 100 : conf;
+  return `${Math.round(val)}%`;
 };
 
 export const AnalysesView: React.FC<AnalysesViewProps> = ({
@@ -66,6 +73,35 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({
   const duration = analysis?.metadata?.duration_seconds ?? 0;
   const events = analysis?.events ?? [];
 
+  const getTimestampSeconds = (
+    timeString?: string | null,
+    metadata?: Record<string, unknown>,
+    firstEventTime?: string | null,
+    fallbackSeconds: number = 0
+  ): number => {
+    if (metadata?.timestamp_seconds != null && typeof metadata.timestamp_seconds === 'number') {
+      return Math.max(0, metadata.timestamp_seconds);
+    }
+    if (metadata?.seconds != null && typeof metadata.seconds === 'number') {
+      return Math.max(0, metadata.seconds);
+    }
+    if (timeString && firstEventTime) {
+      const t0 = new Date(firstEventTime).getTime();
+      const t1 = new Date(timeString).getTime();
+      if (!isNaN(t0) && !isNaN(t1) && t1 >= t0) {
+        const deltaSec = (t1 - t0) / 1000;
+        if (duration > 0 && deltaSec > duration) {
+          return Math.min(deltaSec % duration, duration);
+        }
+        return deltaSec;
+      }
+    }
+    if (duration > 0) {
+      return Math.min(fallbackSeconds, duration);
+    }
+    return fallbackSeconds;
+  };
+
   const filteredEvents = events.filter((ev) => {
     if (selectedEventType === 'ALL') return true;
     if (selectedEventType === 'PERSON') return ev.object_type?.toLowerCase().includes('person') || ev.event_type.toLowerCase().includes('person');
@@ -80,7 +116,7 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({
       if (isPlaying) {
         videoRef.current.pause();
       } else {
-        videoRef.current.play();
+        videoRef.current.play().catch(() => {});
       }
       setIsPlaying(!isPlaying);
     }
@@ -88,8 +124,9 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({
 
   const seekToTime = (timeInSeconds: number) => {
     if (videoRef.current) {
-      videoRef.current.currentTime = timeInSeconds;
-      setCurrentTime(timeInSeconds);
+      const boundedTime = duration > 0 ? Math.min(Math.max(0, timeInSeconds), duration) : Math.max(0, timeInSeconds);
+      videoRef.current.currentTime = boundedTime;
+      setCurrentTime(boundedTime);
       if (!isPlaying) {
         videoRef.current.play().catch(() => {});
         setIsPlaying(true);
@@ -102,7 +139,7 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({
     const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(analysis, null, 2));
     const downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute('href', dataStr);
-    downloadAnchor.setAttribute('download', `tracex-forensic-dossier-${analysis.analysis_id || Date.now()}.json`);
+    downloadAnchor.setAttribute('download', `tracex-forensic-dossier-${analysis.analysis_id || String(Date.now())}.json`);
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
@@ -177,8 +214,11 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({
     }
   };
 
-  const integrity = analysis?.video_integrity;
-  const disappearances = analysis?.object_disappearance?.disappearances ?? [];
+  const integrity = analysis?.integrity_analysis || (analysis as any)?.video_integrity;
+  const disappearances =
+    analysis?.object_disappearance_analysis?.disappearances ||
+    (analysis as any)?.object_disappearance?.disappearances ||
+    [];
 
   return (
     <motion.div
@@ -433,7 +473,7 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({
                       </td>
                       <td>
                         <span className="inline-flex items-center text-xs font-semibold text-[#011405] bg-[#e6faea] px-2 py-0.5 rounded border border-[#bde3c3]">
-                          {(ev.confidence * 100).toFixed(0)}%
+                          {formatConfidence(ev.confidence)}
                         </span>
                       </td>
                       <td className="text-[#2d4a34] text-xs truncate max-w-xs">
@@ -442,7 +482,13 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({
                       <td className="text-right">
                         <button
                           onClick={() => {
-                            seekToTime(idx * 2);
+                            const targetSec = getTimestampSeconds(
+                              ev.start_time,
+                              ev.metadata,
+                              events[0]?.start_time,
+                              idx * 2
+                            );
+                            seekToTime(targetSec);
                             setActiveTab('video');
                           }}
                           className="px-2.5 py-1 text-xs font-semibold text-[#415ef4] hover:text-[#2f4de6] hover:bg-[#e8f9ec] rounded-md transition-colors cursor-pointer"
@@ -483,7 +529,7 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({
                       <h4 className="text-sm font-bold text-[#011405]">{rec.title}</h4>
                     </div>
                     <span className="text-xs font-bold text-[#011405] bg-[#e6faea] px-2 py-0.5 rounded border border-[#bde3c3]">
-                      {(rec.confidence * 100).toFixed(0)}%
+                      {formatConfidence(rec.confidence)}
                     </span>
                   </div>
 
@@ -588,19 +634,33 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {disappearances.map((disp, idx) => (
-                <div key={idx} className="p-4 rounded-xl border border-[#d2ecd6] bg-[#f7fef8] space-y-2 text-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-[#011405] uppercase">
-                      {disp.object_type} {disp.track_id ? `(#${disp.track_id})` : ''}
-                    </span>
-                    <span className="text-[10px] bg-rose-50 text-rose-700 px-2 py-0.5 rounded font-bold border border-rose-200">
-                      LOST @ {formatEventTime(disp.disappearance_timestamp)}
-                    </span>
+              {disappearances.map((disp: any, idx: number) => {
+                const dispTime = disp.disappearance_time || (disp as any).disappearance_timestamp;
+                const dispCamera = disp.camera_id || 'CH-01';
+                const dispCount = disp.observation_count ?? 1;
+                const dispDesc =
+                  (disp as any).context_description ||
+                  (disp.related_activity?.length
+                    ? `Stationary across ${dispCount} observation(s) in: ${disp.related_activity.join(', ')}`
+                    : `Stationary ${disp.object_type} ceased detection abruptly in feed.`);
+
+                return (
+                  <div key={idx} className="p-4 rounded-xl border border-[#d2ecd6] bg-[#f7fef8] space-y-2 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-[#011405] uppercase">
+                        {disp.object_type} ({dispCamera})
+                      </span>
+                      <span className="text-[10px] bg-rose-50 text-rose-700 px-2 py-0.5 rounded font-bold border border-rose-200">
+                        LOST @ {formatEventTime(dispTime)}
+                      </span>
+                    </div>
+                    <p className="text-[#2d4a34] leading-relaxed">{dispDesc}</p>
+                    <div className="pt-1.5 border-t border-[#d2ecd6] flex items-center justify-between text-[11px] text-[#55785d] font-mono">
+                      <span>Seen: {formatEventTime(disp.first_seen)} → {formatEventTime(disp.last_seen)}</span>
+                    </div>
                   </div>
-                  <p className="text-[#2d4a34] leading-relaxed">{disp.context_description}</p>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -673,8 +733,14 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({
                           <button
                             key={evIdx}
                             onClick={() => {
+                              const targetSec = getTimestampSeconds(
+                                ev.start_time,
+                                ev.metadata,
+                                events[0]?.start_time,
+                                evIdx * 2
+                              );
+                              seekToTime(targetSec);
                               setActiveTab('video');
-                              seekToTime(evIdx * 2);
                             }}
                             className="text-[11px] px-2 py-0.5 rounded bg-[#e6faea] hover:bg-[#d6f6dc] text-[#011405] border border-[#bde3c3] font-mono flex items-center gap-1 cursor-pointer transition-colors"
                           >

@@ -2,7 +2,10 @@
 
 from datetime import datetime, timezone
 from pathlib import Path
+import json
+import os
 import shutil
+import subprocess
 import uuid
 
 from fastapi import Depends, FastAPI, HTTPException, UploadFile, File
@@ -280,6 +283,44 @@ def _build_object_disappearance_response(events: list) -> dict:
         ),
     }
 
+
+# =========================================================
+# WEB VIDEO NORMALIZATION
+# =========================================================
+
+def _run_video_command(command: list[str], timeout: int = 1800) -> subprocess.CompletedProcess[str]:
+    try:
+        return subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding='utf-8', errors='replace', timeout=timeout, check=False)
+    except FileNotFoundError as exc:
+        raise RuntimeError("FFmpeg/FFprobe is not installed or is not available on PATH.") from exc
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError("Video processing timed out.") from exc
+
+def _probe_uploaded_video(video_path: Path) -> dict:
+    if not video_path.is_file():
+        raise FileNotFoundError(str(video_path))
+    completed = _run_video_command(["ffprobe", "-v", "error", "-print_format", "json", "-show_format", "-show_streams", str(video_path)], 120)
+    if completed.returncode != 0:
+        raise ValueError("The uploaded file is not a readable video: " + (completed.stderr.strip() or "FFprobe could not read the file."))
+    try:
+        probe = json.loads(completed.stdout or "{}")
+    except json.JSONDecodeError as exc:
+        raise ValueError("FFprobe returned invalid video metadata.") from exc
+    streams = probe.get("streams") or []
+    videos = [x for x in streams if x.get("codec_type") == "video"]
+    if not videos:
+        raise ValueError("The uploaded file does not contain a video stream.")
+    stream = videos[0]; fmt = probe.get("format") or {}
+    return {"format_name": fmt.get("format_name"), "format_long_name": fmt.get("format_long_name"), "duration": fmt.get("duration"), "size": fmt.get("size"), "video_codec": stream.get("codec_name"), "width": stream.get("width"), "height": stream.get("height"), "fps": stream.get("r_frame_rate") or stream.get("avg_frame_rate"), "has_audio": any(x.get("codec_type") == "audio" for x in streams)}
+
+def _normalize_uploaded_video(source_path: Path, output_path: Path) -> dict:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    completed = _run_video_command(["ffmpeg", "-y", "-i", str(source_path), "-map", "0:v:0", "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-map", "0:a:0?", "-c:a", "aac", "-b:a", "192k", str(output_path)], 1800)
+    if completed.returncode != 0:
+        raise RuntimeError("Video normalization failed: " + (completed.stderr.strip() or "FFmpeg failed to create the MP4."))
+    if not output_path.is_file() or output_path.stat().st_size <= 0:
+        raise RuntimeError("FFmpeg did not create a valid normalized MP4.")
+    return _probe_uploaded_video(output_path)
 
 # =========================================================
 # CASE ACCESS
@@ -956,300 +997,47 @@ def search_case(
 # STANDALONE AI VIDEO ANALYSIS
 # =========================================================
 
-@app.post(
-    "/video/analyze"
-)
-async def analyze_video(
-    file: UploadFile = File(...),
-    user: AuthenticatedUser | None = Depends(
-        get_current_user
-    ),
-):
-
-    """
-    Upload a video and run the complete AI forensic
-    analysis pipeline.
-
-    This endpoint returns:
-
-        - low-level AI events
-        - AI forensic reconstruction
-        - final forensic summary
-        - video metadata
-    """
-
+@app.post("/video/analyze")
+async def analyze_video(file: UploadFile = File(...), user: AuthenticatedUser | None = Depends(get_current_user)):
+    """Analyze any FFmpeg-readable video without modifying the original upload."""
     if not file.filename:
-
-        raise HTTPException(
-            status_code=400,
-            detail="No filename supplied",
-        )
-
-    allowed_extensions = {
-        ".mp4",
-        ".avi",
-        ".mkv",
-        ".mov",
-        ".wmv",
-        ".ts",
-        ".m4v",
-    }
-
-    extension = Path(
-        file.filename
-    ).suffix.lower()
-
-    if extension not in allowed_extensions:
-
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                f"Unsupported video format: "
-                f"{extension}"
-            ),
-        )
-
-    analysis_id = str(
-        uuid.uuid4()
-    )
-
-    upload_directory = (
-        Path("backend")
-        / "storage"
-        / "video_analysis"
-        / analysis_id
-    )
-
-    upload_directory.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
-
-    video_path = (
-        upload_directory
-        / f"original{extension}"
-    )
-
+        raise HTTPException(status_code=400, detail="No filename supplied")
+    analysis_id = str(uuid.uuid4())
+    directory = Path("backend") / "storage" / "video_analysis" / analysis_id
+    directory.mkdir(parents=True, exist_ok=True)
+    original_name = Path(file.filename).name
+    extension = Path(original_name).suffix.lower() or ".bin"
+    original_path = directory / f"original{extension}"
+    normalized_path = directory / "normalized.mp4"
     try:
-
-        with open(
-            video_path,
-            "wb",
-        ) as buffer:
-
-            shutil.copyfileobj(
-                file.file,
-                buffer,
-            )
-
+        with open(original_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer, length=1024 * 1024)
     except Exception as exc:
-
-        raise HTTPException(
-            status_code=500,
-            detail=(
-                "Failed to save uploaded video: "
-                f"{exc}"
-            ),
-        ) from exc
-
+        raise HTTPException(status_code=500, detail=f"Failed to save uploaded video: {exc}") from exc
     finally:
-
         await file.close()
-
     try:
-
-        result = (
-            video_analysis_service.analyze(
-                video_id=analysis_id,
-                camera_id="camera_01",
-                video_path=video_path,
-                video_start_time=datetime.now(
-                    timezone.utc
-                ),
-                frame_sample_fps=5.0,
-            )
-        )
-
+        original_probe = _probe_uploaded_video(original_path)
+        normalized_probe = _normalize_uploaded_video(original_path, normalized_path)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    try:
+        result = video_analysis_service.analyze(video_id=analysis_id, camera_id="camera_01", video_path=normalized_path, video_start_time=datetime.now(timezone.utc), frame_sample_fps=5.0)
     except Exception as exc:
-
-        raise HTTPException(
-            status_code=500,
-            detail=(
-                "Video analysis failed: "
-                f"{exc}"
-            ),
-        ) from exc
-
-    # =====================================================
-    # LOW-LEVEL EVENTS
-    # =====================================================
-
-    events = []
-
-    for event in result.events:
-
-        events.append(
-            {
-                "event_type": event.event_type,
-                "video_id": event.video_id,
-                "camera_id": event.camera_id,
-                "start_time": (
-                    event.start_time.isoformat()
-                ),
-                "end_time": (
-                    event.end_time.isoformat()
-                ),
-                "confidence": event.confidence,
-                "track_id": event.track_id,
-                "object_type": event.object_type,
-                "metadata": event.metadata,
-            }
-        )
-
-    # =====================================================
-    # AI FORENSIC EVENT RECONSTRUCTION
-    # =====================================================
-
-    reconstructed_events = []
-
-    for event in (
-        result.reconstructed_events
-    ):
-
-        reconstructed_events.append(
-            {
-                "video_id": event.video_id,
-                "camera_id": event.camera_id,
-                "event_type": event.event_type,
-                "start_time": (
-                    event.start_time.isoformat()
-                ),
-                "end_time": (
-                    event.end_time.isoformat()
-                ),
-                "title": event.title,
-                "description": event.description,
-                "objects": event.objects,
-                "confidence": event.confidence,
-                "metadata": event.metadata,
-            }
-        )
-
-    # =====================================================
-    # FINAL FORENSIC SUMMARY
-    # =====================================================
-
+        raise HTTPException(status_code=500, detail=f"Video analysis failed: {exc}") from exc
+    events = [{"event_type": e.event_type, "video_id": e.video_id, "camera_id": e.camera_id, "start_time": e.start_time.isoformat(), "end_time": e.end_time.isoformat(), "confidence": e.confidence, "track_id": e.track_id, "object_type": e.object_type, "metadata": e.metadata} for e in result.events]
+    reconstructed_events = [{"video_id": e.video_id, "camera_id": e.camera_id, "event_type": e.event_type, "start_time": e.start_time.isoformat(), "end_time": e.end_time.isoformat(), "title": e.title, "description": e.description, "objects": e.objects, "confidence": e.confidence, "metadata": e.metadata} for e in result.reconstructed_events]
     summary = result.forensic_summary
-
-    forensic_summary = {
-
-        "video_id": summary.video_id,
-
-        "camera_id": summary.camera_id,
-
-        "start_time": (
-            summary.start_time.isoformat()
-            if summary.start_time
-            else None
-        ),
-
-        "end_time": (
-            summary.end_time.isoformat()
-            if summary.end_time
-            else None
-        ),
-
-        "headline": summary.headline,
-
-        "summary": summary.summary,
-
-        "key_events": summary.key_events,
-
-        "objects_detected": (
-            summary.objects_detected
-        ),
-
-        "event_count": summary.event_count,
-
-        "confidence": summary.confidence,
-
-        "metadata": summary.metadata,
-    }
-
-    # =====================================================
-    # VIDEO INTEGRITY / TAMPERING ANALYSIS
-    # =====================================================
-
-    integrity_analysis = _build_integrity_response(video_path)
-
-    # =====================================================
-    # OBJECT DISAPPEARANCE DETECTION
-    # =====================================================
-
-    object_disappearance_analysis = (
-        _build_object_disappearance_response(
-            result.events
-        )
-    )
-
-    # =====================================================
-    # COMPLETE RESPONSE
-    # =====================================================
-
-    return {
-
-        "status": "success",
-
-        "analysis_id": analysis_id,
-
-        "filename": file.filename,
-
-        "metadata": {
-
-            "duration_seconds": (
-                result.metadata.duration_seconds
-            ),
-
-            "width": result.metadata.width,
-
-            "height": result.metadata.height,
-
-            "fps": result.metadata.fps,
-
-            "codec": result.metadata.codec,
-
-            "has_audio": result.metadata.has_audio,
-        },
-
-        "frames_analyzed": (
-            result.frame_count_analyzed
-        ),
-
-        "event_count": len(events),
-
-        "events": events,
-
-        "reconstructed_events": (
-            reconstructed_events
-        ),
-
-        "reconstruction_count": len(
-            reconstructed_events
-        ),
-
-        "forensic_summary": (
-            forensic_summary
-        ),
-
-        "integrity_analysis": integrity_analysis,
-
-        "object_disappearance_analysis": (
-            object_disappearance_analysis
-        ),
-    }
+    forensic_summary = {"video_id": summary.video_id, "camera_id": summary.camera_id, "start_time": summary.start_time.isoformat() if summary.start_time else None, "end_time": summary.end_time.isoformat() if summary.end_time else None, "headline": summary.headline, "summary": summary.summary, "key_events": summary.key_events, "objects_detected": summary.objects_detected, "event_count": summary.event_count, "confidence": summary.confidence, "metadata": summary.metadata}
+    integrity_analysis = _build_integrity_response(normalized_path)
+    object_disappearance_analysis = _build_object_disappearance_response(result.events)
+    return {"status": "success", "analysis_id": analysis_id, "filename": file.filename, "normalization": {"original_filename": file.filename, "original_extension": extension, "original_format": original_probe.get("format_name"), "original_format_long_name": original_probe.get("format_long_name"), "normalized": True, "normalized_filename": "normalized.mp4", "original_path": str(original_path), "normalized_path": str(normalized_path), "original_metadata": original_probe, "normalized_metadata": normalized_probe}, "metadata": {"duration_seconds": result.metadata.duration_seconds, "width": result.metadata.width, "height": result.metadata.height, "fps": result.metadata.fps, "codec": result.metadata.codec, "has_audio": result.metadata.has_audio}, "frames_analyzed": result.frame_count_analyzed, "event_count": len(events), "events": events, "reconstructed_events": reconstructed_events, "reconstruction_count": len(reconstructed_events), "forensic_summary": forensic_summary, "integrity_analysis": integrity_analysis, "object_disappearance_analysis": object_disappearance_analysis}
 
 
-# =========================================================
 # VIDEO Q&A / CONVERSATIONAL QUERY
 # =========================================================
 
@@ -1362,4 +1150,4 @@ def query_video(payload: VideoQueryRequest):
         "answer": answer,
         "matching_events": matched[:10],
         "source": "heuristic",
-    }
+    }

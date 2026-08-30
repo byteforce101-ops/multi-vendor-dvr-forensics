@@ -63,36 +63,36 @@ export const Sidebar: React.FC<SidebarProps> = ({
           x: isOpen ? 0 : -280,
           opacity: isOpen ? 1 : 0,
         }}
-        transition={{ type: 'spring', damping: 25, stiffness: 280 }}
-        className="fixed top-0 left-0 h-screen w-[280px] z-50 flex flex-col justify-between overflow-hidden bg-white border-r border-[#d2ecd6] shadow-xl"
+        transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+        className="fixed top-0 left-0 h-screen w-[280px] z-50 flex flex-col justify-between overflow-hidden bg-white/95 backdrop-blur-xl border-r border-slate-200/90 shadow-2xl"
       >
         <div className="w-full h-full flex flex-col justify-between p-5 overflow-y-auto">
           {/* Top Brand Header */}
           <div>
-            <div className="flex items-center justify-between pb-4 border-b border-[#e3f6e6]">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
               <div
                 onClick={() => {
                   onNavChange('Pipelines');
                   onToggle();
                 }}
-                className="flex items-center space-x-2.5 cursor-pointer"
+                className="flex items-center space-x-2.5 cursor-pointer group"
               >
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-[#415ef4] to-[#1cf243] flex items-center justify-center text-white font-black text-xs shadow-xs">
+                <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-xs shadow-xs group-hover:bg-indigo-700 transition-colors">
                   <span>TX</span>
                 </div>
                 <div>
-                  <span className="text-[16px] font-bold tracking-tight text-[#011405] block leading-none">
+                  <span className="text-[16px] font-bold tracking-tight text-slate-900 block leading-none">
                     TraceX
                   </span>
-                  <span className="text-[10px] text-[#2d4a34] font-medium tracking-wide uppercase mt-0.5 block">
-                    Forensics OS
+                  <span className="text-[10px] text-slate-400 font-semibold tracking-wider uppercase mt-1 block">
+                    Forensics Studio
                   </span>
                 </div>
               </div>
 
               <button
                 onClick={onToggle}
-                className="w-7 h-7 rounded-lg text-[#55785d] hover:text-[#011405] hover:bg-[#e8f9ec] transition-colors flex items-center justify-center cursor-pointer"
+                className="w-7 h-7 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors flex items-center justify-center cursor-pointer"
                 title="Close sidebar"
               >
                 <X className="w-4 h-4" />
@@ -101,7 +101,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
             {/* Navigation Buttons Group */}
             <div className="mt-5 space-y-1">
-              <div className="px-3 py-1.5 text-[11px] font-semibold tracking-wider uppercase text-[#55785d]">
+              <div className="px-3 py-1.5 text-[10px] font-bold tracking-wider uppercase text-slate-400">
                 Navigation
               </div>
 
@@ -116,16 +116,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       onNavChange(item.id);
                       onToggle();
                     }}
-                    className={`w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                    className={`w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
                       isActive
-                        ? 'bg-[#e6faea] text-[#011405] font-bold border-l-4 border-[#1cf243] shadow-xs'
-                        : 'text-[#2d4a34] hover:text-[#011405] hover:bg-[#f7fef8]'
+                        ? 'bg-indigo-50 text-indigo-950 font-semibold border border-indigo-200/80 shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                     }`}
                   >
-                    <Icon size={16} className={isActive ? 'text-[#16d639]' : 'text-[#74b8f7]'} />
+                    <Icon size={16} className={isActive ? 'text-indigo-600' : 'text-slate-400'} />
                     <div className="min-w-0 flex-1">
                       <div className="truncate">{item.label}</div>
-                      <div className="text-[10px] text-[#55785d] font-normal truncate">{item.description}</div>
+                      <div className="text-[10px] text-slate-400 font-normal truncate">{item.description}</div>
                     </div>
                   </button>
                 );
@@ -133,8 +133,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
 
             {/* Compliance & Audit */}
-            <div className="mt-6 pt-4 border-t border-[#e3f6e6] space-y-1">
-              <div className="px-3 py-1.5 text-[11px] font-semibold tracking-wider uppercase text-[#55785d]">
+            <div className="mt-6 pt-4 border-t border-slate-100 space-y-1">
+              <div className="px-3 py-1.5 text-[10px] font-bold tracking-wider uppercase text-slate-400">
                 Audit & Compliance
               </div>
 
@@ -143,13 +143,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   onOpenActivityLog();
                   onToggle();
                 }}
-                className="w-full text-left flex items-center justify-between px-3 py-2 rounded-lg text-xs text-[#2d4a34] hover:text-[#011405] hover:bg-[#f7fef8] transition-colors cursor-pointer"
+                className="w-full text-left flex items-center justify-between px-3 py-2 rounded-xl text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors cursor-pointer"
               >
                 <div className="flex items-center gap-2.5">
-                  <ShieldCheck className="w-4 h-4 text-[#16d639]" />
+                  <ShieldCheck className="w-4 h-4 text-emerald-600" />
                   <span>Chain of Custody</span>
                 </div>
-                <span className="w-1.5 h-1.5 rounded-full bg-[#1cf243]" />
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
               </button>
 
               <button
@@ -157,31 +157,31 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   onOpenCompliance('security');
                   onToggle();
                 }}
-                className="w-full text-left flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-[#2d4a34] hover:text-[#011405] hover:bg-[#f7fef8] transition-colors cursor-pointer"
+                className="w-full text-left flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors cursor-pointer"
               >
-                <FileCheck className="w-4 h-4 text-[#415ef4]" />
+                <FileCheck className="w-4 h-4 text-indigo-500" />
                 <span>Forensic Standards</span>
               </button>
             </div>
           </div>
 
           {/* Bottom Profile & Session Section */}
-          <div className="pt-4 border-t border-[#e3f6e6] space-y-2">
+          <div className="pt-4 border-t border-slate-100 space-y-2">
             <button
               id="sidebar-btn-profile"
               onClick={() => {
                 onOpenProfile();
                 onToggle();
               }}
-              className="w-full text-left p-2.5 rounded-xl border border-[#d2ecd6] hover:border-[#bde3c3] bg-[#f7fef8] hover:bg-white transition-all flex items-center gap-2.5 cursor-pointer shadow-xs"
+              className="w-full text-left p-2.5 rounded-xl border border-slate-200 hover:border-slate-300 bg-slate-50 hover:bg-white transition-all flex items-center gap-2.5 cursor-pointer shadow-xs"
             >
-              <div className="w-7 h-7 rounded-full bg-[#e8f9ec] text-[#011405] border border-[#d2ecd6] flex items-center justify-center font-bold text-xs shrink-0">
+              <div className="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xs shrink-0">
                 {user.name.charAt(0).toUpperCase()}
               </div>
 
               <div className="min-w-0 flex-1">
-                <div className="text-xs font-semibold text-[#011405] truncate">{user.name}</div>
-                <div className="text-[10px] text-[#55785d] truncate">{user.email || 'Investigator'}</div>
+                <div className="text-xs font-semibold text-slate-900 truncate">{user.name}</div>
+                <div className="text-[10px] text-slate-400 truncate">{user.email || 'Investigator'}</div>
               </div>
             </button>
 

@@ -6,33 +6,33 @@ interface FooterProps {
 
 export const Footer: React.FC<FooterProps> = ({ onOpenCompliance }) => {
   return (
-    <footer className="w-full mt-16 border-t border-[#d2ecd6] bg-white py-6">
-      <div className="max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#2d4a34]">
+    <footer className="w-full mt-16 border-t border-slate-200 bg-white/60 py-6">
+      <div className="max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
         <div>
-          © 2024 TraceX Forensic Intelligence • NIST SP 800-86 & ISO/IEC 27037 Compliant
+          © 2024 TraceX Forensic Intelligence Studio • NIST SP 800-86 & ISO/IEC 27037 Compliant
         </div>
 
         <div className="flex items-center space-x-4">
           <button
             id="footer-link-security"
             onClick={() => onOpenCompliance('security')}
-            className="hover:text-[#011405] transition-colors cursor-pointer"
+            className="hover:text-slate-900 transition-colors cursor-pointer"
           >
             Security & Cryptography
           </button>
-          <span className="text-[#bde3c3]">•</span>
+          <span className="text-slate-300">•</span>
           <button
             id="footer-link-compliance"
             onClick={() => onOpenCompliance('compliance')}
-            className="hover:text-[#011405] transition-colors cursor-pointer"
+            className="hover:text-slate-900 transition-colors cursor-pointer"
           >
             CJIS / ISO Compliance
           </button>
-          <span className="text-[#bde3c3]">•</span>
+          <span className="text-slate-300">•</span>
           <button
             id="footer-link-apidocs"
             onClick={() => onOpenCompliance('api')}
-            className="hover:text-[#011405] transition-colors cursor-pointer"
+            className="hover:text-slate-900 transition-colors cursor-pointer"
           >
             API Specifications
           </button>

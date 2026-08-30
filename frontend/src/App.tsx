@@ -77,7 +77,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f0fef2] text-[#011405] flex flex-col font-['Inter',sans-serif]">
+    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col font-['Inter',sans-serif]">
       <Sidebar
         isOpen={isSidebarOpen}
         onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -90,7 +90,7 @@ export default function App() {
         onOpenCompliance={(tab) => setComplianceModalTab(tab)}
       />
 
-      <div className="flex-1 flex flex-col min-w-0 transition-all bg-[#f0fef2]">
+      <div className="flex-1 flex flex-col min-w-0 transition-all bg-[#F8FAFC]">
         <Header
           user={currentUser}
           onNavChange={(nav) => setActiveNav(nav as any)}

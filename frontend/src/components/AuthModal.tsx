@@ -50,29 +50,29 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, isAuthent
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl max-w-sm w-full border border-[#d2ecd6] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-        <div className="px-6 py-4 border-b border-[#e3f6e6] flex items-center justify-between">
+      <div className="bg-white rounded-2xl max-w-sm w-full border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-indigo-50 text-[#011405] flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-indigo-50 text-slate-900 flex items-center justify-center">
               <ShieldCheck className="w-4 h-4" />
             </div>
-            <h3 className="text-sm font-bold text-[#011405]">
+            <h3 className="text-sm font-bold text-slate-900">
               {isAuthenticated ? 'Examiner Session' : 'Sign In to Station'}
             </h3>
           </div>
-          <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-[#011405] rounded-lg hover:bg-slate-100 transition-colors cursor-pointer">
+          <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-900 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {!isSupabaseConfigured ? (
-          <div className="p-6 text-xs text-[#2d4a34] leading-relaxed">
-            Local workstation mode active (Supabase optional). For multi-user ledger sync, configure <code className="text-[#415ef4] font-semibold">VITE_SUPABASE_URL</code> in environment.
+          <div className="p-6 text-xs text-slate-500 leading-relaxed">
+            Local workstation mode active (Supabase optional). For multi-user ledger sync, configure <code className="text-indigo-600 font-semibold">VITE_SUPABASE_URL</code> in environment.
           </div>
         ) : isAuthenticated ? (
           <div className="p-6 space-y-4 text-xs">
-            <div className="flex items-center gap-2.5 text-[#011405] bg-[#f7fef8] p-3 rounded-lg border border-[#d2ecd6]">
-              <Mail className="w-4 h-4 text-[#415ef4]" />
+            <div className="flex items-center gap-2.5 text-slate-900 bg-slate-50 p-3 rounded-lg border border-slate-200">
+              <Mail className="w-4 h-4 text-indigo-600" />
               <span className="font-semibold">{userEmail}</span>
             </div>
             <button
@@ -86,7 +86,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, isAuthent
         ) : (
           <form onSubmit={handleSubmit} className="p-6 text-xs space-y-3.5">
             <div>
-              <label className="block text-xs font-semibold text-[#011405] mb-1">Examiner Email</label>
+              <label className="block text-xs font-semibold text-slate-900 mb-1">Examiner Email</label>
               <div className="relative">
                 <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
@@ -94,13 +94,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, isAuthent
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 bg-[#f7fef8] border border-[#d2ecd6] rounded-lg text-[#011405] placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white transition-colors"
+                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white transition-colors"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-[#011405] mb-1">Access Password</label>
+              <label className="block text-xs font-semibold text-slate-900 mb-1">Access Password</label>
               <div className="relative">
                 <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
@@ -109,7 +109,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, isAuthent
                   minLength={6}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 bg-[#f7fef8] border border-[#d2ecd6] rounded-lg text-[#011405] placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white transition-colors"
+                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white transition-colors"
                 />
               </div>
             </div>
@@ -120,7 +120,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, isAuthent
             <button
               type="submit"
               disabled={busy}
-              className="btn-universe-gradient w-full py-2.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer"
+              className="btn-kinetic-primary w-full py-2.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer"
             >
               {busy && <Loader2 className="w-4 h-4 animate-spin" />}
               <span>{mode === 'signin' ? 'Sign In' : 'Create Account'}</span>
@@ -129,7 +129,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, isAuthent
             <button
               type="button"
               onClick={() => { setMode(mode === 'signin' ? 'signup' : 'signin'); setError(null); setInfo(null); }}
-              className="w-full text-center text-xs text-[#415ef4] hover:text-indigo-800 pt-1 cursor-pointer font-medium"
+              className="w-full text-center text-xs text-indigo-600 hover:text-indigo-800 pt-1 cursor-pointer font-medium"
             >
               {mode === 'signin' ? 'Register new examiner credentials' : 'Already registered? Sign in'}
             </button>

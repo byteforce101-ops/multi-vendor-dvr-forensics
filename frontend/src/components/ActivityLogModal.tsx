@@ -74,18 +74,18 @@ export const ActivityLogModal: React.FC<ActivityLogModalProps> = ({ isOpen, onCl
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl max-w-4xl w-full border border-[#d2ecd6] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[85vh]">
+      <div className="bg-white rounded-2xl max-w-4xl w-full border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[85vh]">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-[#e3f6e6] flex items-center justify-between">
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-[#e6faea] text-[#16d639] flex items-center justify-center">
+            <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
               <ShieldCheck className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-[#011405] tracking-tight">
+              <h3 className="text-base font-bold text-slate-900 tracking-tight">
                 Chain of Custody — Cryptographic Ledger
               </h3>
-              <p className="text-xs text-[#2d4a34]">
+              <p className="text-xs text-slate-500">
                 Immutable SHA-256 audit log certified under ISO/IEC 27037 & NIST SP 800-86
               </p>
             </div>
@@ -93,14 +93,14 @@ export const ActivityLogModal: React.FC<ActivityLogModalProps> = ({ isOpen, onCl
 
           <button
             onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-[#011405] rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+            className="p-1.5 text-slate-400 hover:text-slate-900 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Toolbar */}
-        <div className="px-6 py-3 border-b border-[#e3f6e6] bg-[#f7fef8] flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="px-6 py-3 border-b border-slate-100 bg-slate-50 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="relative w-full sm:w-80">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
@@ -108,13 +108,13 @@ export const ActivityLogModal: React.FC<ActivityLogModalProps> = ({ isOpen, onCl
               placeholder="Filter by filename, case ID, or event..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 bg-white border border-[#d2ecd6] rounded-lg text-xs text-[#011405] placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition-colors"
+              className="w-full pl-9 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition-colors"
             />
           </div>
 
           <button
             onClick={handleExportJSON}
-            className="btn-universe-gradient w-full sm:w-auto px-4 py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer"
+            className="btn-kinetic-primary w-full sm:w-auto px-4 py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer"
           >
             <Download className="w-3.5 h-3.5" />
             <span>Export Certified Ledger (JSON)</span>
@@ -125,7 +125,7 @@ export const ActivityLogModal: React.FC<ActivityLogModalProps> = ({ isOpen, onCl
         <div className="overflow-x-auto flex-1 p-6">
           <table className="w-full text-left text-xs">
             <thead>
-              <tr className="border-b border-[#d2ecd6] text-[#2d4a34]">
+              <tr className="border-b border-slate-200 text-slate-500">
                 <th className="pb-2.5 font-semibold">Timestamp</th>
                 <th className="pb-2.5 font-semibold">Action</th>
                 <th className="pb-2.5 font-semibold">Evidence File</th>
@@ -136,15 +136,15 @@ export const ActivityLogModal: React.FC<ActivityLogModalProps> = ({ isOpen, onCl
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filteredLogs.map((log) => (
-                <tr key={log.id} className="hover:bg-[#f7fef8] transition-colors">
-                  <td className="py-3 text-[#2d4a34] whitespace-nowrap font-mono text-[11px]">{log.timestamp}</td>
-                  <td className="py-3 font-semibold text-[#011405]">{log.action}</td>
-                  <td className="py-3 text-[#415ef4] font-medium">{log.fileName}</td>
-                  <td className="py-3 text-[#011405]">{log.caseId}</td>
-                  <td className="py-3 text-[#2d4a34] truncate max-w-[150px]">{log.operator}</td>
+                <tr key={log.id} className="hover:bg-slate-50 transition-colors">
+                  <td className="py-3 text-slate-500 whitespace-nowrap font-mono text-[11px]">{log.timestamp}</td>
+                  <td className="py-3 font-semibold text-slate-900">{log.action}</td>
+                  <td className="py-3 text-indigo-600 font-medium">{log.fileName}</td>
+                  <td className="py-3 text-slate-900">{log.caseId}</td>
+                  <td className="py-3 text-slate-500 truncate max-w-[150px]">{log.operator}</td>
                   <td className="py-3 text-right">
-                    <span className="inline-flex items-center gap-1 text-[#011405] bg-[#e6faea] border border-[#bde3c3] px-2 py-0.5 rounded-full font-semibold text-[10px]">
-                      <CheckCircle2 className="w-3 h-3 text-[#16d639]" />
+                    <span className="inline-flex items-center gap-1 text-slate-900 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full font-semibold text-[10px]">
+                      <CheckCircle2 className="w-3 h-3 text-emerald-600" />
                       SHA-256 SEAL VALID
                     </span>
                   </td>
@@ -155,11 +155,11 @@ export const ActivityLogModal: React.FC<ActivityLogModalProps> = ({ isOpen, onCl
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-3.5 bg-[#f7fef8] border-t border-[#e3f6e6] flex items-center justify-between text-xs text-[#2d4a34]">
+        <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
           <span>Recorded Ledger Entries: {filteredLogs.length}</span>
           <button
             onClick={onClose}
-            className="px-4 py-1.5 bg-white border border-[#d2ecd6] rounded-lg text-[#011405] text-xs font-medium hover:bg-slate-100 transition-colors cursor-pointer shadow-xs"
+            className="px-4 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-900 text-xs font-medium hover:bg-slate-100 transition-colors cursor-pointer shadow-xs"
           >
             Done
           </button>

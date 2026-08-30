@@ -40,7 +40,7 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
 
           {/* TraceX Logo - Clicks navigate to Architecture overview */}
-          <div 
+          <div
             onClick={() => {
               if (onNavigateToArchitecture) {
                 onNavigateToArchitecture();
@@ -52,28 +52,14 @@ export const Header: React.FC<HeaderProps> = ({
             title="TraceX - Click to view Architecture & Platform Capabilities"
           >
             <TraceXLogo size={32} variant="gold" bgColor="#0f1715" />
-            <div className="flex items-baseline space-x-2">
-              <span className="text-[19px] font-extrabold tracking-tight text-[#221e1b] font-['DM_Sans',sans-serif] group-hover:text-[#1b4e39] transition-colors">
-                TraceX
-              </span>
-              <span className="hidden sm:inline-block text-[11px] font-mono text-[#1b4e39] font-bold bg-[#eaf1ed] border border-[#c9dcd0] px-2 py-0.5 rounded-md">
-                v2.4 NIST
-              </span>
-            </div>
+            <span className="text-[19px] font-extrabold tracking-tight text-[#221e1b] font-['DM_Sans',sans-serif] group-hover:text-[#1b4e39] transition-colors">
+              TraceX
+            </span>
           </div>
         </div>
 
-
-        {/* Right: Quick Audit & User Profile */}
+        {/* Right: User Profile (single entry point for auth + activity log) */}
         <div className="flex items-center space-x-3">
-          <button
-            onClick={onOpenActivityLog}
-            className="hidden sm:flex items-center space-x-1.5 text-xs font-semibold text-[#221e1b] bg-[#eaf1ed] hover:bg-[#dde9e2] border border-[#c9dcd0] px-3 py-1.5 rounded-xl transition-all shadow-2xs cursor-pointer"
-          >
-            <ShieldCheck className="w-3.5 h-3.5 text-[#3b5749]" />
-            <span>Audit</span>
-          </button>
-
           <div className="relative">
             <button
               id="user-profile-btn"
@@ -89,28 +75,20 @@ export const Header: React.FC<HeaderProps> = ({
                 </div>
               </div>
 
-              {/* Avatar circle with Navy fill */}
               <div className="w-8 h-8 rounded-xl bg-[#0f2338] text-white flex items-center justify-center text-xs font-semibold shadow-xs relative">
                 <User className="w-4 h-4" />
                 <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-[#5e7d6f] border-2 border-[#f4eee3] rounded-full"></span>
               </div>
             </button>
 
-            {/* Dropdown Menu - Warm White Ivory */}
             {userDropdownOpen && (
-              <div 
+              <div
                 className="absolute right-0 mt-2 w-64 bg-[#fcfbf8] rounded-2xl shadow-xl border border-[#e4ded4] py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150"
                 onClick={() => setUserDropdownOpen(false)}
               >
                 <div className="px-4 py-2.5 border-b border-[#ede5d8]">
                   <p className="text-xs font-bold text-[#221e1b]">{user.name}</p>
                   <p className="text-xs text-[#635b52] truncate">{user.email}</p>
-                  <div className="mt-1.5 flex items-center gap-1.5">
-                    <span className="inline-block w-2 h-2 rounded-full bg-[#3b5749]"></span>
-                    <span className="text-[10px] font-mono text-[#3b5749] uppercase font-semibold">
-                      Supabase Authenticated
-                    </span>
-                  </div>
                 </div>
 
                 <button
@@ -118,7 +96,7 @@ export const Header: React.FC<HeaderProps> = ({
                   className="w-full text-left px-4 py-2 text-xs text-[#221e1b] hover:bg-[#f5efe4] flex items-center gap-2 cursor-pointer"
                 >
                   <Key className="w-3.5 h-3.5 text-[#0f2338]" />
-                  <span>Profile & Supabase Config</span>
+                  <span>Profile & Session</span>
                 </button>
 
                 <button
@@ -126,7 +104,7 @@ export const Header: React.FC<HeaderProps> = ({
                   className="w-full text-left px-4 py-2 text-xs text-[#221e1b] hover:bg-[#f5efe4] flex items-center gap-2 cursor-pointer"
                 >
                   <ShieldCheck className="w-3.5 h-3.5 text-[#3b5749]" />
-                  <span>Audit Logs & Chain of Custody</span>
+                  <span>Activity Log</span>
                 </button>
 
                 <div className="border-t border-[#ede5d8] my-1"></div>
@@ -136,7 +114,7 @@ export const Header: React.FC<HeaderProps> = ({
                   className="w-full text-left px-4 py-2 text-xs text-[#c2593f] hover:bg-rose-50 flex items-center gap-2 cursor-pointer"
                 >
                   <LogOut className="w-3.5 h-3.5 text-[#c2593f]" />
-                  <span>Log Out / Switch Session</span>
+                  <span>Sign out</span>
                 </button>
               </div>
             )}

@@ -1247,3 +1247,119 @@ async def analyze_video(
             object_disappearance_analysis
         ),
     }
+
+
+# =========================================================
+# VIDEO Q&A / CONVERSATIONAL QUERY
+# =========================================================
+
+class VideoQueryRequest(BaseModel):
+    query: str
+    events: list[dict] = []
+    summary: dict | None = None
+
+
+@app.post("/video/query")
+def query_video(payload: VideoQueryRequest):
+    """
+    Answer questions about analyzed video events using Groq or heuristic fallback.
+    Matches CLI 'dvrforensics search' and interactive Q&A.
+    """
+    user_query = payload.query.strip()
+    if not user_query:
+        raise HTTPException(status_code=400, detail="Query cannot be empty")
+
+    events = payload.events
+    summary = payload.summary or {}
+
+    # Try Groq AI first if available
+    try:
+        from groq import Groq
+        import os
+
+        if os.environ.get("GROQ_API_KEY"):
+            groq_client = Groq()
+            event_lines = []
+            for ev in events[:80]:
+                e_type = ev.get("event_type", "EVENT")
+                obj = ev.get("object_type") or "n/a"
+                start = ev.get("start_time", "")
+                conf = ev.get("confidence", 0)
+                note = (ev.get("metadata") or {}).get("note", "")
+                event_lines.append(f"- {e_type} ({obj}) at {start}, conf={conf:.2f} {note}")
+
+            events_context = "\n".join(event_lines) if event_lines else "No specific events."
+            headline = summary.get("headline", "")
+            overview = summary.get("summary", "")
+
+            system_prompt = (
+                "You are an expert digital forensics video analysis assistant. "
+                "Answer the investigator's question based strictly on the provided timeline of detected events "
+                "and video summary. Mention exact timestamps and object IDs when available. "
+                "If not enough evidence exists in the logs, state that clearly."
+            )
+
+            prompt = (
+                f"Forensic Summary: {headline} — {overview}\n\n"
+                f"Detected Events Timeline:\n{events_context}\n\n"
+                f"Investigator Question: {user_query}"
+            )
+
+            resp = groq_client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                max_tokens=400,
+                temperature=0.2,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": prompt},
+                ],
+            )
+            answer = resp.choices[0].message.content.strip()
+
+            # Find matching events to highlight in the video timeline
+            q_lower = user_query.lower()
+            matching_events = [
+                ev for ev in events
+                if any(w in str(ev.get("event_type", "")).lower() or w in str(ev.get("object_type", "")).lower()
+                       for w in q_lower.split() if len(w) > 3)
+            ][:10]
+
+            return {
+                "answer": answer,
+                "matching_events": matching_events,
+                "source": "groq",
+            }
+    except Exception:
+        pass
+
+    # Heuristic / Rule-based forensic answer fallback
+    q_lower = user_query.lower()
+    matched = []
+    for ev in events:
+        ev_type = str(ev.get("event_type", "")).lower()
+        obj_type = str(ev.get("object_type", "")).lower()
+        if any(term in q_lower for term in ["person", "people", "human", "who"]) and ("person" in ev_type or "person" in obj_type):
+            matched.append(ev)
+        elif any(term in q_lower for term in ["car", "vehicle", "truck", "drive"]) and ("vehicle" in ev_type or "vehicle" in obj_type):
+            matched.append(ev)
+        elif any(term in q_lower for term in ["motion", "movement", "move"]) and "motion" in ev_type:
+            matched.append(ev)
+        elif any(term in q_lower for term in ["disappear", "lost", "missing", "gone"]) and "disappearance" in ev_type:
+            matched.append(ev)
+
+    if not matched and events:
+        matched = events[:5]
+
+    if "how many" in q_lower or "count" in q_lower:
+        answer = f"Found {len(matched)} matching event(s) matching your query in the forensic timeline."
+    elif matched:
+        first_time = matched[0].get("start_time", "unknown time")
+        answer = f"Detected {len(matched)} event(s) relevant to '{user_query}'. First occurrence observed at {first_time}."
+    else:
+        answer = f"No events matching '{user_query}' were found in the timeline."
+
+    return {
+        "answer": answer,
+        "matching_events": matched[:10],
+        "source": "heuristic",
+    }

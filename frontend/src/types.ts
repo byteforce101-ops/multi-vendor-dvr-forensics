@@ -144,6 +144,7 @@ export interface ObjectDisappearanceAnalysis {
 }
 
 export interface VideoAnalysisResult {
+  video_integrity: any;
   status: string;
   analysis_id: string;
   filename: string;

@@ -6,38 +6,39 @@ interface FooterProps {
 
 export const Footer: React.FC<FooterProps> = ({ onOpenCompliance }) => {
   return (
-    <footer className="w-full mt-20 border-t border-[#ded4c5] bg-transparent py-8">
-      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-        {/* Left Copyright */}
-        <div className="text-[11px] font-medium text-[#7d7367] uppercase tracking-widest font-['DM_Sans',sans-serif]">
-          © 2024 TRACEX AI FORENSICS • NIST SP 800-86 AUDITED
+    <footer className="w-full mt-16 border-t border-[#d2ecd6] bg-white py-6">
+      <div className="max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#2d4a34]">
+        <div>
+          © 2024 TraceX Forensic Intelligence • NIST SP 800-86 & ISO/IEC 27037 Compliant
         </div>
 
-        {/* Right Navigation Links */}
-        <div className="flex items-center space-x-6 text-[12.5px] font-medium text-[#5c544c]">
+        <div className="flex items-center space-x-4">
           <button
             id="footer-link-security"
             onClick={() => onOpenCompliance('security')}
-            className="hover:text-[#0f2338] transition-colors cursor-pointer"
+            className="hover:text-[#011405] transition-colors cursor-pointer"
           >
-            Security & Encryption
+            Security & Cryptography
           </button>
+          <span className="text-[#bde3c3]">•</span>
           <button
             id="footer-link-compliance"
             onClick={() => onOpenCompliance('compliance')}
-            className="hover:text-[#0f2338] transition-colors cursor-pointer"
+            className="hover:text-[#011405] transition-colors cursor-pointer"
           >
-            CJIS Compliance
+            CJIS / ISO Compliance
           </button>
+          <span className="text-[#bde3c3]">•</span>
           <button
             id="footer-link-apidocs"
             onClick={() => onOpenCompliance('api')}
-            className="hover:text-[#0f2338] transition-colors cursor-pointer"
+            className="hover:text-[#011405] transition-colors cursor-pointer"
           >
-            API Docs
+            API Specifications
           </button>
         </div>
       </div>
     </footer>
   );
 };
+

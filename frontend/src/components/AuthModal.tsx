@@ -49,86 +49,89 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, isAuthent
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#1e1b18]/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="bg-[#fcfbf8] rounded-2xl max-w-sm w-full border border-[#e6ded2] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-        <div className="px-6 py-5 border-b border-[#e6ded2] flex items-center justify-between bg-[#f5efe4]">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-[#eaf1ed] text-[#3b5749] flex items-center justify-center">
-              <ShieldCheck className="w-5 h-5" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in duration-200">
+      <div className="bg-white rounded-2xl max-w-sm w-full border border-[#d2ecd6] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+        <div className="px-6 py-4 border-b border-[#e3f6e6] flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-indigo-50 text-[#011405] flex items-center justify-center">
+              <ShieldCheck className="w-4 h-4" />
             </div>
-            <h3 className="text-[17px] font-semibold text-[#221e1b]">
-              {isAuthenticated ? 'Session' : 'Sign in'}
+            <h3 className="text-sm font-bold text-[#011405]">
+              {isAuthenticated ? 'Examiner Session' : 'Sign In to Station'}
             </h3>
           </div>
-          <button onClick={onClose} className="p-1.5 text-[#8c8275] hover:text-[#221e1b] rounded-lg hover:bg-black/5 cursor-pointer">
-            <X className="w-5 h-5" />
+          <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-[#011405] rounded-lg hover:bg-slate-100 transition-colors cursor-pointer">
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {!isSupabaseConfigured ? (
-          <div className="p-6 text-sm text-[#6e6459]">
-            Supabase isn't configured. Set <code>VITE_SUPABASE_URL</code> and{' '}
-            <code>VITE_SUPABASE_PUBLISHABLE_KEY</code> in <code>frontend/.env.local</code>.
+          <div className="p-6 text-xs text-[#2d4a34] leading-relaxed">
+            Local workstation mode active (Supabase optional). For multi-user ledger sync, configure <code className="text-[#415ef4] font-semibold">VITE_SUPABASE_URL</code> in environment.
           </div>
         ) : isAuthenticated ? (
-          <div className="p-6 space-y-4 text-sm">
-            <div className="flex items-center gap-2 text-[#221e1b]">
-              <Mail className="w-4 h-4 text-[#3b5749]" />
-              <span className="font-medium">{userEmail}</span>
+          <div className="p-6 space-y-4 text-xs">
+            <div className="flex items-center gap-2.5 text-[#011405] bg-[#f7fef8] p-3 rounded-lg border border-[#d2ecd6]">
+              <Mail className="w-4 h-4 text-[#415ef4]" />
+              <span className="font-semibold">{userEmail}</span>
             </div>
             <button
               onClick={handleSignOut}
-              className="w-full mt-2 px-4 py-2.5 rounded-xl text-[#c2593f] font-semibold border border-[#e6ded2] hover:bg-rose-50 flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full px-4 py-2 rounded-lg text-rose-600 font-medium border border-rose-200 hover:bg-rose-50 flex items-center justify-center gap-2 cursor-pointer transition-colors"
             >
               <LogOut className="w-4 h-4" />
               <span>Sign out</span>
             </button>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="p-6">
-            <label className="block text-xs font-bold text-[#221e1b] mb-1 uppercase tracking-wide">Email</label>
-            <div className="relative mb-4">
-              <Mail className="w-4 h-4 text-[#8c8275] absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full pl-9 pr-3 py-2.5 bg-[#fffdfa] border border-[#dcd4c7] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0f2338]/30"
-              />
+          <form onSubmit={handleSubmit} className="p-6 text-xs space-y-3.5">
+            <div>
+              <label className="block text-xs font-semibold text-[#011405] mb-1">Examiner Email</label>
+              <div className="relative">
+                <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 bg-[#f7fef8] border border-[#d2ecd6] rounded-lg text-[#011405] placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white transition-colors"
+                />
+              </div>
             </div>
 
-            <label className="block text-xs font-bold text-[#221e1b] mb-1 uppercase tracking-wide">Password</label>
-            <div className="relative mb-5">
-              <Lock className="w-4 h-4 text-[#8c8275] absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="password"
-                required
-                minLength={6}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-9 pr-3 py-2.5 bg-[#fffdfa] border border-[#dcd4c7] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0f2338]/30"
-              />
+            <div>
+              <label className="block text-xs font-semibold text-[#011405] mb-1">Access Password</label>
+              <div className="relative">
+                <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 bg-[#f7fef8] border border-[#d2ecd6] rounded-lg text-[#011405] placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white transition-colors"
+                />
+              </div>
             </div>
 
-            {error && <p className="text-xs text-[#c2593f] mb-3">{error}</p>}
-            {info && <p className="text-xs text-[#2b4d3a] mb-3">{info}</p>}
+            {error && <p className="text-xs text-rose-600 bg-rose-50 p-2 rounded-md border border-rose-200">{error}</p>}
+            {info && <p className="text-xs text-emerald-600 bg-emerald-50 p-2 rounded-md border border-emerald-200">{info}</p>}
 
             <button
               type="submit"
               disabled={busy}
-              className="btn-primary-navy w-full py-2.5 rounded-xl text-white text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer"
+              className="btn-universe-gradient w-full py-2.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer"
             >
               {busy && <Loader2 className="w-4 h-4 animate-spin" />}
-              <span>{mode === 'signin' ? 'Sign in' : 'Sign up'}</span>
+              <span>{mode === 'signin' ? 'Sign In' : 'Create Account'}</span>
             </button>
 
             <button
               type="button"
               onClick={() => { setMode(mode === 'signin' ? 'signup' : 'signin'); setError(null); setInfo(null); }}
-              className="w-full text-center text-xs text-[#0f2338] mt-4 hover:underline cursor-pointer"
+              className="w-full text-center text-xs text-[#415ef4] hover:text-indigo-800 pt-1 cursor-pointer font-medium"
             >
-              {mode === 'signin' ? 'Need an account? Sign up' : 'Have an account? Sign in'}
+              {mode === 'signin' ? 'Register new examiner credentials' : 'Already registered? Sign in'}
             </button>
           </form>
         )}

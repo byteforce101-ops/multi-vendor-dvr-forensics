@@ -7,11 +7,10 @@ import {
   User,
   LogOut,
   ShieldCheck,
-  ChevronLeft,
+  X,
   FileCheck,
 } from 'lucide-react';
 import { SupabaseUser } from '../types';
-import { TraceXLogo } from './TraceXLogo';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -23,7 +22,6 @@ interface SidebarProps {
   onLogout: () => void;
   onOpenActivityLog: () => void;
   onOpenCompliance: (tab: 'security' | 'compliance' | 'api') => void;
-  onNavigateToArchitecture?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -36,17 +34,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onLogout,
   onOpenActivityLog,
   onOpenCompliance,
-  onNavigateToArchitecture,
 }) => {
   const navItems = [
-    { id: 'Pipelines', label: 'Pipelines', icon: Layers, description: 'Ingest & processing pipeline' },
-    { id: 'Analyses', label: 'Analyses', icon: Activity, description: 'AI object & event chronology' },
-    { id: 'Library', label: 'Library', icon: FolderArchive, description: 'Hashed evidence repository' },
+    { id: 'Pipelines', label: 'Evidence Ingest', icon: Layers, description: 'File upload & SHA-256 seal' },
+    { id: 'Analyses', label: 'Forensic Analytics', icon: Activity, description: 'Stream integrity & AI query' },
+    { id: 'Library', label: 'Evidence Vault', icon: FolderArchive, description: 'Verified repository' },
   ] as const;
 
   return (
     <>
-      {/* Mobile Backdrop */}
+      {/* Backdrop (closes sidebar on click) */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -54,61 +51,58 @@ export const Sidebar: React.FC<SidebarProps> = ({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onToggle}
-            className="fixed inset-0 bg-black/40 backdrop-blur-xs z-40 lg:hidden"
+            className="fixed inset-0 bg-slate-900/30 backdrop-blur-xs z-40 transition-opacity"
           />
         )}
       </AnimatePresence>
 
-      {/* Sidebar Container */}
+      {/* Slide-out Sidebar Drawer */}
       <motion.aside
         initial={false}
-        animate={{ width: isOpen ? 280 : 0, opacity: isOpen ? 1 : 0 }}
-        transition={{ duration: 0.2 }}
-        style={{ background: 'var(--color-sidebar)', borderRight: '1px solid rgba(255,255,255,0.06)' }}
-        className="fixed lg:sticky top-0 left-0 h-screen z-50 lg:z-30 flex flex-col justify-between overflow-hidden"
+        animate={{
+          x: isOpen ? 0 : -280,
+          opacity: isOpen ? 1 : 0,
+        }}
+        transition={{ type: 'spring', damping: 25, stiffness: 280 }}
+        className="fixed top-0 left-0 h-screen w-[280px] z-50 flex flex-col justify-between overflow-hidden bg-white border-r border-[#d2ecd6] shadow-xl"
       >
-        <div className="w-[280px] h-full flex flex-col justify-between p-5 overflow-y-auto scrollbar-none">
+        <div className="w-full h-full flex flex-col justify-between p-5 overflow-y-auto">
           {/* Top Brand Header */}
           <div>
-            <div className="flex items-center justify-between pb-5 border-b border-white/5">
+            <div className="flex items-center justify-between pb-4 border-b border-[#e3f6e6]">
               <div
                 onClick={() => {
-                  if (onNavigateToArchitecture) {
-                    onNavigateToArchitecture();
-                  } else {
-                    onNavChange('Pipelines');
-                  }
+                  onNavChange('Pipelines');
+                  onToggle();
                 }}
-                className="flex items-center space-x-3 cursor-pointer group"
-                title="TraceX - Click to view Architecture & Platform Capabilities"
+                className="flex items-center space-x-2.5 cursor-pointer"
               >
-                <TraceXLogo size={36} variant="gold" bgColor="#0f1715" />
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-[#415ef4] to-[#1cf243] flex items-center justify-center text-white font-black text-xs shadow-xs">
+                  <span>TX</span>
+                </div>
                 <div>
-                  <span className="text-[18px] font-semibold tracking-tight text-white block leading-none group-hover:text-[#7ec8d8] transition-colors">
+                  <span className="text-[16px] font-bold tracking-tight text-[#011405] block leading-none">
                     TraceX
                   </span>
-                  <span className="text-[10px] mono text-white/35 font-medium tracking-widest uppercase mt-1 block">
-                    Forensic AI
+                  <span className="text-[10px] text-[#2d4a34] font-medium tracking-wide uppercase mt-0.5 block">
+                    Forensics OS
                   </span>
                 </div>
               </div>
 
               <button
                 onClick={onToggle}
-                className="p-1.5 rounded text-white/40 hover:text-white/70 hover:bg-white/5 transition-colors cursor-pointer shrink-0"
-                title="Collapse sidebar"
+                className="w-7 h-7 rounded-lg text-[#55785d] hover:text-[#011405] hover:bg-[#e8f9ec] transition-colors flex items-center justify-center cursor-pointer"
+                title="Close sidebar"
               >
-                <ChevronLeft className="w-4 h-4" />
+                <X className="w-4 h-4" />
               </button>
             </div>
 
             {/* Navigation Buttons Group */}
-            <div className="mt-6 space-y-1">
-              <div
-                className="px-2 py-2 text-[10px] font-semibold tracking-widest uppercase"
-                style={{ color: 'rgba(255,255,255,0.22)' }}
-              >
-                Workspace
+            <div className="mt-5 space-y-1">
+              <div className="px-3 py-1.5 text-[11px] font-semibold tracking-wider uppercase text-[#55785d]">
+                Navigation
               </div>
 
               {navItems.map((item) => {
@@ -120,90 +114,87 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     key={item.id}
                     onClick={() => {
                       onNavChange(item.id);
-                      if (window.innerWidth < 1024) onToggle();
+                      onToggle();
                     }}
-                    className={`sidebar-item w-full text-left ${isActive ? 'active' : ''}`}
+                    className={`w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                      isActive
+                        ? 'bg-[#e6faea] text-[#011405] font-bold border-l-4 border-[#1cf243] shadow-xs'
+                        : 'text-[#2d4a34] hover:text-[#011405] hover:bg-[#f7fef8]'
+                    }`}
                   >
-                    <Icon size={14} strokeWidth={1.75} className="shrink-0" />
-                    <span className="truncate">{item.label}</span>
+                    <Icon size={16} className={isActive ? 'text-[#16d639]' : 'text-[#74b8f7]'} />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate">{item.label}</div>
+                      <div className="text-[10px] text-[#55785d] font-normal truncate">{item.description}</div>
+                    </div>
                   </button>
                 );
               })}
             </div>
 
-            {/* Secondary Audit & Security Links */}
-            <div className="mt-7 pt-5 border-t border-white/5 space-y-1">
-              <div
-                className="px-2 py-2 text-[10px] font-semibold tracking-widest uppercase"
-                style={{ color: 'rgba(255,255,255,0.22)' }}
-              >
-                Forensic Ledger
+            {/* Compliance & Audit */}
+            <div className="mt-6 pt-4 border-t border-[#e3f6e6] space-y-1">
+              <div className="px-3 py-1.5 text-[11px] font-semibold tracking-wider uppercase text-[#55785d]">
+                Audit & Compliance
               </div>
 
               <button
-                onClick={onOpenActivityLog}
-                className="sidebar-item w-full text-left justify-between"
+                onClick={() => {
+                  onOpenActivityLog();
+                  onToggle();
+                }}
+                className="w-full text-left flex items-center justify-between px-3 py-2 rounded-lg text-xs text-[#2d4a34] hover:text-[#011405] hover:bg-[#f7fef8] transition-colors cursor-pointer"
               >
-                <div className="flex items-center gap-2">
-                  <ShieldCheck className="w-3.5 h-3.5" style={{ color: 'var(--color-mgreen)' }} />
+                <div className="flex items-center gap-2.5">
+                  <ShieldCheck className="w-4 h-4 text-[#16d639]" />
                   <span>Chain of Custody</span>
                 </div>
-                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: 'var(--color-mgreen)' }} />
+                <span className="w-1.5 h-1.5 rounded-full bg-[#1cf243]" />
               </button>
 
               <button
-                onClick={() => onOpenCompliance('security')}
-                className="sidebar-item w-full text-left"
+                onClick={() => {
+                  onOpenCompliance('security');
+                  onToggle();
+                }}
+                className="w-full text-left flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-[#2d4a34] hover:text-[#011405] hover:bg-[#f7fef8] transition-colors cursor-pointer"
               >
-                <FileCheck className="w-3.5 h-3.5" style={{ color: 'var(--color-mgreen)' }} />
+                <FileCheck className="w-4 h-4 text-[#415ef4]" />
                 <span>Forensic Standards</span>
               </button>
             </div>
           </div>
 
-          {/* Bottom Profile & Logout Section */}
-          <div className="pt-5 border-t border-white/5 space-y-2">
+          {/* Bottom Profile & Session Section */}
+          <div className="pt-4 border-t border-[#e3f6e6] space-y-2">
             <button
               id="sidebar-btn-profile"
-              onClick={onOpenProfile}
-              className="w-full text-left p-3 rounded transition-all group flex items-center gap-3 cursor-pointer"
-              style={{ background: 'rgba(65,99,110,0.18)', border: '1px solid rgba(65,99,110,0.3)' }}
+              onClick={() => {
+                onOpenProfile();
+                onToggle();
+              }}
+              className="w-full text-left p-2.5 rounded-xl border border-[#d2ecd6] hover:border-[#bde3c3] bg-[#f7fef8] hover:bg-white transition-all flex items-center gap-2.5 cursor-pointer shadow-xs"
             >
-              <div
-                className="w-8 h-8 rounded flex items-center justify-center text-xs font-semibold text-white relative flex-shrink-0"
-                style={{ background: 'var(--color-teal)' }}
-              >
-                <User className="w-4 h-4" />
-                <span
-                  className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border-2"
-                  style={{ background: 'var(--color-mgreen)', borderColor: 'var(--color-sidebar)' }}
-                />
+              <div className="w-7 h-7 rounded-full bg-[#e8f9ec] text-[#011405] border border-[#d2ecd6] flex items-center justify-center font-bold text-xs shrink-0">
+                {user.name.charAt(0).toUpperCase()}
               </div>
 
               <div className="min-w-0 flex-1">
-                <div className="text-[13px] font-medium text-white truncate">{user.name}</div>
-                <div className="mono text-[11px] text-white/40 truncate">ID: {user.enterpriseId}</div>
+                <div className="text-xs font-semibold text-[#011405] truncate">{user.name}</div>
+                <div className="text-[10px] text-[#55785d] truncate">{user.email || 'Investigator'}</div>
               </div>
-
-              <span
-                className="text-[10px] mono px-1.5 py-0.5 rounded font-semibold uppercase shrink-0"
-                style={{ background: 'rgba(65,99,110,0.3)', color: '#7ec8d8' }}
-              >
-                RBAC
-              </span>
             </button>
 
             <button
               id="sidebar-btn-logout"
-              onClick={onLogout}
-              className="w-full text-left px-3 py-2.5 rounded text-[12.5px] font-medium flex items-center justify-between transition-colors cursor-pointer group"
-              style={{ color: 'var(--color-crit)' }}
+              onClick={() => {
+                onLogout();
+                onToggle();
+              }}
+              className="w-full text-left px-3 py-2 rounded-lg text-xs font-medium text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer flex items-center gap-2"
             >
-              <div className="flex items-center gap-2.5">
-                <LogOut className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
-                <span>Log Out / Switch Session</span>
-              </div>
-              <span className="text-[10px] mono text-white/25">Exit</span>
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Sign out</span>
             </button>
           </div>
         </div>
@@ -211,3 +202,4 @@ export const Sidebar: React.FC<SidebarProps> = ({
     </>
   );
 };
+

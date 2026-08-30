@@ -2,10 +2,7 @@ import React, { useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
-import { ProcessPipeline } from './components/ProcessPipeline';
 import { UploadSection } from './components/UploadSection';
-import { ChainOfCustody } from './components/ChainOfCustody';
-import { ArchitectureSection } from './components/ArchitectureSection';
 import { Footer } from './components/Footer';
 import { ProcessingModal } from './components/ProcessingModal';
 import { ActivityLogModal } from './components/ActivityLogModal';
@@ -24,9 +21,9 @@ export default function App() {
     ? {
         id: session.user.id,
         email: session.user.email || '',
-        role: 'Investigator',
+        role: 'Senior Examiner',
         enterpriseId: session.user.id.slice(0, 8).toUpperCase(),
-        name: session.user.email?.split('@')[0] || 'User',
+        name: session.user.email?.split('@')[0] || 'Examiner',
         isLoggedIn: true,
       }
     : { ...DEFAULT_USER, isLoggedIn: false };
@@ -40,33 +37,12 @@ export default function App() {
 
   // ---- navigation / layout -------------------------------------------------
   const [activeNav, setActiveNav] = useState<'Pipelines' | 'Analyses' | 'Library'>('Pipelines');
-  const [currentStepId, setCurrentStepId] = useState<number>(3);
-  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
   const [isActivityLogOpen, setIsActivityLogOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [complianceModalTab, setComplianceModalTab] = useState<'security' | 'compliance' | 'api' | null>(null);
-  const [isArchitectureHighlighted, setIsArchitectureHighlighted] = useState(false);
 
-  useEffect(() => {
-    const handleResize = () => setIsSidebarOpen(window.innerWidth >= 1024);
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  const handleNavigateToArchitecture = () => {
-    setActiveNav('Pipelines');
-    setTimeout(() => {
-      const el = document.getElementById('architecture-overview');
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        setIsArchitectureHighlighted(true);
-        setTimeout(() => setIsArchitectureHighlighted(false), 3500);
-      }
-    }, 100);
-  };
-
-  // ---- evidence + processing (client-side only, no case DB) -------------
+  // ---- evidence + processing -----------------------------------------------
   const [recentFiles, setRecentFiles] = useState<EvidenceFile[]>([]);
   const [processingData, setProcessingData] = useState<{ caseName: string; evidenceId: string; file: EvidenceFile | null }>({
     caseName: '',
@@ -75,13 +51,20 @@ export default function App() {
   });
   const [isProcessingOpen, setIsProcessingOpen] = useState(false);
   const [analysis, setAnalysis] = useState<VideoAnalysisResult | null>(null);
+  const [videoBlobUrl, setVideoBlobUrl] = useState<string | undefined>(undefined);
 
   const handleFileUploaded = (file: EvidenceFile) => {
     setRecentFiles((prev) => [file, ...prev]);
+    if (file.sourceFile) {
+      setVideoBlobUrl(URL.createObjectURL(file.sourceFile));
+    }
   };
 
   const handleBeginProcessing = (data: { caseName: string; evidenceId: string; file: EvidenceFile | null }) => {
     setProcessingData(data);
+    if (data.file?.sourceFile) {
+      setVideoBlobUrl(URL.createObjectURL(data.file.sourceFile));
+    }
     setIsProcessingOpen(true);
   };
 
@@ -94,7 +77,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#faf8f5] text-[#142e2e] flex flex-row font-['DM_Sans',sans-serif]">
+    <div className="min-h-screen bg-[#f0fef2] text-[#011405] flex flex-col font-['Inter',sans-serif]">
       <Sidebar
         isOpen={isSidebarOpen}
         onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -105,10 +88,9 @@ export default function App() {
         onLogout={handleLogout}
         onOpenActivityLog={() => setIsActivityLogOpen(true)}
         onOpenCompliance={(tab) => setComplianceModalTab(tab)}
-        onNavigateToArchitecture={handleNavigateToArchitecture}
       />
 
-      <div className="flex-1 flex flex-col min-w-0 transition-all">
+      <div className="flex-1 flex flex-col min-w-0 transition-all bg-[#f0fef2]">
         <Header
           user={currentUser}
           onNavChange={(nav) => setActiveNav(nav as any)}
@@ -116,33 +98,21 @@ export default function App() {
           onOpenActivityLog={() => setIsActivityLogOpen(true)}
           onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
           sidebarOpen={isSidebarOpen}
-          onNavigateToArchitecture={handleNavigateToArchitecture}
         />
 
-        <main className="w-full max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8 pt-7 pb-12 flex-1">
+        <main className="w-full max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1">
           {activeNav === 'Pipelines' && (
-            <div className="space-y-6 sm:space-y-7">
-              <ProcessPipeline currentStepId={currentStepId} />
-
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-7 items-stretch">
-                <div className="lg:col-span-8 flex">
-                  <UploadSection
-                    onBeginProcessing={handleBeginProcessing}
-                    onFileUploaded={handleFileUploaded}
-                    isAuthenticated={isAuthenticated}
-                    onRequestLogin={() => setIsAuthModalOpen(true)}
-                  />
-                </div>
-                <div className="lg:col-span-4 flex">
-                  <ChainOfCustody recentFiles={recentFiles} onOpenActivityLog={() => setIsActivityLogOpen(true)} />
-                </div>
-              </div>
-
-              <ArchitectureSection isHighlighted={isArchitectureHighlighted} />
+            <div className="max-w-4xl mx-auto space-y-6">
+              <UploadSection
+                onBeginProcessing={handleBeginProcessing}
+                onFileUploaded={handleFileUploaded}
+                isAuthenticated={isAuthenticated}
+                onRequestLogin={() => setIsAuthModalOpen(true)}
+              />
             </div>
           )}
 
-          {activeNav === 'Analyses' && <AnalysesView analysis={analysis} />}
+          {activeNav === 'Analyses' && <AnalysesView analysis={analysis} videoUrl={videoBlobUrl} />}
 
           {activeNav === 'Library' && (
             <LibraryView files={recentFiles} onOpenActivityLog={() => setIsActivityLogOpen(true)} />
@@ -158,8 +128,7 @@ export default function App() {
         caseName={processingData.caseName}
         evidenceId={processingData.evidenceId}
         file={processingData.file}
-        onCompleteStep={(stepId) => {
-          setCurrentStepId(stepId);
+        onCompleteStep={() => {
           setActiveNav('Analyses');
         }}
         onAnalysisComplete={(result) => setAnalysis(result)}
@@ -181,4 +150,4 @@ export default function App() {
       />
     </div>
   );
-}
+}

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { Menu, User, ShieldCheck, LogOut, Key } from 'lucide-react';
+import { Menu, User, ShieldCheck, LogOut, Key, ChevronDown } from 'lucide-react';
 import { SupabaseUser } from '../types';
-import { TraceXLogo } from './TraceXLogo';
 
 interface HeaderProps {
   user: SupabaseUser;
@@ -10,7 +9,6 @@ interface HeaderProps {
   onOpenActivityLog: () => void;
   onToggleSidebar?: () => void;
   sidebarOpen?: boolean;
-  onNavigateToArchitecture?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -20,114 +18,94 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenActivityLog,
   onToggleSidebar,
   sidebarOpen,
-  onNavigateToArchitecture,
 }) => {
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
 
   return (
-    <header
-      className="w-full sticky top-0 z-30 backdrop-blur-md transition-colors"
-      style={{ background: 'color-mix(in srgb, var(--color-panel) 95%, transparent)', borderBottom: '1px solid var(--color-brd)' }}
-    >
-      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 h-12 flex items-center justify-between">
-        {/* Left: Sidebar Toggle & Brand */}
+    <header className="w-full sticky top-0 z-30 backdrop-blur-md transition-colors bg-white/95 border-b border-[#d2ecd6] shadow-xs">
+      <div className="max-w-[1550px] mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+        {/* Left: Sidebar Toggle & Logo */}
         <div className="flex items-center gap-3">
           <button
             id="nav-hamburger-btn"
             onClick={onToggleSidebar}
-            className="w-8 h-8 flex items-center justify-center rounded transition-colors hover:bg-[var(--color-teal-light)] cursor-pointer focus:outline-none"
-            style={{ color: 'var(--color-txt2)' }}
+            className="w-9 h-9 flex items-center justify-center rounded-lg border border-[#d2ecd6] bg-[#f7fef8] text-[#011405] hover:bg-[#e8f9ec] hover:border-[#bde3c3] transition-all cursor-pointer shadow-xs"
             aria-label="Toggle sidebar menu"
-            title={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+            title={sidebarOpen ? 'Close sidebar' : 'Open sidebar'}
           >
-            <Menu className="w-4 h-4" strokeWidth={1.9} />
+            <Menu className="w-4 h-4" />
           </button>
 
           <div
-            onClick={() => {
-              if (onNavigateToArchitecture) onNavigateToArchitecture();
-              else onNavChange('Pipelines');
-            }}
-            className="flex items-center gap-2 cursor-pointer group"
-            title="TraceX - Click to view Architecture & Platform Capabilities"
+            onClick={() => onNavChange('Pipelines')}
+            className="flex items-center gap-2.5 cursor-pointer select-none"
           >
-            <TraceXLogo size={28} variant="gold" bgColor="#0f1715" />
-            <span
-              className="text-[16px] font-semibold tracking-tight transition-colors"
-              style={{ color: 'var(--color-txt)' }}
-            >
-              TraceX
-            </span>
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-[#415ef4] to-[#1cf243] flex items-center justify-center text-white font-black text-xs shadow-xs">
+              <span>TX</span>
+            </div>
+            <div>
+              <span className="text-[15px] font-bold tracking-tight text-[#011405] leading-none block">
+                TraceX
+              </span>
+              <span className="text-[10px] text-[#2d4a34] font-medium tracking-wide block mt-0.5">
+                Forensics Platform
+              </span>
+            </div>
           </div>
         </div>
 
-        {/* Right: User Profile */}
-        <div className="flex items-center gap-3">
+        {/* Right: Quick Action Buttons & User Profile */}
+        <div className="flex items-center gap-2.5">
+          <button
+            onClick={onOpenActivityLog}
+            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-[#011405] hover:bg-[#e8f9ec] bg-[#f7fef8] border border-[#d2ecd6] transition-colors cursor-pointer"
+          >
+            <ShieldCheck className="w-3.5 h-3.5 text-[#16d639]" />
+            <span>Chain of Custody</span>
+          </button>
+
           <div className="relative">
             <button
               id="user-profile-btn"
               onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-              className="flex items-center gap-2.5 text-right group py-1 px-2 rounded transition-colors hover:bg-[var(--color-teal-light)] border border-transparent cursor-pointer"
+              className="flex items-center gap-2 py-1.5 px-2.5 rounded-lg border border-[#d2ecd6] bg-white hover:bg-[#f7fef8] text-[#011405] transition-all cursor-pointer shadow-xs"
             >
-              <div className="hidden sm:block leading-tight text-right">
-                <div className="text-[13px] font-medium tracking-tight" style={{ color: 'var(--color-txt)' }}>
-                  {user.name}
-                </div>
-                <div className="mono text-[11px]" style={{ color: 'var(--color-txt2)' }}>
-                  {user.enterpriseId}
-                </div>
+              <div className="w-6 h-6 rounded-full bg-[#e8f9ec] text-[#011405] border border-[#d2ecd6] flex items-center justify-center font-bold text-xs">
+                {user.name.charAt(0).toUpperCase()}
               </div>
-
-              <div
-                className="w-7 h-7 rounded flex items-center justify-center text-xs font-semibold text-white relative"
-                style={{ background: 'var(--color-teal)' }}
-              >
-                <User className="w-3.5 h-3.5" />
-                <span
-                  className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border-2"
-                  style={{ background: 'var(--color-mgreen)', borderColor: 'var(--color-panel)' }}
-                />
+              <div className="hidden sm:block text-left text-xs font-semibold text-[#011405] leading-tight">
+                {user.name}
               </div>
+              <ChevronDown className="w-3.5 h-3.5 text-[#55785d]" />
             </button>
 
             {userDropdownOpen && (
-              <div
-                className="absolute right-0 mt-2 w-64 rounded py-1.5 z-50"
-                style={{ background: 'var(--color-panel)', border: '1px solid var(--color-brd)', boxShadow: '0 8px 24px rgba(23,38,48,0.12)' }}
-                onClick={() => setUserDropdownOpen(false)}
-              >
-                <div className="px-4 py-2.5" style={{ borderBottom: '1px solid var(--color-brd)' }}>
-                  <p className="text-xs font-semibold" style={{ color: 'var(--color-txt)' }}>{user.name}</p>
-                  <p className="text-xs truncate" style={{ color: 'var(--color-txt2)' }}>{user.email}</p>
+              <div className="absolute right-0 mt-2 w-52 bg-white border border-[#d2ecd6] rounded-xl shadow-lg py-1 z-50 text-xs animate-in fade-in zoom-in-95 duration-150">
+                <div className="px-3.5 py-2 border-b border-[#e3f6e6]">
+                  <p className="font-semibold text-[#011405] truncate">{user.name}</p>
+                  <p className="text-[#55785d] text-[11px] truncate">{user.email || 'Examiner'}</p>
                 </div>
 
                 <button
-                  onClick={onOpenAuth}
-                  className="w-full text-left px-4 py-2 text-xs flex items-center gap-2 cursor-pointer transition-colors hover:bg-[var(--color-teal-light)]"
-                  style={{ color: 'var(--color-txt)' }}
+                  onClick={() => {
+                    setUserDropdownOpen(false);
+                    onOpenAuth();
+                  }}
+                  className="w-full text-left px-3.5 py-2 text-[#011405] hover:bg-[#f7fef8] flex items-center gap-2 cursor-pointer transition-colors"
                 >
-                  <Key className="w-3.5 h-3.5" style={{ color: 'var(--color-teal)' }} />
-                  <span>Profile & Session</span>
+                  <User className="w-3.5 h-3.5 text-[#55785d]" />
+                  <span>Account Session</span>
                 </button>
 
                 <button
-                  onClick={onOpenActivityLog}
-                  className="w-full text-left px-4 py-2 text-xs flex items-center gap-2 cursor-pointer transition-colors hover:bg-[var(--color-teal-light)]"
-                  style={{ color: 'var(--color-txt)' }}
+                  onClick={() => {
+                    setUserDropdownOpen(false);
+                    onOpenActivityLog();
+                  }}
+                  className="w-full text-left px-3.5 py-2 text-[#011405] hover:bg-[#f7fef8] flex items-center gap-2 cursor-pointer transition-colors"
                 >
-                  <ShieldCheck className="w-3.5 h-3.5" style={{ color: 'var(--color-mgreen)' }} />
-                  <span>Activity Log</span>
-                </button>
-
-                <div className="my-1" style={{ borderTop: '1px solid var(--color-brd)' }} />
-
-                <button
-                  onClick={onOpenAuth}
-                  className="w-full text-left px-4 py-2 text-xs flex items-center gap-2 cursor-pointer transition-colors hover:bg-[var(--color-crit-light)]"
-                  style={{ color: 'var(--color-crit)' }}
-                >
-                  <LogOut className="w-3.5 h-3.5" />
-                  <span>Sign out</span>
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#16d639]" />
+                  <span>Chain of Custody</span>
                 </button>
               </div>
             )}
@@ -136,4 +114,4 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
     </header>
   );
-};
+};

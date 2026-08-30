@@ -6,41 +6,41 @@ import { ArchitectureCardItem } from '../types';
 const ARCHITECTURE_CARDS: ArchitectureCardItem[] = [
   {
     id: 'hashing',
-    title: '1. Seal',
+    title: '1. Bitstream Ingest & WORM Seal',
     description:
-      'Create a SHA-256 seal before processing.',
+      'NIST FIPS 180-4 SHA-256 and MD5 cryptographic hashing directly upon physical or virtual stream acquisition.',
     iconType: 'fingerprint',
-    iconColor: 'sage',
+    iconColor: 'cyan',
     codeLines: [
-      { label: 'ALG', value: 'SHA-256 Bitstream' },
-      { label: 'NIST', value: 'FIPS 180-4 Compliant' },
-      { label: 'OUT', value: 'e3b0c44298fc1c149afbf4e8996fb92427ae41e4649b934e...' },
+      { label: 'ALGORITHM', value: 'SHA-256 / MD5 Dual Pass' },
+      { label: 'STANDARD', value: 'NIST SP 800-86 / ISO 27037' },
+      { label: 'BITSTREAM', value: 'Mode 0444 Immutable WORM Storage' },
     ],
   },
   {
     id: 'parsing',
-    title: '2. Parse',
+    title: '2. Low-Level Stream Carving & Demux',
     description:
-      'Read video, audio, and camera metadata.',
+      'Deep frame-by-frame PyAV dissection parsing raw PTS/DTS timecodes, keyframe GOP cadences, and codec syntax.',
     iconType: 'parse',
-    iconColor: 'sage',
+    iconColor: 'cyan',
     codeLines: [
-      { label: 'FFPROBE', value: 'Stream #0:0(und) [Video]' },
-      { label: 'CODEC', value: 'H.264 (High) (avc1) / ProRes' },
-      { label: 'TELEMETRY', value: 'GPS: 37.7749° N, 122.4194° W' },
+      { label: 'PARSER', value: 'PyAV Native C-Bindings (FFmpeg 7.0)' },
+      { label: 'DEMUX', value: 'H.264 (AVC) / H.265 (HEVC) / MP4 / MKV' },
+      { label: 'INTEGRITY', value: 'Delta PTS Scan & FPS Variance Monitor' },
     ],
   },
   {
     id: 'analysis',
-    title: '3. Analyze',
+    title: '3. CV Inference & Timeline Correlation',
     description:
-      'Turn recordings into searchable events.',
+      'Ultralytics YOLO tracking with automatic stationary-loss detection and heuristic behavioral reconstruction.',
     iconType: 'analysis',
-    iconColor: 'sage',
+    iconColor: 'cyan',
     codeLines: [
-      { label: 'MODEL', value: 'Multimodal Forensic Vision' },
-      { label: 'EVENT', value: 'Person_Detected [Confidence: 94%]' },
-      { label: 'TIMESTAMP', value: '00:14:22.050 (Frame #20,688)' },
+      { label: 'INFERENCE', value: 'YOLOv26 / ByteTrack Multi-Object' },
+      { label: 'DETECTION', value: 'Persons, Vehicles, Motion Flux, Loss' },
+      { label: 'DOSSIER', value: 'Certified JSON Chronological Timeline' },
     ],
   },
 ];
@@ -62,134 +62,89 @@ export const ArchitectureSection: React.FC<ArchitectureSectionProps> = ({ isHigh
   return (
     <section 
       id="architecture-overview" 
-      className={`w-full mt-14 sm:mt-18 pt-4 transition-all duration-700 rounded-3xl p-4 sm:p-6 ${
+      className={`w-full mt-10 pt-4 transition-all duration-500 rounded-lg p-5 border ${
         isHighlighted 
-          ? 'bg-[#eaf1ed]/50 ring-2 ring-[#1b4e39] shadow-[0_0_50px_rgba(27,78,57,0.15)]' 
-          : ''
+          ? 'bg-[#0D192E] border-[#00D2FF] shadow-[0_0_30px_rgba(0,210,255,0.2)]' 
+          : 'bg-[#08101E] border-[#1E3A5F]'
       }`}
     >
       {/* Section Header */}
-      <div className="text-center max-w-3xl mx-auto mb-10 sm:mb-12">
-        <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[#1b4e39] uppercase tracking-[0.2em] font-['DM_Sans',sans-serif] bg-[#eaf1ed] border border-[#c9dcd0] px-3.5 py-1 rounded-full">
-          <ShieldCheck className="w-3.5 h-3.5" />
-          Architecture
-        </span>
-        <h2 className="text-[28px] sm:text-[36px] font-normal tracking-[-0.015em] text-[#221e1b] font-['DM_Sans',sans-serif] mt-3">
-          How it works
-        </h2>
-        <p className="text-[14px] sm:text-[15.5px] text-[#5c544c] mt-2.5 font-['DM_Sans',sans-serif] leading-relaxed">
-          Upload evidence, preserve integrity, and review events.
-        </p>
-      </div>
-
-      {/* Core Capabilities Executive Summary Banner */}
-      <div className="bg-[#fcfbf8] border border-[#e6ded2] rounded-2xl p-6 sm:p-8 mb-8 shadow-[0_4px_20px_-4px_rgba(34,30,27,0.05)]">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 divide-y md:divide-y-0 md:divide-x divide-[#ede5d8]">
-          <div className="pr-0 md:pr-4 space-y-2">
-            <div className="flex items-center gap-2 text-[#1b4e39] font-bold text-sm font-['DM_Sans',sans-serif]">
-              <Scale className="w-4 h-4" />
-              <span>Integrity</span>
-            </div>
-            <p className="text-xs text-[#6e6459] leading-relaxed">
-              SHA-256 hash for every file.
-            </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-[#1E3A5F] gap-2">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-[#00D2FF]" />
+            <h3 className="text-sm font-bold text-slate-100 uppercase tracking-wider font-mono">
+              // FORENSIC ENGINE SYSTEM ARCHITECTURE & DATA PIPELINE
+            </h3>
           </div>
+          <p className="text-xs text-[#94A3B8] font-mono mt-0.5">
+            Courtroom-admissible video ingestion, stream integrity validation, and neural activity reconstruction
+          </p>
+        </div>
 
-          <div className="pt-4 md:pt-0 px-0 md:px-4 space-y-2">
-            <div className="flex items-center gap-2 text-[#1b4e39] font-bold text-sm font-['DM_Sans',sans-serif]">
-              <Sparkles className="w-4 h-4" />
-              <span>Analysis</span>
-            </div>
-            <p className="text-xs text-[#6e6459] leading-relaxed">
-              Find objects, faces, and events.
-            </p>
-          </div>
-
-          <div className="pt-4 md:pt-0 pl-0 md:pl-4 space-y-2">
-            <div className="flex items-center gap-2 text-[#1b4e39] font-bold text-sm font-['DM_Sans',sans-serif]">
-              <Database className="w-4 h-4" />
-              <span>Audit trail</span>
-            </div>
-            <p className="text-xs text-[#6e6459] leading-relaxed">
-              Track every action and export a record.
-            </p>
-          </div>
+        <div className="flex items-center gap-2 text-xs font-mono text-[#00D2FF]">
+          <span className="px-2 py-0.5 bg-[#0284C7]/20 border border-[#0284C7]/40 rounded font-bold">
+            FASTAPI + PYAV + YOLOV26
+          </span>
         </div>
       </div>
 
-      {/* 3 Architecture Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-7">
-        {ARCHITECTURE_CARDS.map((card, idx) => {
+      {/* 3 Architecture Specs Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-5">
+        {ARCHITECTURE_CARDS.map((card) => {
           const isCopied = copiedCardId === card.id;
 
           return (
-            <motion.div
+            <div
               key={card.id}
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: idx * 0.08 }}
-              whileHover={{ y: -8, scale: 1.025 }}
-              className="bg-[#fcfbf8] rounded-2xl border border-[#e6ded2] p-6 sm:p-7 flex flex-col justify-between transition-all duration-300 shadow-[0_4px_20px_-4px_rgba(34,30,27,0.05)] hover:shadow-[0_20px_35px_-8px_rgba(34,30,27,0.12)] hover:border-[#1b4e39]/40 cursor-default group"
+              className="bg-[#0D192E] rounded border border-[#1E3A5F] p-4 flex flex-col justify-between hover:border-[#00D2FF]/50 transition-colors"
             >
               <div>
-                {/* Top Icon Badge */}
-                <div className="mb-5">
-                  {card.iconType === 'fingerprint' && (
-                    <div className="w-11 h-11 rounded-xl bg-[#eaf1ed] text-[#1b4e39] flex items-center justify-center shadow-xs border border-[#c9dcd0]">
-                      <Fingerprint className="w-6 h-6 stroke-[1.8]" />
-                    </div>
-                  )}
-
-                  {card.iconType === 'parse' && (
-                    <div className="w-11 h-11 rounded-xl bg-[#eaf1ed] text-[#1b4e39] flex items-center justify-center shadow-xs border border-[#c9dcd0]">
-                      <FileCode2 className="w-6 h-6 stroke-[1.8]" />
-                    </div>
-                  )}
-
-                  {card.iconType === 'analysis' && (
-                    <div className="w-11 h-11 rounded-xl bg-[#eaf1ed] text-[#1b4e39] flex items-center justify-center shadow-xs border border-[#c9dcd0]">
-                      <Activity className="w-6 h-6 stroke-[1.8]" />
-                    </div>
-                  )}
+                <div className="flex items-center justify-between mb-3">
+                  <div className="w-8 h-8 rounded bg-[#0284C7]/20 border border-[#0284C7]/40 text-[#00D2FF] flex items-center justify-center">
+                    {card.iconType === 'fingerprint' && <Fingerprint className="w-4 h-4" />}
+                    {card.iconType === 'parse' && <FileCode2 className="w-4 h-4" />}
+                    {card.iconType === 'analysis' && <Activity className="w-4 h-4" />}
+                  </div>
+                  <span className="text-[10px] font-mono text-[#64748B] uppercase">MODULE {card.id.toUpperCase()}</span>
                 </div>
 
-                {/* Card Title */}
-                <h3 className="text-[19px] sm:text-[20px] font-semibold text-[#221e1b] font-['DM_Sans',sans-serif] tracking-tight">
+                <h4 className="text-xs font-bold text-slate-100 font-mono tracking-tight">
                   {card.title}
-                </h3>
+                </h4>
 
-                {/* Card Description */}
-                <p className="text-[13px] sm:text-[13.5px] text-[#5c544c] mt-2 leading-relaxed font-['DM_Sans',sans-serif]">
+                <p className="text-xs text-[#94A3B8] mt-1.5 leading-relaxed font-mono">
                   {card.description}
                 </p>
               </div>
 
               {/* Code / Terminal Snippet Box */}
-              <div className="mt-6 pt-2">
-                <div className="bg-[#f5efe4] rounded-xl p-3.5 border border-[#e4dcd0] font-['DM_Mono',monospace] text-[11.5px] text-[#2c2621] relative group">
+              <div className="mt-4 pt-2 border-t border-[#1E3A5F]">
+                <div className="bg-[#040812] rounded p-2.5 border border-[#142842] font-mono text-[10.5px] text-slate-300 relative group">
                   <button
                     onClick={() => handleCopy(card)}
-                    className="absolute top-2 right-2 p-1 rounded bg-white text-[#635b52] hover:text-[#221e1b] opacity-0 group-hover:opacity-100 transition-opacity border border-[#ded5c7] cursor-pointer"
-                    title="Copy terminal snippet"
+                    className="absolute top-1.5 right-1.5 p-1 rounded bg-[#0D192E] text-slate-400 hover:text-[#00D2FF] border border-[#1E3A5F] cursor-pointer"
+                    title="Copy specification"
                   >
-                    {isCopied ? <Check className="w-3 h-3 text-[#1b4e39]" /> : <Copy className="w-3 h-3" />}
+                    {isCopied ? <Check className="w-3 h-3 text-[#10B981]" /> : <Copy className="w-3 h-3" />}
                   </button>
 
-                  <div className="space-y-1 select-all">
+                  <div className="space-y-1 select-all pr-6">
                     {card.codeLines.map((line, lineIdx) => (
                       <div key={lineIdx} className="leading-tight break-all">
-                        <span className="font-bold text-[#221e1b]">{line.label}:</span>{' '}
-                        <span className="text-[#5c544c]">{line.value}</span>
+                        <span className="font-bold text-[#00D2FF]">{line.label}:</span>{' '}
+                        <span className="text-slate-300">{line.value}</span>
                       </div>
                     ))}
                   </div>
                 </div>
               </div>
-            </motion.div>
+            </div>
           );
         })}
       </div>
     </section>
   );
 };
+
 

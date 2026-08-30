@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Menu, User, ShieldCheck, LogOut, Key, ChevronDown } from 'lucide-react';
+import { Menu, User, ShieldCheck, ChevronDown } from 'lucide-react';
 import { SupabaseUser } from '../types';
+import TraceXLogo from './TraceXLogo';
 
 interface HeaderProps {
   user: SupabaseUser;
@@ -24,8 +25,11 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="w-full sticky top-0 z-30 backdrop-blur-md transition-colors bg-white/85 border-b border-slate-200/80 shadow-xs">
       <div className="max-w-[1550px] mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-        {/* Left: Sidebar Toggle & Logo */}
+
+        {/* LEFT: Sidebar Toggle + TraceX Logo */}
         <div className="flex items-center gap-3">
+
+          {/* Sidebar Toggle */}
           <button
             id="nav-hamburger-btn"
             onClick={onToggleSidebar}
@@ -36,26 +40,20 @@ export const Header: React.FC<HeaderProps> = ({
             <Menu className="w-4 h-4" />
           </button>
 
+          {/* TraceX Logo */}
           <div
             onClick={() => onNavChange('Pipelines')}
-            className="flex items-center gap-2.5 cursor-pointer select-none group"
+            className="flex items-center cursor-pointer select-none group"
+            title="TraceX Forensics Studio"
           >
-            <div className="w-7 h-7 rounded-md bg-blue-800 flex items-center justify-center text-white font-bold text-xs shadow-xs group-hover:bg-blue-900 transition-colors">
-              <span>TX</span>
-            </div>
-            <div>
-              <span className="text-[15px] font-bold tracking-tight text-slate-900 leading-none block">
-                TraceX
-              </span>
-              <span className="text-[10px] text-slate-500 font-medium tracking-wide block mt-0.5">
-                Forensics Studio
-              </span>
-            </div>
+            <TraceXLogo className="h-9 w-auto group-hover:opacity-90 transition-opacity" />
           </div>
         </div>
 
-        {/* Right: Quick Action Buttons & User Profile */}
+        {/* RIGHT: Quick Actions + User Profile */}
         <div className="flex items-center gap-2.5">
+
+          {/* Chain of Custody */}
           <button
             onClick={onOpenActivityLog}
             className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-700 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 transition-all cursor-pointer shadow-xs active:scale-98"
@@ -64,32 +62,48 @@ export const Header: React.FC<HeaderProps> = ({
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
             </span>
+
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+
             <span>Chain of Custody</span>
           </button>
 
+          {/* User Profile */}
           <div className="relative">
             <button
               id="user-profile-btn"
               onClick={() => setUserDropdownOpen(!userDropdownOpen)}
               className="flex items-center gap-2 py-1.5 px-2.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-900 transition-all cursor-pointer shadow-xs active:scale-98"
             >
+              {/* User Initial */}
               <div className="w-6 h-6 rounded-md bg-blue-50 text-blue-800 border border-blue-200 flex items-center justify-center font-bold text-xs">
                 {user.name.charAt(0).toUpperCase()}
               </div>
+
+              {/* User Name */}
               <div className="hidden sm:block text-left text-xs font-semibold text-slate-800 leading-tight">
                 {user.name}
               </div>
+
               <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
             </button>
 
+            {/* User Dropdown */}
             {userDropdownOpen && (
               <div className="absolute right-0 mt-2 w-52 bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-xl shadow-xl shadow-slate-900/5 py-1 z-50 text-xs animate-in fade-in zoom-in-95 duration-150">
+
+                {/* Account Information */}
                 <div className="px-3.5 py-2 border-b border-slate-100">
-                  <p className="font-semibold text-slate-900 truncate">{user.name}</p>
-                  <p className="text-slate-500 text-[11px] truncate">{user.email || 'Examiner'}</p>
+                  <p className="font-semibold text-slate-900 truncate">
+                    {user.name}
+                  </p>
+
+                  <p className="text-slate-500 text-[11px] truncate">
+                    {user.email || 'Examiner'}
+                  </p>
                 </div>
 
+                {/* Account Session */}
                 <button
                   onClick={() => {
                     setUserDropdownOpen(false);
@@ -101,6 +115,7 @@ export const Header: React.FC<HeaderProps> = ({
                   <span>Account Session</span>
                 </button>
 
+                {/* Chain of Custody */}
                 <button
                   onClick={() => {
                     setUserDropdownOpen(false);
@@ -111,11 +126,15 @@ export const Header: React.FC<HeaderProps> = ({
                   <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
                   <span>Chain of Custody</span>
                 </button>
+
               </div>
             )}
           </div>
+
         </div>
       </div>
     </header>
   );
-};
+};
+
+export default Header;

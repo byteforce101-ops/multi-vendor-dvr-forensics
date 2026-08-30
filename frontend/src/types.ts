@@ -44,7 +44,10 @@ export interface ArchitectureCardItem {
   description: string;
   iconType: 'fingerprint' | 'parse' | 'analysis';
   iconColor: string;
-  codeLines: Array<{ label: string; value: string }>;
+  codeLines: Array<{
+    label: string;
+    value: string;
+  }>;
 }
 
 export interface SupabaseUser {
@@ -57,10 +60,94 @@ export interface SupabaseUser {
   avatarUrl?: string;
 }
 
+/* =========================================================
+   AI FORENSIC RECONSTRUCTION
+   ========================================================= */
+
+export interface ReconstructedForensicEvent {
+  video_id: string;
+  camera_id: string;
+  event_type: string;
+  start_time: string;
+  end_time: string;
+  title: string;
+  description: string;
+  objects: string[];
+  confidence: number;
+  metadata: Record<string, unknown>;
+}
+
+export interface ForensicSummary {
+  video_id: string;
+  camera_id: string;
+  start_time: string | null;
+  end_time: string | null;
+  headline: string;
+  summary: string;
+  key_events: string[];
+  objects_detected: string[];
+  event_count: number;
+  confidence: number;
+  metadata: Record<string, unknown>;
+}
+
+/* =========================================================
+   VIDEO INTEGRITY / TAMPERING
+   ========================================================= */
+
+export interface VideoIntegrityAnalysis {
+  available: boolean;
+  error?: string;
+
+  timestamp_continuity: boolean;
+  frame_continuity: boolean;
+  fps_consistency: boolean;
+  duplicate_frames: boolean;
+  metadata_consistency: boolean;
+  resolution_consistency: boolean;
+  compression_consistency: boolean;
+
+  frames_checked: number;
+  timestamp_gaps: number;
+  duplicate_sequences: number;
+  corrupted_frames: number;
+  fps_changes: number;
+  resolution_changes: number;
+  compression_changes: number;
+
+  details: Record<string, unknown>;
+  anomalies: string[];
+
+  integrity_score: number;
+  overall_status: 'PASS' | 'WARNING' | 'ERROR' | string;
+}
+
+/* =========================================================
+   OBJECT DISAPPEARANCE DETECTION
+   ========================================================= */
+
+export interface ObjectDisappearance {
+  camera_id: string;
+  object_type: string;
+  first_seen: string;
+  last_seen: string;
+  disappearance_time: string;
+  observation_count: number;
+  related_activity: string[];
+}
+
+export interface ObjectDisappearanceAnalysis {
+  available: boolean;
+  count: number;
+  disappearances: ObjectDisappearance[];
+  note: string;
+}
+
 export interface VideoAnalysisResult {
   status: string;
   analysis_id: string;
   filename: string;
+
   metadata: {
     duration_seconds: number | null;
     width: number | null;
@@ -69,8 +156,10 @@ export interface VideoAnalysisResult {
     codec: string | null;
     has_audio: boolean;
   };
+
   frames_analyzed: number;
   event_count: number;
+
   events: Array<{
     event_type: string;
     video_id: string;
@@ -82,4 +171,14 @@ export interface VideoAnalysisResult {
     object_type: string | null;
     metadata: Record<string, unknown>;
   }>;
+
+  reconstructed_events: ReconstructedForensicEvent[];
+  reconstruction_count: number;
+  forensic_summary: ForensicSummary;
+
+  /* Video integrity / tampering analysis */
+  integrity_analysis?: VideoIntegrityAnalysis;
+
+  /* Object disappearance analysis */
+  object_disappearance_analysis?: ObjectDisappearanceAnalysis;
 }

@@ -154,9 +154,10 @@ export const ProcessingModal: React.FC<
         setCurrentPhase(1);
 
         setLogs([
-          `[INGEST] Uploading ${sourceFile.name} to the FastAPI analysis service.`,
-          `[CRYPTO] Client-side preview seal: ${fileHash.substring(0, 32)}...`,
-        ]);
+  `[INGEST] Uploading original evidence: ${sourceFile.name}`,
+  `[CRYPTO] Client-side SHA-256 preview: ${fileHash.substring(0, 32)}...`,
+  `[BACKEND] Authorizing forensic processing request.`,
+]);
 
 
         try {
@@ -171,9 +172,8 @@ export const ProcessingModal: React.FC<
           );
 
 
-          setProgress(25);
-
-          setCurrentPhase(2);
+          setProgress(30);
+setCurrentPhase(2);
 
           setLogs(
             (prev) => [
@@ -242,6 +242,20 @@ export const ProcessingModal: React.FC<
           setAnalysisResult(
             result
           );
+
+          setProgress(70);
+
+setCurrentPhase(3);
+
+setLogs((prev) => [
+  ...prev,
+  `[ANALYSIS] Backend video analysis completed.`,
+  `[EVENTS] ${result.event_count ?? result.events?.length ?? 0} forensic events generated.`,
+]);
+
+setProgress(100);
+
+setCurrentPhase(4);
 
 
           setProgress(60);

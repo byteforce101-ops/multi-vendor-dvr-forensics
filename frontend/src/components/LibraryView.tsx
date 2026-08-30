@@ -6,9 +6,14 @@ import { EvidenceFile } from '../types';
 interface LibraryViewProps {
   files: EvidenceFile[];
   onOpenActivityLog: () => void;
+  onOpenDetails?: (file: EvidenceFile) => void;
 }
 
-export const LibraryView: React.FC<LibraryViewProps> = ({ files, onOpenActivityLog }) => {
+export const LibraryView: React.FC<LibraryViewProps> = ({
+  files,
+  onOpenActivityLog,
+  onOpenDetails,
+}) => {
   const [searchTerm, setSearchTerm] = useState('');
 
   const filtered = files.filter(
@@ -17,6 +22,40 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ files, onOpenActivityL
       f.caseId.toLowerCase().includes(searchTerm.toLowerCase()) ||
       f.hash.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const getStatusStyles = (
+  status: EvidenceFile['status'],
+) => {
+  switch (status) {
+    case 'verified':
+      return {
+        className:
+          'text-[#2b4d3a] bg-[#eaf1ed] border-[#c9dcd0]',
+        label: 'Verified',
+      };
+
+    case 'processing':
+      return {
+        className:
+          'text-[#8a5a14] bg-[#fff4dd] border-[#f0d7a1]',
+        label: 'Processing',
+      };
+
+    case 'queued':
+      return {
+        className:
+          'text-[#315777] bg-[#e8f0f6] border-[#c5d7e5]',
+        label: 'Queued',
+      };
+
+    case 'error':
+      return {
+        className:
+          'text-[#a33a32] bg-[#fdecea] border-[#f3c8c3]',
+        label: 'Error',
+      };
+  }
+};
 
   return (
     <motion.div
@@ -69,6 +108,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ files, onOpenActivityL
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {filtered.map((item, idx) => (
           <motion.div
+          
             key={item.id}
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -105,9 +145,17 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ files, onOpenActivityL
 
             <div className="mt-4 pt-3 border-t border-[#ede5d8] flex items-center justify-between text-xs font-mono">
               <span className="text-[#8c8275]">{new Date(item.uploadedAt).toLocaleDateString()}</span>
-              <button className="text-[#0f2338] hover:text-[#c2593f] font-bold flex items-center gap-1 cursor-pointer transition-colors">
-                <Download className="w-3.5 h-3.5" /> Details
-              </button>
+              <button
+  type="button"
+  onClick={(event) => {
+    event.stopPropagation();
+    onOpenDetails?.(item);
+  }}
+  className="text-[#0f2338] hover:text-[#c2593f] font-bold flex items-center gap-1 cursor-pointer transition-colors"
+>
+  <Download className="w-3.5 h-3.5" />
+  Details
+</button>
             </div>
           </motion.div>
         ))}

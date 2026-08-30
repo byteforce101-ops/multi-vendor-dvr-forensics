@@ -25,95 +25,108 @@ export const Header: React.FC<HeaderProps> = ({
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
 
   return (
-    <header className="w-full bg-[#f4eee3]/95 border-b border-[#e2d8ca] sticky top-0 z-30 backdrop-blur-md transition-colors">
-      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+    <header
+      className="w-full sticky top-0 z-30 backdrop-blur-md transition-colors"
+      style={{ background: 'color-mix(in srgb, var(--color-panel) 95%, transparent)', borderBottom: '1px solid var(--color-brd)' }}
+    >
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 h-12 flex items-center justify-between">
         {/* Left: Sidebar Toggle & Brand */}
-        <div className="flex items-center space-x-3 sm:space-x-4">
+        <div className="flex items-center gap-3">
           <button
             id="nav-hamburger-btn"
             onClick={onToggleSidebar}
-            className="p-2 rounded-xl text-[#221e1b] hover:bg-[#eae2d5] border border-[#ded4c5] transition-all cursor-pointer focus:outline-none"
+            className="w-8 h-8 flex items-center justify-center rounded transition-colors hover:bg-[var(--color-teal-light)] cursor-pointer focus:outline-none"
+            style={{ color: 'var(--color-txt2)' }}
             aria-label="Toggle sidebar menu"
             title={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
           >
-            <Menu className="w-5 h-5 stroke-[2.2]" />
+            <Menu className="w-4 h-4" strokeWidth={1.9} />
           </button>
 
-          {/* TraceX Logo - Clicks navigate to Architecture overview */}
           <div
             onClick={() => {
-              if (onNavigateToArchitecture) {
-                onNavigateToArchitecture();
-              } else {
-                onNavChange('Pipelines');
-              }
+              if (onNavigateToArchitecture) onNavigateToArchitecture();
+              else onNavChange('Pipelines');
             }}
-            className="flex items-center space-x-2.5 cursor-pointer group"
+            className="flex items-center gap-2 cursor-pointer group"
             title="TraceX - Click to view Architecture & Platform Capabilities"
           >
-            <TraceXLogo size={32} variant="gold" bgColor="#0f1715" />
-            <span className="text-[19px] font-extrabold tracking-tight text-[#221e1b] font-['DM_Sans',sans-serif] group-hover:text-[#1b4e39] transition-colors">
+            <TraceXLogo size={28} variant="gold" bgColor="#0f1715" />
+            <span
+              className="text-[16px] font-semibold tracking-tight transition-colors"
+              style={{ color: 'var(--color-txt)' }}
+            >
               TraceX
             </span>
           </div>
         </div>
 
-        {/* Right: User Profile (single entry point for auth + activity log) */}
-        <div className="flex items-center space-x-3">
+        {/* Right: User Profile */}
+        <div className="flex items-center gap-3">
           <div className="relative">
             <button
               id="user-profile-btn"
               onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-              className="flex items-center space-x-2.5 text-right group py-1 px-2 rounded-xl hover:bg-[#eae2d5] transition-colors border border-transparent hover:border-[#ded5c7] cursor-pointer"
+              className="flex items-center gap-2.5 text-right group py-1 px-2 rounded transition-colors hover:bg-[var(--color-teal-light)] border border-transparent cursor-pointer"
             >
               <div className="hidden sm:block leading-tight text-right">
-                <div className="text-[13px] font-semibold text-[#221e1b] tracking-tight">
+                <div className="text-[13px] font-medium tracking-tight" style={{ color: 'var(--color-txt)' }}>
                   {user.name}
                 </div>
-                <div className="text-[11px] font-mono text-[#635b52]">
+                <div className="mono text-[11px]" style={{ color: 'var(--color-txt2)' }}>
                   {user.enterpriseId}
                 </div>
               </div>
 
-              <div className="w-8 h-8 rounded-xl bg-[#0f2338] text-white flex items-center justify-center text-xs font-semibold shadow-xs relative">
-                <User className="w-4 h-4" />
-                <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-[#5e7d6f] border-2 border-[#f4eee3] rounded-full"></span>
+              <div
+                className="w-7 h-7 rounded flex items-center justify-center text-xs font-semibold text-white relative"
+                style={{ background: 'var(--color-teal)' }}
+              >
+                <User className="w-3.5 h-3.5" />
+                <span
+                  className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border-2"
+                  style={{ background: 'var(--color-mgreen)', borderColor: 'var(--color-panel)' }}
+                />
               </div>
             </button>
 
             {userDropdownOpen && (
               <div
-                className="absolute right-0 mt-2 w-64 bg-[#fcfbf8] rounded-2xl shadow-xl border border-[#e4ded4] py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150"
+                className="absolute right-0 mt-2 w-64 rounded py-1.5 z-50"
+                style={{ background: 'var(--color-panel)', border: '1px solid var(--color-brd)', boxShadow: '0 8px 24px rgba(23,38,48,0.12)' }}
                 onClick={() => setUserDropdownOpen(false)}
               >
-                <div className="px-4 py-2.5 border-b border-[#ede5d8]">
-                  <p className="text-xs font-bold text-[#221e1b]">{user.name}</p>
-                  <p className="text-xs text-[#635b52] truncate">{user.email}</p>
+                <div className="px-4 py-2.5" style={{ borderBottom: '1px solid var(--color-brd)' }}>
+                  <p className="text-xs font-semibold" style={{ color: 'var(--color-txt)' }}>{user.name}</p>
+                  <p className="text-xs truncate" style={{ color: 'var(--color-txt2)' }}>{user.email}</p>
                 </div>
 
                 <button
                   onClick={onOpenAuth}
-                  className="w-full text-left px-4 py-2 text-xs text-[#221e1b] hover:bg-[#f5efe4] flex items-center gap-2 cursor-pointer"
+                  className="w-full text-left px-4 py-2 text-xs flex items-center gap-2 cursor-pointer transition-colors hover:bg-[var(--color-teal-light)]"
+                  style={{ color: 'var(--color-txt)' }}
                 >
-                  <Key className="w-3.5 h-3.5 text-[#0f2338]" />
+                  <Key className="w-3.5 h-3.5" style={{ color: 'var(--color-teal)' }} />
                   <span>Profile & Session</span>
                 </button>
 
                 <button
                   onClick={onOpenActivityLog}
-                  className="w-full text-left px-4 py-2 text-xs text-[#221e1b] hover:bg-[#f5efe4] flex items-center gap-2 cursor-pointer"
+                  className="w-full text-left px-4 py-2 text-xs flex items-center gap-2 cursor-pointer transition-colors hover:bg-[var(--color-teal-light)]"
+                  style={{ color: 'var(--color-txt)' }}
                 >
-                  <ShieldCheck className="w-3.5 h-3.5 text-[#3b5749]" />
+                  <ShieldCheck className="w-3.5 h-3.5" style={{ color: 'var(--color-mgreen)' }} />
                   <span>Activity Log</span>
                 </button>
 
-                <div className="border-t border-[#ede5d8] my-1"></div>
+                <div className="my-1" style={{ borderTop: '1px solid var(--color-brd)' }} />
 
                 <button
                   onClick={onOpenAuth}
-                  className="w-full text-left px-4 py-2 text-xs text-[#c2593f] hover:bg-rose-50 flex items-center gap-2 cursor-pointer"
+                  className="w-full text-left px-4 py-2 text-xs flex items-center gap-2 cursor-pointer transition-colors hover:bg-[var(--color-crit-light)]"
+                  style={{ color: 'var(--color-crit)' }}
                 >
-                  <LogOut className="w-3.5 h-3.5 text-[#c2593f]" />
+                  <LogOut className="w-3.5 h-3.5" />
                   <span>Sign out</span>
                 </button>
               </div>

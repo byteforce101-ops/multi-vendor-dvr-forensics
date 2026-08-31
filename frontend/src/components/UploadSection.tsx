@@ -128,7 +128,7 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
             Evidence Ingest & Cryptographic Seal
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            ISO/IEC 27037 compliant intake • SHA-256 dual-pass verification
+            • SHA-256 dual-pass verification
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -283,4 +283,4 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
     </motion.section>
   );
 };
-
+

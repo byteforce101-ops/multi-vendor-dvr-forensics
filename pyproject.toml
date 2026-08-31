@@ -33,3 +33,6 @@ dvrforensics = "backend.cli.main:app"
 
 [tool.setuptools.packages.find]
 include = ["backend*"]
+
+[tool.vercel]
+entrypoint = "backend.api.main:app"

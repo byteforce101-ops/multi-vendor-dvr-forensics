@@ -3,134 +3,1806 @@
 
 @layer base {
   :root {
-    /* Royal Blue Forensic Enterprise Theme */
-    --color-txt: #0F172A;
-    --color-txt-muted: #475569;
-    --color-txt-dim: #64748B;
-    
-    --color-bg: #F8FAFC;
-    --color-bg-subtle: #F1F5F9;
-    --color-panel: #FFFFFF;
-    --color-panel-hover: #F8FAFC;
-    --color-brd: #E2E8F0;
-    --color-brd-subtle: #F1F5F9;
-    
-    --color-primary: #1E40AF;
-    --color-primary-hover: #1D4ED8;
-    --color-accent-blue: #2563EB;
-    --color-accent-light: #EFF6FF;
-    --color-verified-emerald: #059669;
-  }
+    /* =====================================================
+       TRACEX — LIGHT FORENSIC WORKSPACE
+       ===================================================== */
 
-  body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    color: #0F172A;
-    background-color: #F8FAFC;
-    margin: 0;
-    padding: 0;
-    min-height: 100vh;
-    -webkit-font-smoothing: antialiased;
-    letter-spacing: -0.01em;
+    /* Text */
+    --color-txt: #17212B;
+    --color-txt-muted: #52616B;
+    --color-txt-dim: #71808A;
+
+    /* Application background */
+    --color-bg: #F5F3EE;
+    --color-bg-subtle: #EFEEE8;
+
+    /* Cards / panels */
+    --color-panel: #FCFBF8;
+    --color-panel-hover: #F7F6F1;
+
+    /* Borders */
+    --color-brd: #D9DED9;
+    --color-brd-subtle: #E7E8E3;
+
+    /* Primary */
+    --color-primary: #1F5A78;
+    --color-primary-hover: #17465F;
+
+    /* Secondary blue */
+    --color-accent-blue: #557B9A;
+    --color-accent-light: #EAF1F4;
+
+    /* Verified */
+    --color-verified-emerald: #247A68;
+    --color-verified-light: #E8F3EF;
+
+    /* Warning */
+    --color-warning: #B4772A;
+    --color-warning-light: #F7EFE0;
+
+    /* Error */
+    --color-danger: #B94A48;
+    --color-danger-light: #F8EAEA;
+
+    /* Evidence */
+    --color-evidence: #725C3A;
+    --color-evidence-light: #F2EDE4;
+
+    /* Terminal */
+    --color-terminal: #172027;
+    --color-terminal-text: #D6E2E0;
   }
 
   * {
     box-sizing: border-box;
   }
+
+  html {
+    background: #F5F3EE;
+  }
+
+  body {
+    font-family:
+      'Inter',
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      Roboto,
+      sans-serif;
+
+    color: #17212B;
+
+    /*
+      Main application background.
+      Warm ivory + extremely subtle blue/teal atmosphere.
+    */
+    background:
+      radial-gradient(
+        circle at 8% 0%,
+        rgba(31, 90, 120, 0.055),
+        transparent 30%
+      ),
+      radial-gradient(
+        circle at 94% 5%,
+        rgba(36, 122, 104, 0.045),
+        transparent 28%
+      ),
+      linear-gradient(
+        180deg,
+        #F9F8F4 0%,
+        #F5F3EE 48%,
+        #F1F0EA 100%
+      );
+
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+
+    -webkit-font-smoothing: antialiased;
+
+    letter-spacing: -0.01em;
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    font-family: inherit;
+  }
+
+  ::selection {
+    background: #D8E6EA;
+    color: #173B4E;
+  }
 }
 
-/* Custom modern scrollbar */
+
+/* =========================================================
+   SCROLLBAR
+   ========================================================= */
+
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
 }
+
 ::-webkit-scrollbar-track {
-  background: #F1F5F9;
+  background: #ECEBE5;
 }
+
 ::-webkit-scrollbar-thumb {
-  background: #CBD5E1;
-  border-radius: 4px;
+  background: #B9C1BE;
+  border-radius: 999px;
+  border: 2px solid #ECEBE5;
 }
+
 ::-webkit-scrollbar-thumb:hover {
-  background: #94A3B8;
+  background: #8D9B98;
 }
+
+
+/* =========================================================
+   GENERAL BADGES
+   ========================================================= */
 
 .shimmer-badge {
-  background-color: #EFF6FF;
-  border-radius: 6px;
+  background:
+    linear-gradient(
+      135deg,
+      #EDF3F5 0%,
+      #E7EEF1 100%
+    );
+
+  border-radius: 7px;
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.7);
 }
 
 .shimmer-emerald {
-  background-color: #ECFDF5;
-  border-radius: 6px;
+  background:
+    linear-gradient(
+      135deg,
+      #EAF5F0 0%,
+      #E3F0EB 100%
+    );
+
+  border-radius: 7px;
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.7);
 }
 
-/* Solid Royal Blue Action Buttons (Rectangular, not circular) */
+
+/* =========================================================
+   PRIMARY BUTTON
+   KEEPING YOUR GOOD BLUE
+   ========================================================= */
+
 .btn-kinetic-primary {
-  background-color: #1E40AF;
+  background:
+    linear-gradient(
+      135deg,
+      #245F7E 0%,
+      #1F5A78 55%,
+      #1B506B 100%
+    );
+
   color: #FFFFFF;
+
   font-weight: 600;
+
   border-radius: 8px;
-  transition: all 0.15s ease;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+
+  transition:
+    background 0.18s ease,
+    transform 0.15s ease,
+    box-shadow 0.18s ease;
+
+  box-shadow:
+    0 2px 5px rgba(23,55,69,0.12),
+    0 5px 16px rgba(23,55,69,0.08);
 }
+
 .btn-kinetic-primary:hover {
-  background-color: #1D4ED8;
+  background:
+    linear-gradient(
+      135deg,
+      #1F5672 0%,
+      #17465F 100%
+    );
+
   transform: translateY(-1px);
+
+  box-shadow:
+    0 4px 10px rgba(23,55,69,0.16),
+    0 8px 20px rgba(23,55,69,0.08);
 }
+
 .btn-kinetic-primary:active {
   transform: translateY(0);
 }
 
+
+/* =========================================================
+   DARK BUTTON
+   ========================================================= */
+
 .btn-kinetic-dark {
-  background-color: #0F172A;
-  color: #F8FAFC;
+  background:
+    linear-gradient(
+      135deg,
+      #24343E 0%,
+      #172027 100%
+    );
+
+  color: #F8FAF8;
+
   font-weight: 600;
+
   border-radius: 8px;
-  transition: all 0.15s ease;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+
+  transition:
+    background 0.18s ease,
+    transform 0.15s ease,
+    box-shadow 0.18s ease;
+
+  box-shadow:
+    0 2px 5px rgba(23,32,39,0.12);
 }
+
 .btn-kinetic-dark:hover {
-  background-color: #1E293B;
+  background:
+    linear-gradient(
+      135deg,
+      #2A3C47 0%,
+      #1D2B33 100%
+    );
+
   transform: translateY(-1px);
 }
 
-/* Modern Enterprise Spotlight Card (Crisp rectangular corners) */
+
+/* =========================================================
+   MAIN CARDS
+   ========================================================= */
+
 .spotlight-card {
   position: relative;
-  background-color: #FFFFFF;
-  border: 1px solid #E2E8F0;
-  border-radius: 12px;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+
+  background:
+    linear-gradient(
+      145deg,
+      #FEFDF9 0%,
+      #FCFBF8 100%
+    );
+
+  border: 1px solid #D9DED9;
+
+  border-radius: 14px;
+
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+
+  box-shadow:
+    0 1px 2px rgba(23,33,43,0.025),
+    0 5px 18px rgba(23,33,43,0.025);
 }
+
 .spotlight-card:hover {
-  border-color: #CBD5E1;
-  box-shadow: 0 4px 16px -4px rgba(15, 23, 42, 0.06), 0 2px 6px -1px rgba(15, 23, 42, 0.03);
+  border-color: #C7D0CD;
+
+  box-shadow:
+    0 8px 24px -10px rgba(23,33,43,0.12),
+    0 3px 8px rgba(23,33,43,0.035);
+
   transform: translateY(-1px);
 }
 
-/* High-density modern data table */
+
+/* =========================================================
+   PANELS
+   ========================================================= */
+
+.bg-white {
+  background-color: #FCFBF8 !important;
+}
+
+.bg-white\/85 {
+  background-color: rgba(252,251,248,0.88) !important;
+}
+
+.bg-white\/95 {
+  background-color: rgba(252,251,248,0.96) !important;
+}
+
+
+/* =========================================================
+   BLUE OVERRIDES
+   ========================================================= */
+
+.bg-blue-900 {
+  background-color: #17465F !important;
+}
+
+.bg-blue-800 {
+  background-color: #1F5A78 !important;
+}
+
+.bg-blue-700 {
+  background-color: #245F7E !important;
+}
+
+.bg-blue-600 {
+  background-color: #2B6D8D !important;
+}
+
+.bg-blue-500 {
+  background-color: #557B9A !important;
+}
+
+.bg-blue-100 {
+  background-color: #E1EDF1 !important;
+}
+
+.bg-blue-50 {
+  background-color: #EAF1F4 !important;
+}
+
+.bg-blue-50\/60 {
+  background-color: rgba(234,241,244,0.60) !important;
+}
+
+.bg-blue-50\/30 {
+  background-color: rgba(234,241,244,0.30) !important;
+}
+
+.text-blue-900 {
+  color: #173B4E !important;
+}
+
+.text-blue-800 {
+  color: #1F5A78 !important;
+}
+
+.text-blue-700 {
+  color: #245F7E !important;
+}
+
+.text-blue-600 {
+  color: #2B6D8D !important;
+}
+
+.text-blue-500 {
+  color: #557B9A !important;
+}
+
+.border-blue-700 {
+  border-color: #1F5A78 !important;
+}
+
+.border-blue-600 {
+  border-color: #245F7E !important;
+}
+
+.border-blue-500 {
+  border-color: #557B9A !important;
+}
+
+.border-blue-200 {
+  border-color: #C9DCE3 !important;
+}
+
+.border-blue-100 {
+  border-color: #DCE9ED !important;
+}
+
+
+/* =========================================================
+   VERIFIED / EMERALD
+   ========================================================= */
+
+.bg-emerald-50 {
+  background-color: #E8F3EF !important;
+}
+
+.bg-emerald-100 {
+  background-color: #DCEDE7 !important;
+}
+
+.bg-emerald-500 {
+  background-color: #2F8A76 !important;
+}
+
+.bg-emerald-600 {
+  background-color: #247A68 !important;
+}
+
+.bg-emerald-700 {
+  background-color: #1D6657 !important;
+}
+
+.text-emerald-800 {
+  color: #1D6657 !important;
+}
+
+.text-emerald-700 {
+  color: #247A68 !important;
+}
+
+.text-emerald-600 {
+  color: #247A68 !important;
+}
+
+.border-emerald-300 {
+  border-color: #A9D5C8 !important;
+}
+
+.border-emerald-200 {
+  border-color: #C5E2DA !important;
+}
+
+
+/* =========================================================
+   WARNING / AMBER
+   ========================================================= */
+
+.bg-amber-50 {
+  background-color: #F7EFE0 !important;
+}
+
+.bg-amber-100 {
+  background-color: #F0E3CA !important;
+}
+
+.bg-amber-500 {
+  background-color: #B4772A !important;
+}
+
+.bg-amber-600 {
+  background-color: #9C6521 !important;
+}
+
+.text-amber-800 {
+  color: #80531D !important;
+}
+
+.text-amber-700 {
+  color: #9C6521 !important;
+}
+
+.text-amber-600 {
+  color: #B4772A !important;
+}
+
+.border-amber-200 {
+  border-color: #E4CCA4 !important;
+}
+
+.border-amber-300 {
+  border-color: #D9BB84 !important;
+}
+
+
+/* =========================================================
+   RED / ERROR
+   ========================================================= */
+
+.bg-red-50,
+.bg-rose-50 {
+  background-color: #F8EAEA !important;
+}
+
+.bg-red-100 {
+  background-color: #F1D6D5 !important;
+}
+
+.bg-red-500,
+.bg-rose-500 {
+  background-color: #B94A48 !important;
+}
+
+.bg-red-600 {
+  background-color: #A1403E !important;
+}
+
+.text-red-800,
+.text-rose-700 {
+  color: #9F3F3D !important;
+}
+
+.text-red-700 {
+  color: #A1403E !important;
+}
+
+.text-red-600,
+.text-rose-500 {
+  color: #B94A48 !important;
+}
+
+.text-rose-400 {
+  color: #DB817A !important;
+}
+
+.border-red-200,
+.border-rose-200 {
+  border-color: #E8BDBB !important;
+}
+
+
+/* =========================================================
+   SLATE BACKGROUNDS
+   ========================================================= */
+
+.bg-slate-50 {
+  background-color: #F5F4EF !important;
+}
+
+.bg-slate-50\/50 {
+  background-color: rgba(245,244,239,0.50) !important;
+}
+
+.bg-slate-50\/70 {
+  background-color: rgba(245,244,239,0.70) !important;
+}
+
+.bg-slate-50\/80 {
+  background-color: rgba(245,244,239,0.80) !important;
+}
+
+.bg-slate-50\/90 {
+  background-color: rgba(245,244,239,0.90) !important;
+}
+
+.bg-slate-100 {
+  background-color: #ECEBE5 !important;
+}
+
+.bg-slate-200 {
+  background-color: #DDE1DD !important;
+}
+
+.bg-slate-900 {
+  background-color: #172027 !important;
+}
+
+
+/* =========================================================
+   SLATE TEXT
+   ========================================================= */
+
+.text-slate-900 {
+  color: #17212B !important;
+}
+
+.text-slate-800 {
+  color: #273640 !important;
+}
+
+.text-slate-700 {
+  color: #43545D !important;
+}
+
+.text-slate-600 {
+  color: #52616B !important;
+}
+
+.text-slate-500 {
+  color: #71808A !important;
+}
+
+.text-slate-400 {
+  color: #8A979C !important;
+}
+
+
+/* =========================================================
+   SLATE BORDERS
+   ========================================================= */
+
+.border-slate-100 {
+  border-color: #E8E9E4 !important;
+}
+
+.border-slate-200 {
+  border-color: #D9DED9 !important;
+}
+
+.border-slate-300 {
+  border-color: #C7CFCC !important;
+}
+
+
+/* =========================================================
+   HEADER
+   ========================================================= */
+
+header {
+  background:
+    linear-gradient(
+      180deg,
+      rgba(253,252,249,0.96),
+      rgba(248,247,242,0.92)
+    ) !important;
+
+  border-color: #DDE1DD !important;
+
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.9),
+    0 3px 14px rgba(23,33,43,0.035) !important;
+}
+
+
+/* =========================================================
+   INPUTS
+   ========================================================= */
+
+input,
+textarea,
+select {
+  background-color: #FCFBF8;
+  border-color: #D9DED9;
+  color: #17212B;
+}
+
+input:hover,
+textarea:hover,
+select:hover {
+  border-color: #C7D0CD;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #87949A;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: #557B9A;
+  box-shadow:
+    0 0 0 3px rgba(85,123,154,0.10);
+}
+
+
+/* =========================================================
+   DROPZONE
+   ========================================================= */
+
+.border-dashed {
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.border-dashed:hover {
+  border-color: #557B9A !important;
+
+  background:
+    linear-gradient(
+      135deg,
+      rgba(234,241,244,0.55),
+      rgba(252,251,248,0.85)
+    );
+
+  box-shadow:
+    inset 0 0 0 1px rgba(85,123,154,0.04);
+}
+
+
+/* =========================================================
+   TERMINAL / FORENSIC LOG
+   ========================================================= */
+
+.font-mono {
+  font-variant-ligatures: none;
+}
+
+.bg-slate-900.text-slate-300 {
+  background:
+    radial-gradient(
+      circle at 90% 0%,
+      rgba(85,123,154,0.13),
+      transparent 35%
+    ),
+    linear-gradient(
+      145deg,
+      #18242B 0%,
+      #141E24 100%
+    ) !important;
+
+  color: #D6E2E0 !important;
+
+  border: 1px solid #2A3942;
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.025),
+    0 5px 20px rgba(20,30,36,0.11);
+}
+
+
+/* =========================================================
+   VIDEO / MEDIA SURFACES
+   ========================================================= */
+
+video {
+  background:
+    linear-gradient(
+      145deg,
+      #18242B,
+      #0F171C
+    );
+}
+
+
+/* =========================================================
+   TABLES
+   ========================================================= */
+
 table {
   border-collapse: collapse;
   width: 100%;
 }
+
 th {
   text-align: left;
+
   font-size: 11px;
-  font-weight: 600;
-  color: #64748B;
+
+  font-weight: 650;
+
+  color: #65737A;
+
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  padding: 10px 14px;
-  background-color: #F8FAFC;
-  border-bottom: 1px solid #E2E8F0;
+
+  letter-spacing: 0.065em;
+
+  padding: 11px 14px;
+
+  background:
+    linear-gradient(
+      180deg,
+      #F4F3ED 0%,
+      #EFEEE8 100%
+    );
+
+  border-bottom: 1px solid #D9DED9;
+
   white-space: nowrap;
 }
+
 td {
   padding: 12px 14px;
+
   font-size: 13px;
-  color: #1E293B;
-  border-bottom: 1px solid #F1F5F9;
+
+  color: #273640;
+
+  border-bottom: 1px solid #E8E9E4;
 }
+
+tbody tr:nth-child(even) td {
+  background-color: rgba(245,244,239,0.38);
+}
+
 tr:hover td {
-  background-color: #F8FAFC;
-}
+  background-color: #F7F6F1;
+}
+
+
+/* =========================================================
+   STATUS DOTS
+   ========================================================= */
+
+.bg-green-500 {
+  background-color: #2F8A76 !important;
+}
+
+.bg-green-600 {
+  background-color: #247A68 !important;
+}
+
+.bg-yellow-500 {
+  background-color: #B4772A !important;
+}
+
+.bg-red-500 {
+  background-color: #B94A48 !important;
+}
+
+
+/* =========================================================
+   COMMON ICON BACKGROUNDS
+   ========================================================= */
+
+.bg-gray-50 {
+  background-color: #F5F4EF !important;
+}
+
+.bg-gray-100 {
+  background-color: #ECEBE5 !important;
+}
+
+.border-gray-200 {
+  border-color: #D9DED9 !important;
+}
+
+.border-gray-300 {
+  border-color: #C7CFCC !important;
+}
+
+.text-gray-900 {
+  color: #17212B !important;
+}
+
+.text-gray-800 {
+  color: #273640 !important;
+}
+
+.text-gray-700 {
+  color: #43545D !important;
+}
+
+.text-gray-600 {
+  color: #52616B !important;
+}
+
+.text-gray-500 {
+  color: #71808A !important;
+}
+
+
+/* =========================================================
+   MODAL BACKDROP
+   ========================================================= */
+
+.fixed.inset-0.z-50 {
+  background-color: rgba(24,32,39,0.44) !important;
+}
+
+
+/* =========================================================
+   MODAL SURFACES
+   ========================================================= */
+
+.shadow-2xl {
+  box-shadow:
+    0 24px 60px rgba(23,33,43,0.16),
+    0 8px 24px rgba(23,33,43,0.08) !important;
+}
+
+
+/* =========================================================
+   NORMAL SHADOWS
+   ========================================================= */
+
+.shadow-xs {
+  box-shadow:
+    0 1px 3px rgba(23,33,43,0.055) !important;
+}
+
+.shadow-xl {
+  box-shadow:
+    0 18px 42px rgba(23,33,43,0.12) !important;
+}
+
+
+/* =========================================================
+   FOCUS STATES
+   ========================================================= */
+
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible {
+  outline: 2px solid rgba(31,90,120,0.35);
+  outline-offset: 2px;
+}
+
+
+/* =========================================================
+   DISABLED STATES
+   ========================================================= */
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+
+/* =========================================================
+   LINKS
+   ========================================================= */
+
+a {
+  transition:
+    color 0.15s ease,
+    opacity 0.15s ease;
+}
+
+
+/* =========================================================
+   SUBTLE FORENSIC SECTION DIVIDERS
+   ========================================================= */
+
+hr {
+  border: 0;
+  border-top: 1px solid #E1E3DE;
+}
+
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (max-width: 640px) {
+  body {
+    background:
+      linear-gradient(
+        180deg,
+        #F7F6F1 0%,
+        #F3F1EB 100%
+      );
+  }
+
+  .spotlight-card {
+    border-radius: 12px;
+  }
+}
+/* =========================================================
+   TRACEX MOTION LAYER
+   Premium light forensic workstation effects
+   ========================================================= */
+
+
+/* ---------------------------------------------------------
+   1. MOVING LIGHT IN THE APPLICATION BACKGROUND
+   --------------------------------------------------------- */
+
+body {
+  position: relative;
+  overflow-x: hidden;
+
+  background:
+    radial-gradient(
+      circle at 10% 5%,
+      rgba(31, 90, 120, 0.075),
+      transparent 28%
+    ),
+    radial-gradient(
+      circle at 90% 10%,
+      rgba(36, 122, 104, 0.065),
+      transparent 25%
+    ),
+    radial-gradient(
+      circle at 50% 100%,
+      rgba(85, 123, 154, 0.045),
+      transparent 32%
+    ),
+    linear-gradient(
+      180deg,
+      #FAF9F6 0%,
+      #F5F3EE 48%,
+      #F0EFE9 100%
+    );
+
+  background-size:
+    100% 100%,
+    100% 100%,
+    100% 100%,
+    100% 100%;
+
+  animation: tracex-background-drift 18s ease-in-out infinite alternate;
+}
+
+@keyframes tracex-background-drift {
+  0% {
+    background-position:
+      0% 0%,
+      100% 0%,
+      50% 100%,
+      0% 0%;
+  }
+
+  50% {
+    background-position:
+      7% 4%,
+      93% 7%,
+      55% 96%,
+      0% 0%;
+  }
+
+  100% {
+    background-position:
+      12% 0%,
+      88% 11%,
+      48% 92%,
+      0% 0%;
+  }
+}
+
+
+/* ---------------------------------------------------------
+   2. SUBTLE GRID / TECHNICAL TEXTURE
+   --------------------------------------------------------- */
+
+body::before {
+  content: "";
+  position: fixed;
+
+  inset: 0;
+
+  pointer-events: none;
+
+  opacity: 0.20;
+
+  background-image:
+    linear-gradient(
+      rgba(31, 90, 120, 0.025) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      rgba(31, 90, 120, 0.025) 1px,
+      transparent 1px
+    );
+
+  background-size: 42px 42px;
+
+  mask-image:
+    linear-gradient(
+      to bottom,
+      black,
+      transparent 75%
+    );
+
+  z-index: -1;
+}
+
+
+/* ---------------------------------------------------------
+   3. PREMIUM CARD EFFECT
+   --------------------------------------------------------- */
+
+.spotlight-card {
+  overflow: hidden;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(255,255,255,0.92),
+      rgba(252,251,248,0.96)
+    );
+
+  box-shadow:
+    0 1px 2px rgba(23,33,43,0.025),
+    0 6px 22px rgba(23,33,43,0.035);
+}
+
+
+/* Sliding accent line */
+
+.spotlight-card::before {
+  content: "";
+
+  position: absolute;
+
+  top: 0;
+  left: -120%;
+
+  width: 70%;
+  height: 2px;
+
+  background:
+    linear-gradient(
+      90deg,
+      transparent,
+      #557B9A,
+      #247A68,
+      transparent
+    );
+
+  transition:
+    left 0.65s cubic-bezier(.22,.61,.36,1);
+
+  pointer-events: none;
+}
+
+.spotlight-card:hover::before {
+  left: 130%;
+}
+
+
+/* Soft inner highlight */
+
+.spotlight-card::after {
+  content: "";
+
+  position: absolute;
+
+  inset: 0;
+
+  pointer-events: none;
+
+  background:
+    radial-gradient(
+      circle at 100% 0%,
+      rgba(85,123,154,0.055),
+      transparent 28%
+    );
+
+  opacity: 0;
+
+  transition: opacity 0.3s ease;
+}
+
+.spotlight-card:hover::after {
+  opacity: 1;
+}
+
+
+/* ---------------------------------------------------------
+   4. PRIMARY BUTTON — SLIDING LIGHT
+   --------------------------------------------------------- */
+
+.btn-kinetic-primary {
+  position: relative;
+
+  overflow: hidden;
+
+  isolation: isolate;
+}
+
+
+/* Moving reflection */
+
+.btn-kinetic-primary::after {
+  content: "";
+
+  position: absolute;
+
+  top: -40%;
+  left: -80%;
+
+  width: 45%;
+  height: 180%;
+
+  transform: skewX(-22deg);
+
+  background:
+    linear-gradient(
+      90deg,
+      transparent,
+      rgba(255,255,255,0.20),
+      transparent
+    );
+
+  transition: left 0.55s ease;
+
+  pointer-events: none;
+}
+
+.btn-kinetic-primary:hover::after {
+  left: 135%;
+}
+
+
+/* ---------------------------------------------------------
+   5. DARK BUTTON — SUBTLE SLIDE
+   --------------------------------------------------------- */
+
+.btn-kinetic-dark {
+  position: relative;
+
+  overflow: hidden;
+
+  isolation: isolate;
+}
+
+.btn-kinetic-dark::after {
+  content: "";
+
+  position: absolute;
+
+  top: 0;
+  left: -100%;
+
+  width: 100%;
+  height: 100%;
+
+  background:
+    linear-gradient(
+      90deg,
+      transparent,
+      rgba(255,255,255,0.07),
+      transparent
+    );
+
+  transition:
+    left 0.5s ease;
+
+  pointer-events: none;
+}
+
+.btn-kinetic-dark:hover::after {
+  left: 100%;
+}
+
+
+/* ---------------------------------------------------------
+   6. GENERAL BUTTON SLIDE
+   --------------------------------------------------------- */
+
+button {
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    background-color 0.18s ease,
+    border-color 0.18s ease;
+}
+
+button:not(:disabled):hover {
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    background-color 0.18s ease,
+    border-color 0.18s ease;
+}
+
+
+/* ---------------------------------------------------------
+   7. HEADER — FLOATING GLASS EFFECT
+   --------------------------------------------------------- */
+
+header {
+  position: sticky;
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255,255,255,0.94),
+      rgba(248,247,243,0.88)
+    ) !important;
+
+  backdrop-filter: blur(16px);
+
+  -webkit-backdrop-filter: blur(16px);
+
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.9),
+    0 4px 18px rgba(23,33,43,0.035) !important;
+}
+
+
+/* ---------------------------------------------------------
+   8. HEADER BOTTOM SIGNAL LINE
+   --------------------------------------------------------- */
+
+header::after {
+  content: "";
+
+  position: absolute;
+
+  left: 0;
+  bottom: -1px;
+
+  width: 100%;
+  height: 1px;
+
+  background:
+    linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(85,123,154,0.35) 25%,
+      rgba(36,122,104,0.35) 50%,
+      rgba(85,123,154,0.35) 75%,
+      transparent 100%
+    );
+
+  opacity: 0.65;
+}
+
+
+/* ---------------------------------------------------------
+   9. INPUT FOCUS — FORENSIC BLUE GLOW
+   --------------------------------------------------------- */
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: #557B9A;
+
+  box-shadow:
+    0 0 0 3px rgba(85,123,154,0.09),
+    0 3px 10px rgba(85,123,154,0.045);
+
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+
+/* ---------------------------------------------------------
+   10. DROPZONE — MOVING BORDER FEEL
+   --------------------------------------------------------- */
+
+.border-dashed {
+  position: relative;
+
+  background:
+    linear-gradient(
+      135deg,
+      rgba(234,241,244,0.25),
+      rgba(252,251,248,0.70)
+    );
+}
+
+.border-dashed:hover {
+  background:
+    linear-gradient(
+      115deg,
+      rgba(234,241,244,0.58),
+      rgba(247,246,241,0.85),
+      rgba(232,243,239,0.48)
+    );
+
+  background-size: 200% 200%;
+
+  animation:
+    tracex-dropzone-flow 4s ease infinite;
+}
+
+@keyframes tracex-dropzone-flow {
+  0% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+
+/* ---------------------------------------------------------
+   11. PIPELINE STATUS CARDS
+   --------------------------------------------------------- */
+
+.bg-emerald-50 {
+  background:
+    linear-gradient(
+      135deg,
+      #EAF5F0 0%,
+      #E5F1EC 55%,
+      #EDF6F2 100%
+    ) !important;
+
+  background-size: 180% 180%;
+}
+
+.bg-blue-50 {
+  background:
+    linear-gradient(
+      135deg,
+      #EAF1F4 0%,
+      #E4EDF1 55%,
+      #EEF4F6 100%
+    ) !important;
+
+  background-size: 180% 180%;
+}
+
+
+/* ---------------------------------------------------------
+   12. ACTIVE PIPELINE SHIMMER
+   --------------------------------------------------------- */
+
+.bg-emerald-50:hover,
+.bg-blue-50:hover {
+  animation:
+    tracex-status-flow 3.5s ease infinite;
+}
+
+@keyframes tracex-status-flow {
+  0% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+
+/* ---------------------------------------------------------
+   13. TERMINAL FORENSIC LOG
+   --------------------------------------------------------- */
+
+.bg-slate-900.text-slate-300 {
+  position: relative;
+
+  overflow: hidden;
+
+  background:
+    radial-gradient(
+      circle at 85% 0%,
+      rgba(85,123,154,0.16),
+      transparent 34%
+    ),
+    radial-gradient(
+      circle at 10% 100%,
+      rgba(36,122,104,0.09),
+      transparent 32%
+    ),
+    linear-gradient(
+      145deg,
+      #18242B 0%,
+      #141E24 100%
+    ) !important;
+}
+
+
+/* Terminal scanline */
+
+.bg-slate-900.text-slate-300::after {
+  content: "";
+
+  position: absolute;
+
+  left: 0;
+  right: 0;
+
+  top: -20%;
+
+  height: 25%;
+
+  background:
+    linear-gradient(
+      180deg,
+      transparent,
+      rgba(121,175,197,0.035),
+      transparent
+    );
+
+  pointer-events: none;
+
+  animation:
+    tracex-terminal-scan 7s linear infinite;
+}
+
+@keyframes tracex-terminal-scan {
+  0% {
+    transform: translateY(-120%);
+  }
+
+  100% {
+    transform: translateY(560%);
+  }
+}
+
+
+/* ---------------------------------------------------------
+   14. TABLE ROW SLIDE
+   --------------------------------------------------------- */
+
+tbody tr {
+  position: relative;
+
+  transition:
+    transform 0.15s ease,
+    background-color 0.15s ease;
+}
+
+tbody tr:hover {
+  transform: translateX(2px);
+}
+
+tbody tr:hover td {
+  background-color: #F3F5F2;
+}
+
+
+/* ---------------------------------------------------------
+   15. TABLE HEADER ACCENT
+   --------------------------------------------------------- */
+
+th {
+  position: relative;
+
+  background:
+    linear-gradient(
+      180deg,
+      #F6F5F0 0%,
+      #EFEEE8 100%
+    );
+}
+
+th::after {
+  content: "";
+
+  position: absolute;
+
+  left: 14px;
+  right: 14px;
+  bottom: -1px;
+
+  height: 1px;
+
+  background:
+    linear-gradient(
+      90deg,
+      #557B9A,
+      transparent
+    );
+
+  opacity: 0.18;
+}
+
+
+/* ---------------------------------------------------------
+   16. BADGE HOVER
+   --------------------------------------------------------- */
+
+.shimmer-badge,
+.shimmer-emerald {
+  position: relative;
+
+  overflow: hidden;
+}
+
+.shimmer-badge::after,
+.shimmer-emerald::after {
+  content: "";
+
+  position: absolute;
+
+  top: 0;
+  left: -100%;
+
+  width: 55%;
+  height: 100%;
+
+  transform: skewX(-20deg);
+
+  background:
+    linear-gradient(
+      90deg,
+      transparent,
+      rgba(255,255,255,0.65),
+      transparent
+    );
+
+  animation:
+    tracex-badge-shimmer 5s ease-in-out infinite;
+}
+
+@keyframes tracex-badge-shimmer {
+  0%,
+  65% {
+    left: -100%;
+  }
+
+  85% {
+    left: 140%;
+  }
+
+  100% {
+    left: 140%;
+  }
+}
+
+
+/* ---------------------------------------------------------
+   17. MODAL ENTRY
+   --------------------------------------------------------- */
+
+.fixed.inset-0.z-50 > div {
+  animation:
+    tracex-modal-in 0.24s cubic-bezier(.22,.61,.36,1);
+}
+
+@keyframes tracex-modal-in {
+  from {
+    opacity: 0;
+    transform:
+      translateY(8px)
+      scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform:
+      translateY(0)
+      scale(1);
+  }
+}
+
+
+/* ---------------------------------------------------------
+   18. MODAL TOP ACCENT
+   --------------------------------------------------------- */
+
+.fixed.inset-0.z-50 > div::before {
+  content: "";
+
+  position: absolute;
+
+  top: 0;
+  left: 8%;
+
+  width: 84%;
+  height: 2px;
+
+  border-radius: 0 0 4px 4px;
+
+  background:
+    linear-gradient(
+      90deg,
+      transparent,
+      #557B9A 20%,
+      #247A68 50%,
+      #557B9A 80%,
+      transparent
+    );
+
+  opacity: 0.75;
+}
+
+
+/* ---------------------------------------------------------
+   19. VIDEO FRAME
+   --------------------------------------------------------- */
+
+video {
+  transition:
+    box-shadow 0.3s ease,
+    transform 0.3s ease;
+}
+
+video:hover {
+  box-shadow:
+    0 12px 35px rgba(15,23,42,0.13);
+}
+
+
+/* ---------------------------------------------------------
+   20. SMALL ICON HOVER
+   --------------------------------------------------------- */
+
+button svg {
+  transition:
+    transform 0.18s ease,
+    opacity 0.18s ease;
+}
+
+button:hover svg {
+  opacity: 0.92;
+}
+
+button:hover svg.lucide-arrow-right,
+button:hover svg.lucide-download,
+button:hover svg.lucide-chevron-right {
+  transform: translateX(2px);
+}
+
+
+/* ---------------------------------------------------------
+   21. STATUS DOT — SUBTLE PULSE
+   --------------------------------------------------------- */
+
+.bg-emerald-500,
+.bg-green-500 {
+  box-shadow:
+    0 0 0 0 rgba(47,138,118,0.28);
+
+  animation:
+    tracex-status-pulse 2.8s ease-out infinite;
+}
+
+@keyframes tracex-status-pulse {
+  0% {
+    box-shadow:
+      0 0 0 0 rgba(47,138,118,0.25);
+  }
+
+  60% {
+    box-shadow:
+      0 0 0 5px rgba(47,138,118,0);
+  }
+
+  100% {
+    box-shadow:
+      0 0 0 0 rgba(47,138,118,0);
+  }
+}
+
+
+/* ---------------------------------------------------------
+   22. ACTIVE FORENSIC ELEMENT
+   --------------------------------------------------------- */
+
+[class*="border-emerald-"] {
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease;
+}
+
+[class*="border-emerald-"]:hover {
+  box-shadow:
+    0 4px 14px rgba(36,122,104,0.07);
+}
+
+
+/* ---------------------------------------------------------
+   23. SOFT PAGE SECTION REVEAL
+   --------------------------------------------------------- */
+
+.spotlight-card,
+table,
+video {
+  animation:
+    tracex-content-reveal 0.45s ease both;
+}
+
+@keyframes tracex-content-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+
+/* ---------------------------------------------------------
+   24. REDUCED MOTION ACCESSIBILITY
+   --------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+
+/* ---------------------------------------------------------
+   25. MOBILE MOTION REDUCTION
+   --------------------------------------------------------- */
+
+@media (max-width: 640px) {
+  body {
+    animation: none;
+  }
+
+  body::before {
+    display: none;
+  }
+
+  .spotlight-card:hover {
+    transform: none;
+  }
+
+  tbody tr:hover {
+    transform: none;
+  }
+}

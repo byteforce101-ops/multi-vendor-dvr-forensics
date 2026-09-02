@@ -1,2 +1,3 @@
 [console_scripts]
 dvrforensics = backend.cli.main:app
+tracex = backend.cli.main:app

@@ -1,0 +1,930 @@
+"""backend/cli/tui/app.py — TraceX full-screen Terminal User Interface.
+
+Clean, uncluttered, highly readable 50/50 split forensic workspace:
+┌──────────────────────────────────────────────────────────────────────────┐
+│ TraceX Original ASCII Logo                                               │
+│                                                                          │
+│ ┌────────────────────────────────┐  ┌─────────────────────────────────┐ │
+│ │  QUERY RESULTS                 │  │  AI FORENSIC ANALYSIS           │ │
+│ │  (Clean Q&A Investigation Log) │  │  (Complete untruncated records, │ │
+│ │  50% width                     │  │   events, integrity, summary)   │ │
+│ └────────────────────────────────┘  └─────────────────────────────────┘ │
+│                                                                          │
+│ ┌──────────────────────────────────────────────────────────────────────┐ │
+│ │  query / evidence path input bar (OS clipboard paste-ready)          │ │
+│ └──────────────────────────────────────────────────────────────────────┘ │
+└──────────────────────────────────────────────────────────────────────────┘
+"""
+
+from __future__ import annotations
+
+import os
+import re
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
+from rich.text import Text
+from textual import work
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Horizontal, Vertical, VerticalScroll
+from textual.widgets import Input, Static
+
+from backend.cli.tui.engine import (
+    PipelineResult,
+    QueryAnswer,
+    TraceXPipelineEngine,
+    human_size,
+    safe_event_sort_key,
+)
+
+# Original TraceX ASCII logo from initial specification
+ORIGINAL_ASCII_LOGO = r"""      .==-==-:.                                                                                                
+     --:.=+***+=:               *.                                                                             
+    -==-..-:-=+::==             *.                                                                             
+    :---::=-+=.=====-           *.    #@@@@@@@@@:-@@@@@@@%-      %@@%.     -@@@@@%:  =@@@@@@@@%.%@@=  :@@@-    
+    :-:*-==:===----=-:          *.    :--+@@%--- -@@#...*@@%.  .@@@@@%   .@@@=  *@@# =@@#------  +@@%*@@#      
+     ==+++--==--=--++-.         *.       :@@%    -@@%+++%@@*   *@@:-@@*  *@@=        =@@@@@@@*    :%@@@-       
+     .==:-+=:=+=+===-=--        *.       :@@%    -@@%++%@@*   *@@@@%@@@* =@@*    *#* =@@#::::.   :@@@@@@-      
+       :+==+==+**====+=-        *.       :@@%    -@@#   =@@%.=@@*...:#@@= +@@@%@@@@= =@@@@@@@@@ +@@%  *@@#     
+       :-::-+=:-:=- :=--        *.                                           .::.                              
+         =-=*++-=-=:=:          *.                                                                             
+           .-=---=-:            *.                                                                             
+             . ..:                                                                                             """
+
+COMPACT_LOGO = r"""  ██████ ██████   █████   ██████ ███████ ██   ██
+    ██   ██   ██ ██   ██ ██      ██       ██ ██ 
+    ██   ██████  ███████ ██      █████     ███  
+    ██   ██   ██ ██   ██ ██      ██       ██ ██ 
+    ██   ██   ██ ██   ██  ██████ ███████ ██   ██"""
+
+
+def _rule(length: int = 50) -> str:
+    """Return a clean subtle divider line."""
+    return f"[dim]{'─' * length}[/dim]"
+
+
+def _section_header(title: str, count: str = "") -> str:
+    """Render a clean, high-contrast section title without artificial boxes."""
+    c_str = f" [dim]({count})[/dim]" if count else ""
+    return f"[bold bright_cyan]▶ {title}[/bold bright_cyan]{c_str}\n{_rule(56)}"
+
+
+TUI_CSS = """
+Screen {
+    background: #000000;
+    color: #e6edf3;
+}
+
+#header-box {
+    dock: top;
+    height: auto;
+    max-height: 14;
+    align: center middle;
+    padding: 0 1;
+    margin-bottom: 0;
+    color: #58a6ff;
+}
+
+#main-panels-container {
+    height: 1fr;
+    width: 100%;
+    layout: horizontal;
+    margin: 0;
+    padding: 0 1;
+}
+
+#query-results-panel {
+    width: 50%;
+    height: 100%;
+    border: round #30363d;
+    background: #080a0f;
+    padding: 1 2;
+    margin-right: 1;
+}
+
+#query-results-panel:focus-within {
+    border: round #58a6ff;
+}
+
+#additional-analysis-panel {
+    width: 50%;
+    height: 100%;
+    border: round #30363d;
+    background: #080a0f;
+    padding: 1 2;
+}
+
+#additional-analysis-panel:focus-within {
+    border: round #58a6ff;
+}
+
+#search-bar-wrapper {
+    dock: bottom;
+    height: auto;
+    padding: 0 1 1 1;
+}
+
+#search-box {
+    border: round #30363d;
+    background: #0d1117;
+    height: 3;
+    padding: 0 1;
+}
+
+#search-box:focus-within {
+    border: round #58a6ff;
+}
+
+#search-input {
+    border: none;
+    background: transparent;
+    color: #ffffff;
+    height: 1;
+    padding: 0;
+}
+
+#search-input:focus {
+    border: none;
+}
+
+#footer-bar {
+    height: 1;
+    color: #8b949e;
+    align: center middle;
+    margin-top: 0;
+}
+"""
+
+
+class TraceXHeader(Static):
+    """Header widget displaying the original TraceX ASCII art logo."""
+
+    def render(self) -> Text:
+        width = self.size.width or 100
+        if width >= 80:
+            return Text(ORIGINAL_ASCII_LOGO, style="bold cyan")
+        else:
+            t = Text(COMPACT_LOGO, style="bold cyan")
+            t.append("\n  TRACE  ·  RECOVER  ·  ANALYZE", style="bold magenta")
+            return t
+
+
+def clean_pasted_path(text: str) -> str:
+    """Sanitize a pasted file path or query string.
+
+    Removes terminal bracketed paste residues (0~, 200~, 201~, \x1b[200~),
+    PowerShell call syntax (& '...', & "..."), surrounding quotes,
+    and accidental duplicate concatenations (e.g. pathpath).
+    """
+    if not text:
+        return ""
+    clean = text.strip()
+
+    # 1. Strip bracketed paste escape sequences and ConPTY residues (0~, 200~, 201~, \x1b[200~, ^[[200~)
+    clean = re.sub(r"^(0~|200~|201~|\x1b\[\d+~|\^\[\[\d+~)+", "", clean).strip()
+    clean = re.sub(r"(0~|200~|201~|\x1b\[\d+~|\^\[\[\d+~)+$", "", clean).strip()
+
+    # 2. Strip PowerShell command invocation prefix (& '...' or & "...")
+    if clean.startswith("&"):
+        clean = clean[1:].strip()
+
+    # 3. Strip surrounding quotes
+    if (clean.startswith('"') and clean.endswith('"')) or (clean.startswith("'") and clean.endswith("'")):
+        clean = clean[1:-1].strip()
+
+    # 4. Check for exact duplicate string doubling (e.g. 'pathpath' or 'path path')
+    if len(clean) > 4 and len(clean) % 2 == 0:
+        half = len(clean) // 2
+        if clean[:half] == clean[half:]:
+            clean = clean[:half]
+
+    parts = clean.split(" ")
+    if len(parts) == 2 and parts[0] == parts[1]:
+        clean = parts[0]
+
+    # Doubled with extension boundary: e.g. 'foo.mp4foo.mp4'
+    m_ext = re.match(r"^(.*?(\.mp4|\.dd|\.avi|\.mkv|\.mov|\.bin|\.img|\.ts))\s*\1$", clean, re.IGNORECASE)
+    if m_ext:
+        clean = m_ext.group(1)
+
+    # 5. If multiple drive paths exist (e.g. C:\foo.mp4C:\foo.mp4 or C:\foo.mp40~C:\foo.mp4), split on drive boundaries
+    drive_indices = [m.start() for m in re.finditer(r"[A-Za-z]:[/\\]", clean)]
+    if len(drive_indices) >= 2:
+        cand = clean[drive_indices[0]:drive_indices[1]]
+        cand = re.sub(r"(\x1b\[\d+~|\^\[\[\d+~|0~|200~|201~)+$", "", cand)
+        clean = cand.rstrip("\"' \t\r\n")
+    elif drive_indices:
+        clean = clean[drive_indices[0]:].rstrip("\"' ")
+
+    # 6. Collapse internal newlines/carriage returns
+    clean = clean.replace("\r\n", " ").replace("\n", " ").strip()
+    return clean
+
+
+class PasteableInput(Input):
+    """Input widget that cleanly supports OS clipboard paste with debouncing and duplicate suppression."""
+
+    BINDINGS = [
+        *Input.BINDINGS,
+        Binding("shift+insert", "paste", "Paste", show=False),
+    ]
+
+    _last_paste_time: float = 0.0
+    _last_paste_val: str = ""
+
+    def action_paste(self) -> None:
+        """Single authoritative paste action that reads directly from the OS clipboard."""
+        from backend.cli.tui.clipboard import get_clipboard_text
+
+        text = get_clipboard_text() or self.app.clipboard
+        if text:
+            self._insert_sanitized(text)
+
+    def _on_paste(self, event) -> None:
+        """Override Textual's default paste handler to sanitize artifacts and prevent duplicate paste."""
+        event.stop()
+        if hasattr(event, "text") and event.text:
+            self._insert_sanitized(event.text)
+
+    def _insert_sanitized(self, raw_text: str) -> None:
+        """Sanitize text, debounce fast duplicate paste events, and replace or insert cleanly."""
+        import time
+
+        now = time.time()
+        clean = clean_pasted_path(raw_text)
+        if not clean:
+            return
+
+        # Debounce duplicate terminal paste: if input already contains the text or rapid duplicate paste
+        if self.value and (now - self._last_paste_time < 0.4) and (clean == self._last_paste_val or clean in self.value):
+            return
+
+        self._last_paste_time = now
+        self._last_paste_val = clean
+
+        # In file ingestion mode or if the box only contains whitespace, replace the entire input value
+        if getattr(self.app, "mode", "file") == "file" or not self.value.strip():
+            self.value = clean
+            self.cursor_position = len(clean)
+        else:
+            # Prevent appending identical text if it was already inserted
+            if self.value.endswith(clean):
+                return
+            start, end = self.selection
+            self.replace(clean, start, end)
+
+    def watch_value(self, old_value: str, new_value: str) -> None:
+        """Automatically detect and fix duplicate paths if typed or pasted by the terminal stream."""
+        if getattr(self.app, "mode", "file") == "file" and new_value:
+            deduped = clean_pasted_path(new_value)
+            if deduped != new_value and len(deduped) < len(new_value):
+                self.value = deduped
+                self.cursor_position = len(deduped)
+
+
+class TraceXApp(App):
+    """TraceX Full-Screen Forensic Terminal User Interface."""
+
+    CSS = TUI_CSS
+    TITLE = "TraceX Forensic Intelligence Platform"
+    BINDINGS = [
+        Binding("enter", "submit_input", "Submit", show=False),
+        Binding("ctrl+o", "new_file", "Upload File", show=True),
+        Binding("ctrl+n", "new_file", "Upload File", show=False),
+        Binding("f2", "new_file", "Upload File", show=False),
+        Binding("tab", "switch_focus", "Next Panel", show=True),
+        Binding("shift+tab", "switch_focus_reverse", "Prev Panel", show=False),
+        Binding("escape", "clear_or_focus_search", "Clear / Focus", show=True),
+        Binding("ctrl+c", "quit", "Exit", show=True),
+        Binding("ctrl+q", "quit", "Exit", show=False),
+    ]
+
+    def __init__(self, default_file_path: str | None = None, initial_query: str | None = None):
+        super().__init__()
+        self.engine = TraceXPipelineEngine()
+        self.default_file_path = default_file_path
+        self.initial_query = initial_query
+        self.mode = "file"  # "file" -> waiting for file; "query" -> asking questions
+
+    @property
+    def clipboard(self) -> str:
+        """Read directly from the OS system clipboard."""
+        from backend.cli.tui.clipboard import get_clipboard_text
+
+        text = get_clipboard_text()
+        if text:
+            return text
+        return self._clipboard
+
+    @clipboard.setter
+    def clipboard(self, value: str) -> None:
+        self._clipboard = value
+        from backend.cli.tui.clipboard import set_clipboard_text
+
+        set_clipboard_text(value)
+
+    def compose(self) -> ComposeResult:
+        # 1. Original Header Logo
+        yield Container(TraceXHeader(id="logo-widget"), id="header-box")
+
+        # 2. Main Content Split: 50% Left (Query Results), 50% Right (AI Analysis)
+        with Horizontal(id="main-panels-container"):
+            with VerticalScroll(id="query-results-panel"):
+                yield Static(
+                    self._get_file_prompt_text(),
+                    id="query-results-content",
+                )
+            with VerticalScroll(id="additional-analysis-panel"):
+                yield Static(
+                    self._get_initial_analysis_placeholder_text(),
+                    id="additional-analysis-content",
+                )
+
+        # 3. Bottom Search / File Input Bar (Pasteable from OS Clipboard)
+        with Vertical(id="search-bar-wrapper"):
+            with Container(id="search-box"):
+                yield PasteableInput(
+                    placeholder="Enter evidence / video file path...",
+                    id="search-input",
+                )
+            yield Static(
+                "[bold #58a6ff]ENTER[/] Submit   [bold #58a6ff]CTRL+O[/] Upload File   [bold #58a6ff]CTRL+V[/] Paste Path   [bold #58a6ff]TAB[/] Switch   [bold #58a6ff]↑/↓[/] Scroll   [bold #58a6ff]ESC[/] Clear   [bold #58a6ff]CTRL+C[/] Exit",
+                id="footer-bar",
+            )
+
+    def on_mount(self) -> None:
+        """Set border titles and focus the input bar."""
+        q_panel = self.query_one("#query-results-panel", VerticalScroll)
+        a_panel = self.query_one("#additional-analysis-panel", VerticalScroll)
+        q_panel.border_title = "QUERY RESULTS"
+        a_panel.border_title = "AI FORENSIC ANALYSIS"
+        self.query_one("#search-input", PasteableInput).focus()
+
+        if self.default_file_path:
+            inp = self.query_one("#search-input", PasteableInput)
+            inp.value = self.default_file_path
+            self.action_submit_input()
+
+    def _get_file_prompt_text(self) -> str:
+        lines = [
+            "[bold white]Step 1 / 2 — Evidence File Ingestion[/bold white]",
+            _rule(48),
+            "",
+            "Please provide a digital video file or raw DVR disk image.",
+            "Type or paste the file path in the search bar below and press [bold bright_cyan][ENTER][/bold bright_cyan].",
+            "",
+            "[bold white]Supported Formats:[/bold white]",
+            "  • [bold cyan]Video Containers:[/bold cyan]  .mp4, .avi, .mkv, .mov, .ts",
+            "  • [bold cyan]DVR Stream Dumps:[/bold cyan]  Hikvision, Dahua, HeimVision, CP-Plus",
+            "  • [bold cyan]Raw Disk Images:[/bold cyan]   .dd, .img, .bin",
+            "",
+            "[dim]Tip: You can use Ctrl+V to paste file paths directly from Windows Explorer.[/dim]",
+        ]
+        return "\n".join(lines)
+
+    def _get_initial_analysis_placeholder_text(self) -> str:
+        lines = [
+            "[dim]Awaiting evidence ingestion...[/dim]",
+            _rule(48),
+            "",
+            "When an evidence file is ingested, TraceX executes the full forensic pipeline:",
+            "",
+            "  1. [cyan]Signature & DVR Vendor Detection[/cyan]",
+            "  2. [cyan]Stream Parsing & Recording Discovery[/cyan]",
+            "  3. [cyan]Playable Video Carving & Stream Extraction[/cyan]",
+            "  4. [cyan]AI Vision Analysis (YOLOv8 + Motion Tracking)[/cyan]",
+            "  5. [cyan]Forensic Event Reconstruction & Scenario Clustering[/cyan]",
+            "  6. [cyan]Final Incident Forensic Summary[/cyan]",
+            "  7. [cyan]Video Stream Integrity & Tampering Analysis[/cyan]",
+            "  8. [cyan]Object Disappearance & Continuity Detection[/cyan]",
+            "",
+            "[dim]All forensic telemetry will populate here automatically.[/dim]",
+        ]
+        return "\n".join(lines)
+
+    def action_switch_focus(self) -> None:
+        focused = self.focused
+        search_input = self.query_one("#search-input", PasteableInput)
+        left_panel = self.query_one("#query-results-panel", VerticalScroll)
+        right_panel = self.query_one("#additional-analysis-panel", VerticalScroll)
+
+        if focused == search_input:
+            left_panel.focus()
+        elif focused == left_panel:
+            right_panel.focus()
+        else:
+            search_input.focus()
+
+    def action_switch_focus_reverse(self) -> None:
+        focused = self.focused
+        search_input = self.query_one("#search-input", PasteableInput)
+        left_panel = self.query_one("#query-results-panel", VerticalScroll)
+        right_panel = self.query_one("#additional-analysis-panel", VerticalScroll)
+
+        if focused == search_input:
+            right_panel.focus()
+        elif focused == right_panel:
+            left_panel.focus()
+        else:
+            search_input.focus()
+
+    def action_clear_or_focus_search(self) -> None:
+        search_input = self.query_one("#search-input", PasteableInput)
+        if self.focused == search_input:
+            search_input.value = ""
+        else:
+            search_input.focus()
+
+    def action_new_file(self) -> None:
+        """Reset to evidence file ingestion mode to upload and analyze another file."""
+        self.mode = "file"
+        self.engine.clear()
+        search_input = self.query_one("#search-input", PasteableInput)
+        search_input.value = ""
+        search_input.placeholder = "Enter evidence / video file path..."
+        search_input.focus()
+        self.query_one("#query-results-content", Static).update(self._get_file_prompt_text())
+        self.query_one("#additional-analysis-content", Static).update(self._get_initial_analysis_placeholder_text())
+        self.query_one("#query-results-panel", VerticalScroll).scroll_home(animate=False)
+        self.query_one("#additional-analysis-panel", VerticalScroll).scroll_home(animate=False)
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        self.action_submit_input()
+
+    def action_submit_input(self) -> None:
+        """Handle user input: either file upload or conversational query analysis."""
+        search_input = self.query_one("#search-input", PasteableInput)
+        val = search_input.value.strip()
+
+        if not val:
+            return
+
+        # Check for explicit file reset command
+        if val.startswith(":file ") or val.startswith(":load "):
+            new_file = val.split(" ", 1)[1].strip()
+            self._start_file_ingestion(new_file)
+            return
+        elif val == ":reset":
+            self.mode = "file"
+            search_input.value = ""
+            search_input.placeholder = "Enter evidence / video file path..."
+            self.query_one("#query-results-content", Static).update(self._get_file_prompt_text())
+            self.query_one("#additional-analysis-content", Static).update(self._get_initial_analysis_placeholder_text())
+            return
+
+        if self.mode == "file":
+            self._start_file_ingestion(val)
+        else:
+            self._start_query_analysis(val)
+
+    def _start_file_ingestion(self, file_path_str: str) -> None:
+        """Validate file and start background pipeline worker."""
+        clean_str = clean_pasted_path(file_path_str)
+        path = Path(clean_str).expanduser().resolve()
+        if not path.is_file():
+            results_content = self.query_one("#query-results-content", Static)
+            lines = [
+                f"[bold red]❌ File not found:[/bold red] [yellow]{path}[/yellow]",
+                _rule(48),
+                "",
+                "Please verify the file path exists and try again.",
+            ]
+            results_content.update("\n".join(lines))
+            return
+
+        results_content = self.query_one("#query-results-content", Static)
+        lines = [
+            f"[bold white]Ingesting Evidence File:[/bold white] [cyan]{path.name}[/cyan]",
+            f"[dim]Path: {path} ({human_size(path.stat().st_size)})[/dim]",
+            _rule(48),
+            "",
+            "[bold yellow]⚡ Running TraceX Forensic Analysis Pipeline...[/bold yellow]",
+            "[dim]Detect -> Parse -> Extract -> YOLOv8 Vision -> Integrity Analysis[/dim]",
+            "",
+            "[bold white]Live Progress:[/bold white]",
+        ]
+        results_content.update("\n".join(lines))
+
+        analysis_content = self.query_one("#additional-analysis-content", Static)
+        lines_right = [
+            "[bold yellow]⚡ Processing evidence...[/bold yellow]",
+            _rule(48),
+            "",
+            "Extracting video streams and computing forensic telemetry.",
+            "The full analysis dossier will populate automatically upon completion.",
+        ]
+        analysis_content.update("\n".join(lines_right))
+
+        self._run_pipeline_worker(str(path))
+
+    @work(exclusive=True, thread=True)
+    def _run_pipeline_worker(self, file_path_str: str) -> None:
+        """Worker thread executing the real pipeline."""
+        try:
+            def update_progress(msg: str):
+                self.call_from_thread(self._on_pipeline_progress, msg)
+
+            res = self.engine.run_pipeline(file_path_str, progress_cb=update_progress)
+            self.call_from_thread(self._on_pipeline_success, res)
+        except Exception as exc:
+            self.call_from_thread(self._on_pipeline_error, file_path_str, str(exc))
+
+    def _on_pipeline_progress(self, msg: str) -> None:
+        results_content = self.query_one("#query-results-content", Static)
+        existing = str(results_content.render())
+        results_content.update(f"{existing}\n• [dim]{msg}[/dim]")
+
+    def _on_pipeline_success(self, res: PipelineResult) -> None:
+        """Switch to Query Analysis mode and render full AI analysis dossier in Right Panel."""
+        self.mode = "query"
+
+        # Update Right Panel: Full AI analysis dossier from the original CLI
+        right_text = self._format_ai_analysis_dossier(res)
+        analysis_scroll = self.query_one("#additional-analysis-panel", VerticalScroll)
+        self.query_one("#additional-analysis-content", Static).update(right_text)
+        analysis_scroll.scroll_home(animate=False)
+
+        # Update Left Panel: Ready for Query Analysis
+        left_text = self._format_pipeline_completion(res)
+        query_scroll = self.query_one("#query-results-panel", VerticalScroll)
+        self.query_one("#query-results-content", Static).update(left_text)
+        query_scroll.scroll_home(animate=False)
+
+        # Update Search Bar prompt to Query Analysis
+        search_input = self.query_one("#search-input", PasteableInput)
+        search_input.value = ""
+        search_input.placeholder = "Ask about this video timeline... (type ':file <path>' to switch files)"
+        search_input.focus()
+
+        # If an initial query was queued, run it
+        if self.initial_query:
+            q = self.initial_query
+            self.initial_query = None
+            search_input.value = q
+            self.action_submit_input()
+
+    def _on_pipeline_error(self, file_str: str, err: str) -> None:
+        results_content = self.query_one("#query-results-content", Static)
+        lines = [
+            f"[bold red]❌ Pipeline Error on file:[/bold red] {file_str}",
+            _rule(48),
+            "",
+            f"[bold yellow]Details:[/bold yellow] {err}",
+            "",
+            "[dim]Please check the path or enter another file below.[/dim]",
+        ]
+        results_content.update("\n".join(lines))
+        self.query_one("#additional-analysis-content", Static).update(
+            f"[bold red]Pipeline execution failed on evidence:[/bold red]\n{file_str}\n\n"
+            f"[yellow]{err}[/yellow]"
+        )
+        self.query_one("#search-input", PasteableInput).focus()
+
+    def _start_query_analysis(self, query_text: str) -> None:
+        """Run conversational Q&A on the loaded video events."""
+        results_content = self.query_one("#query-results-content", Static)
+        lines = [
+            f"[bold bright_cyan]Query:[/bold bright_cyan] [bold white]\"{query_text}\"[/bold white]",
+            _rule(48),
+            "",
+            "[bold yellow]⚡ Querying TraceX AI model over event timeline...[/bold yellow]",
+        ]
+        results_content.update("\n".join(lines))
+        self._run_query_worker(query_text)
+
+    @work(exclusive=True, thread=True)
+    def _run_query_worker(self, query_text: str) -> None:
+        """Worker thread executing Groq conversational Q&A."""
+        try:
+            ans: QueryAnswer = self.engine.ask_video_query(query_text)
+            self.call_from_thread(self._on_query_success, ans)
+        except Exception as exc:
+            self.call_from_thread(self._on_query_error, query_text, str(exc))
+
+    def _on_query_success(self, ans: QueryAnswer) -> None:
+        formatted = self._format_query_answer(ans)
+        query_panel = self.query_one("#query-results-panel", VerticalScroll)
+        self.query_one("#query-results-content", Static).update(formatted)
+        query_panel.scroll_home(animate=False)
+        search_input = self.query_one("#search-input", PasteableInput)
+        search_input.value = ""
+        search_input.focus()
+
+    def _on_query_error(self, query_text: str, err: str) -> None:
+        results_content = self.query_one("#query-results-content", Static)
+        lines = [
+            "[bold red]❌ Query Analysis Error[/bold red]",
+            _rule(48),
+            "",
+            f"[bold white]Query:[/bold white] {query_text}",
+            f"[bold yellow]Details:[/bold yellow] {err}",
+            "",
+            "[dim]You can type another question below, or ':file <path>' to load a new file.[/dim]",
+        ]
+        results_content.update("\n".join(lines))
+        self.query_one("#search-input", PasteableInput).focus()
+
+    def _format_pipeline_completion(self, res: PipelineResult) -> str:
+        lines = [
+            "[bold green]✔ Evidence Ingested Successfully[/bold green]",
+            _rule(48),
+            "",
+            f"• [bold white]File:[/bold white] [cyan]{res.file_path.name}[/cyan] [dim]({human_size(res.file_size)})[/dim]",
+            f"• [bold white]Detected Vendor:[/bold white] {res.vendor_name} [dim]({res.vendor_confidence * 100:.0f}% confidence)[/dim]",
+            f"• [bold white]Pipeline Duration:[/bold white] {res.duration_seconds:.2f}s",
+            "",
+            "[bold bright_cyan]AI Forensic Analysis Dossier Loaded[/bold bright_cyan]",
+            "The complete forensic analysis report is rendered in the [bold cyan]AI FORENSIC ANALYSIS[/bold cyan] panel on the right.",
+            "It includes all discovered recordings, complete events summary, event reconstruction,",
+            "forensic summary, tampering and integrity checks, and object disappearances.",
+            "",
+            _rule(48),
+            "[bold bright_white]Query Analysis Ready[/bold bright_white]",
+            "",
+            "Enter questions about this video in the query bar below to query the AI model.",
+            "",
+            "[bold white]Suggested Queries:[/bold white]",
+            "  • [cyan]was there any collision or vehicle impact?[/cyan]",
+            "  • [cyan]what vehicles or objects were involved?[/cyan]",
+            "  • [cyan]summarize what happened in this video[/cyan]",
+            "  • [cyan]when was the highest motion activity observed?[/cyan]",
+            "",
+            "[dim]Press [bold #58a6ff]Ctrl+O[/bold #58a6ff] (or type ':file <path>') anytime to upload another file.[/dim]",
+        ]
+        return "\n".join(lines)
+
+    def _format_query_answer(self, ans: QueryAnswer) -> str:
+        lines = [
+            f"[bold bright_cyan]Query:[/bold bright_cyan] [bold bright_white]\"{ans.query}\"[/bold bright_white]",
+            f"[dim]Engine: {ans.source} • Latency: {ans.duration_seconds:.2f}s[/dim]",
+            _rule(48),
+            "",
+            "[bold underline bright_white]Findings & Analysis[/bold underline bright_white]",
+            f"{ans.answer}",
+            "",
+        ]
+
+        if ans.matching_events:
+            lines.append(f"[bold underline bright_white]Matching Timeline Events ({len(ans.matching_events)} records)[/bold underline bright_white]")
+            lines.append(f"{'CAMERA':<10} {'EVENT TYPE':<22} {'OBJECT':<14} {'TIMESTAMP':<20} {'CONF'}")
+            lines.append(_rule(72))
+            for ev in ans.matching_events:
+                cam = str(ev.get("camera_id", "-"))[:8]
+                e_type = str(ev.get("event_type", "-"))[:20]
+                obj = str(ev.get("object_type", "-"))[:12]
+                st = str(ev.get("start_time", "-"))[:19]
+                conf = ev.get("confidence")
+                conf_s = f"{conf:.2f}" if isinstance(conf, (int, float)) else "-"
+                lines.append(f"{cam:<10} [cyan]{e_type:<22}[/cyan] [white]{obj:<14}[/white] [dim]{st:<20}[/dim] {conf_s}")
+
+        lines.append("")
+        lines.append("[dim]Ask another question below, or press [bold #58a6ff]Ctrl+O[/bold #58a6ff] to upload another file.[/dim]")
+        return "\n".join(lines)
+
+    def _format_ai_analysis_dossier(self, res: PipelineResult) -> str:
+        """Format the FULL, UNTRUNCATED output from the original CLI with clean typography."""
+        lines = []
+
+        # -----------------------------------------------------
+        # 1. FILE & VENDOR DETECTION
+        # -----------------------------------------------------
+        lines.append(_section_header("Step 1 / 4 — Vendor & Signature Detection"))
+        lines.append(f"• [bold white]Evidence File:[/bold white]   {res.file_path}")
+        lines.append(f"• [bold white]File Size:[/bold white]       [cyan]{human_size(res.file_size)}[/cyan] [dim]({res.file_size:,} bytes)[/dim]")
+        lines.append(f"• [bold white]Detected DVR:[/bold white]    [bold green]{res.vendor_name.upper()}[/bold green] [dim](Confidence: {res.vendor_confidence * 100:.1f}%)[/dim]")
+        lines.append("")
+
+        # -----------------------------------------------------
+        # 2. DISCOVERED RECORDINGS (FULL, ALL ROWS)
+        # -----------------------------------------------------
+        lines.append(_section_header("Step 2 / 4 — Discovered Recordings", f"{len(res.parse_recordings)} found"))
+        if res.parse_recordings:
+            lines.append(f"{'RECORDING ID':<24} {'CAMERA':<10} {'STATUS':<12} {'TIMESTAMP'}")
+            lines.append(_rule(68))
+            for rec in res.parse_recordings:
+                r_id = str(rec["recording_id"])[:22]
+                cam = str(rec["camera_id"])[:8]
+                st = str(rec["status"])[:10]
+                ts = str(rec["timestamp"])[:19]
+                lines.append(f"[cyan]{r_id:<24}[/cyan] [white]{cam:<10}[/white] {st:<12} [dim]{ts}[/dim]")
+        else:
+            lines.append("[dim]No recordings discovered by parser.[/dim]")
+        lines.append("")
+
+        # -----------------------------------------------------
+        # 3. EXTRACTED PLAYABLE STREAMS (FULL, ALL ROWS)
+        # -----------------------------------------------------
+        lines.append(_section_header("Step 3 / 4 — Extracted Streams", f"{len(res.recovered_recordings)} carved"))
+        if res.recovered_recordings:
+            lines.append(f"{'RECORDING ID':<24} {'CAMERA':<10} {'STATUS':<12} {'FILE'}")
+            lines.append(_rule(68))
+            for item in res.recovered_recordings:
+                if isinstance(item, dict):
+                    r_id = str(item.get("recording_id", "-"))[:22]
+                    c_id = str(item.get("camera_id", "-"))[:8]
+                    st = str(item.get("status", "-"))[:10]
+                    ep = item.get("extracted_path") or item.get("file_path") or ""
+                    fname = Path(ep).name if ep else "-"
+                elif isinstance(item, (list, tuple)):
+                    r_id = str(item[0])[:22]
+                    c_id = str(item[1])[:8] if len(item) > 1 else "-"
+                    st = str(item[2])[:10] if len(item) > 2 else "-"
+                    fname = Path(item[3]).name if len(item) > 3 and item[3] else "-"
+                else:
+                    continue
+                lines.append(f"[cyan]{r_id:<24}[/cyan] [white]{c_id:<10}[/white] [green]{st:<12}[/green] [dim]{fname}[/dim]")
+        else:
+            lines.append("[dim]No video streams were carved or extracted.[/dim]")
+        lines.append("")
+
+        # -----------------------------------------------------
+        # 4. FINAL AI ANALYSIS SUMMARY (EVERY SINGLE DETECTED EVENT)
+        # -----------------------------------------------------
+        lines.append(_section_header("Step 4 / 4 — Final AI Analysis Summary", f"{len(res.events)} events"))
+        if res.events:
+            lines.append(f"{'EVENT TYPE':<24} {'OBJECT':<14} {'CAM':<8} {'START TIME':<20} {'CONF'}")
+            lines.append(_rule(72))
+            for cam, ev in sorted(
+                res.events,
+                key=safe_event_sort_key,
+            ):
+                e_type = str(getattr(ev, "event_type", "-"))[:22]
+                obj = str(getattr(ev, "object_type", "-") or "-")[:12]
+                c_id = str(cam or "-")[:6]
+                st = (
+                    ev.start_time.isoformat(sep=" ", timespec="seconds")
+                    if hasattr(ev, "start_time") and ev.start_time
+                    else "-"
+                )[:19]
+                conf = getattr(ev, "confidence", None)
+                conf_s = f"{conf:.2f}" if isinstance(conf, (int, float)) else "-"
+                lines.append(f"[cyan]{e_type:<24}[/cyan] [white]{obj:<14}[/white] {c_id:<8} [dim]{st:<20}[/dim] {conf_s}")
+        else:
+            lines.append("[yellow]No AI events detected across any recording.[/yellow]")
+        lines.append("")
+
+        # -----------------------------------------------------
+        # 5. AI FORENSIC EVENT RECONSTRUCTION (FULL DETAILS)
+        # -----------------------------------------------------
+        lines.append(_section_header("AI Forensic Event Reconstruction", f"{len(res.reconstructed_events)} activities"))
+        if res.reconstructed_events:
+            lines.append(f"{'TYPE':<20} {'ACTIVITY':<26} {'START':<18} {'END':<18} {'CONF'}")
+            lines.append(_rule(88))
+            for act in res.reconstructed_events:
+                e_type = str(getattr(act, "event_type", "INCIDENT"))[:18]
+                title = str(getattr(act, "title", None) or getattr(act, "event_type", "Activity"))[:24]
+                st = (
+                    act.start_time.isoformat(sep=" ", timespec="seconds")
+                    if hasattr(act, "start_time") and act.start_time
+                    else "-"
+                )[:19]
+                et = (
+                    act.end_time.isoformat(sep=" ", timespec="seconds")
+                    if hasattr(act, "end_time") and act.end_time
+                    else "-"
+                )[:19]
+                conf = getattr(act, "confidence", None)
+                conf_s = f"{conf:.2f}" if isinstance(conf, (int, float)) else "-"
+                lines.append(f"[yellow]{e_type:<20}[/yellow] [bold white]{title:<26}[/bold white] [dim]{st:<18}[/dim] [dim]{et:<18}[/dim] {conf_s}")
+
+            lines.append("")
+            lines.append("[bold white]Reconstructed Activity Descriptions:[/bold white]")
+            for idx, act in enumerate(res.reconstructed_events, start=1):
+                title = getattr(act, "title", None) or getattr(act, "event_type", "Forensic Activity")
+                conf = getattr(act, "confidence", None)
+                conf_s = f" (Confidence: {conf:.2f})" if isinstance(conf, (int, float)) else ""
+                desc = getattr(act, "description", None) or "No description available."
+                lines.append(f"• [bold cyan]Activity #{idx}: {title}{conf_s}[/bold cyan]")
+                lines.append(f"  {desc}")
+                lines.append("")
+        else:
+            lines.append("[dim]No higher-level forensic activities were reconstructed.[/dim]")
+            lines.append("")
+
+        # -----------------------------------------------------
+        # 6. FINAL FORENSIC SUMMARY (FULL NARRATIVE & MILESTONES)
+        # -----------------------------------------------------
+        lines.append(_section_header("Final AI Forensic Summary"))
+        if res.summaries:
+            for s_idx, s in enumerate(res.summaries, start=1):
+                headline = getattr(s, "headline", None)
+                sum_text = getattr(s, "summary", None)
+                evt_count = getattr(s, "event_count", None)
+                objs = getattr(s, "objects_detected", None)
+                st = getattr(s, "start_time", None)
+                et = getattr(s, "end_time", None)
+                key_events = getattr(s, "key_events", None) or []
+                meta = getattr(s, "metadata", {}) or {}
+                conf_label = meta.get("confidence_label", "MEDIUM")
+
+                if len(res.summaries) > 1:
+                    lines.append(f"[bold cyan]Camera Stream #{s_idx}:[/bold cyan]")
+                if headline:
+                    lines.append(f"• [bold bright_yellow]INCIDENT / ACTIVITY:[/bold bright_yellow] {headline}")
+                if sum_text:
+                    lines.append(f"• [bold bright_cyan]FORENSIC SUMMARY:[/bold bright_cyan] {sum_text}")
+
+                lines.append(f"• [bold white]Time Window:[/bold white]          [dim]{st or 'unknown'}[/dim] → [dim]{et or 'unknown'}[/dim]")
+                lines.append(f"• [bold white]Events Reconstructed:[/bold white] [cyan]{evt_count or len(res.events)}[/cyan]")
+                if objs:
+                    objs_s = ", ".join(objs) if isinstance(objs, (list, tuple, set)) else str(objs)
+                    lines.append(f"• [bold white]Objects Detected:[/bold white]     [white]{objs_s}[/white]")
+                lines.append(f"• [bold white]Reconstruction Conf.:[/bold white] [bold green]{conf_label}[/bold green]")
+
+                if key_events:
+                    lines.append("• [bold white]Key Forensic Milestones:[/bold white]")
+                    for k_idx, kev in enumerate(key_events, start=1):
+                        lines.append(f"    {k_idx}. {kev}")
+                lines.append("")
+        else:
+            lines.append("[dim]No forensic summary generated.[/dim]")
+            lines.append("")
+
+        # -----------------------------------------------------
+        # 7. TAMPERING / VIDEO INTEGRITY CHECKS (FULL METRICS)
+        # -----------------------------------------------------
+        lines.append(_section_header("Tampering & Video Stream Integrity", f"{len(res.integrity_results)} checks"))
+        if res.integrity_results:
+            for r_id, integ in res.integrity_results:
+                tc = "[green]✔ Pass[/green]" if integ.get("timestamp_continuity") else "[red]▲ Review[/red]"
+                fc = "[green]✔ Pass[/green]" if integ.get("frame_continuity") else "[red]▲ Review[/red]"
+                fps_c = "[green]✔ Pass[/green]" if integ.get("fps_consistency") else "[red]▲ Review[/red]"
+                df_c = "[green]✔ Pass[/green]" if integ.get("duplicate_frames") else "[red]▲ Review[/red]"
+                mc = "[green]✔ Pass[/green]" if integ.get("metadata_consistency", True) else "[red]▲ Review[/red]"
+                rc = "[green]✔ Pass[/green]" if integ.get("resolution_consistency", True) else "[red]▲ Review[/red]"
+                cc = "[green]✔ Pass[/green]" if integ.get("compression_consistency", True) else "[red]▲ Review[/red]"
+                fc_count = integ.get("frames_checked", 0)
+
+                lines.append(f"[bold cyan]Recording: {r_id}[/bold cyan]")
+                lines.append(f"  • Timestamp Continuity:  {tc} [dim](Gaps: {integ.get('timestamp_gaps', 0)})[/dim]")
+                lines.append(f"  • Frame Continuity:      {fc} [dim](Corrupted: {integ.get('corrupted_frames', 0)})[/dim]")
+                lines.append(f"  • FPS Consistency:       {fps_c}")
+                lines.append(f"  • Duplicate Sequences:   {df_c} [dim](Count: {integ.get('duplicate_sequences', 0)})[/dim]")
+                lines.append(f"  • Metadata / Resolution: {mc} / {rc}")
+                lines.append(f"  • Compression Stability: {cc} [dim]({fc_count} frames checked)[/dim]")
+
+                details = integ.get("details", {})
+                if details:
+                    meta_str = details.get("metadata") or details.get("observed_fps") or ""
+                    if meta_str:
+                        lines.append(f"  • Stream Specs:          [dim]{meta_str}[/dim]")
+
+                anomalies = integ.get("anomalies", [])
+                if anomalies:
+                    lines.append("  [bold red]Detected Anomalies:[/bold red]")
+                    for a in anomalies:
+                        lines.append(f"    ▲ [yellow]{a}[/yellow]")
+                else:
+                    lines.append("  • [green]✔ No video manipulation or tampering anomalies detected.[/green]")
+                lines.append("")
+        else:
+            lines.append("[dim]No playable recordings available for integrity analysis.[/dim]\n")
+
+        # -----------------------------------------------------
+        # 8. OBJECT DISAPPEARANCE DETECTION (FULL CANDIDATES)
+        # -----------------------------------------------------
+        lines.append(_section_header("Object Disappearance & Continuity", f"{len(res.disappearance_results)} flags"))
+        if res.disappearance_results:
+            for cand in res.disappearance_results:
+                cam = cand.get("camera_id", "-")
+                obj = cand.get("object_type", "-")
+                st = cand.get("first_observed", "-")
+                et = cand.get("disappeared_at", "-")
+                obs = cand.get("total_observations", "-")
+                note = cand.get("note", "")
+
+                lines.append(f"• [yellow][REVIEW FLAG][/yellow] Camera {cam}: [bold white]{obj.upper()}[/bold white]")
+                lines.append(f"  First Seen: {st} | Last Seen: {et} | Observations: {obs}")
+                if note:
+                    lines.append(f"  Note: {note}")
+        else:
+            lines.append("[green]✔ No suspicious object disappearance anomalies detected.[/green]")
+
+        # -----------------------------------------------------
+        # 9. WARNINGS AND ERRORS (IF ANY)
+        # -----------------------------------------------------
+        if res.warnings:
+            lines.append("")
+            lines.append(_section_header("Pipeline Warnings", f"{len(res.warnings)} alerts"))
+            for w in res.warnings:
+                lines.append(f"• [yellow]{w}[/yellow]")
+
+        if res.errors:
+            lines.append("")
+            lines.append(_section_header("Pipeline Extraction Errors", f"{len(res.errors)} errors"))
+            for err in res.errors:
+                lines.append(f"• [red]{err}[/red]")
+
+        return "\n".join(lines)
+
+
+def run_tui(default_file_path: str | None = None, initial_query: str | None = None) -> None:
+    """Launch the TraceX Full-Screen TUI."""
+    app = TraceXApp(default_file_path=default_file_path, initial_query=initial_query)
+    app.run()
+
+
+if __name__ == "__main__":
+    run_tui()

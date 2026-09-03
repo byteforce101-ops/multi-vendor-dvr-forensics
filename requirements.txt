@@ -11,3 +11,5 @@ httpx>=0.27,<1.0
 groq>=0.11,<1.0
 ultralytics>=8.4,<9.0
 av>=12.0,<15.0
+textual>=0.80.0
+pyperclip>=1.8.0

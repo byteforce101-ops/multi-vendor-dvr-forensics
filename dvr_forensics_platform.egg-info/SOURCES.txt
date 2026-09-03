@@ -57,6 +57,11 @@ backend/video/analysis/service.py
 backend/video/analysis/timestamps.py
 backend/video/extraction/frame_extractor.py
 backend/video/probe/video_probe.py
+backend/video/reconstruction/__init__.py
+backend/video/reconstruction/models.py
+backend/video/reconstruction/reconstructor.py
+backend/video/reconstruction/rules.py
+backend/video/reconstruction/summarizer.py
 backend/video/timeline/service.py
 backend/video/transcode/video_transcoder.py
 dvr_forensics_platform.egg-info/PKG-INFO

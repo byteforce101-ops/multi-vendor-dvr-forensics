@@ -10,6 +10,19 @@ from backend.video.reconstruction.models import (
 )
 
 
+# =========================================================
+# RECONSTRUCTION THRESHOLDS
+# =========================================================
+
+# Two vehicle detections must occur within this time window
+# before we even consider a possible interaction.
+VEHICLE_INTERACTION_WINDOW_SECONDS = 1.5
+
+# Require reasonably strong detections before creating a
+# possible vehicle interaction.
+VEHICLE_INTERACTION_CONFIDENCE = 0.60
+
+
 def _confidence(events: list[VideoEvent]) -> float:
     values = [
         event.confidence
@@ -55,6 +68,94 @@ def _evidence(
     return result
 
 
+def _vehicle_events(
+    events: list[VideoEvent],
+) -> list[VideoEvent]:
+
+    vehicles = {
+        "car",
+        "truck",
+        "bus",
+        "motorcycle",
+        "bicycle",
+    }
+
+    return [
+        event
+        for event in events
+        if event.object_type in vehicles
+    ]
+
+
+def _supports_vehicle_interaction(
+    events: list[VideoEvent],
+) -> bool:
+    """
+    Determine whether the available event-level evidence
+    is strong enough to support a possible vehicle
+    interaction.
+
+    Important:
+    This function does NOT establish a collision.
+
+    It only looks for:
+      1. At least two vehicle detections.
+      2. Reasonably strong confidence.
+      3. Very close temporal proximity.
+
+    Spatial interaction cannot currently be evaluated
+    because VideoEvent does not contain bounding boxes.
+    """
+
+    vehicle_events = _vehicle_events(events)
+
+    if len(vehicle_events) < 2:
+        return False
+
+    strong_vehicle_events = [
+        event
+        for event in vehicle_events
+        if (
+            event.confidence is not None
+            and event.confidence >= VEHICLE_INTERACTION_CONFIDENCE
+        )
+    ]
+
+    if len(strong_vehicle_events) < 2:
+        return False
+
+    for index, first in enumerate(strong_vehicle_events):
+
+        for second in strong_vehicle_events[index + 1:]:
+
+            first_end = first.end_time
+            second_start = second.start_time
+
+            second_end = second.end_time
+            first_start = first.start_time
+
+            # Calculate the temporal distance between the
+            # two activity intervals.
+            if first_end < second_start:
+                gap = (
+                    second_start - first_end
+                ).total_seconds()
+
+            elif second_end < first_start:
+                gap = (
+                    first_start - second_end
+                ).total_seconds()
+
+            else:
+                # Intervals overlap.
+                gap = 0.0
+
+            if gap <= VEHICLE_INTERACTION_WINDOW_SECONDS:
+                return True
+
+    return False
+
+
 def reconstruct_activity(
     events: list[VideoEvent],
 ) -> ReconstructedEvent | None:
@@ -71,25 +172,13 @@ def reconstruct_activity(
         for event in events
     }
 
-    # ---------------------------------------------------------
-    # VEHICLE / COLLISION
-    # ---------------------------------------------------------
+    # =========================================================
+    # VEHICLE / POSSIBLE INTERACTION
+    # =========================================================
 
-    vehicles = {
-        "car",
-        "truck",
-        "bus",
-        "motorcycle",
-        "bicycle",
-    }
+    if _supports_vehicle_interaction(events):
 
-    detected_vehicles = [
-        event
-        for event in events
-        if event.object_type in vehicles
-    ]
-
-    if len(detected_vehicles) >= 2:
+        vehicle_events = _vehicle_events(events)
 
         return ReconstructedEvent(
             video_id=first.video_id,
@@ -97,32 +186,44 @@ def reconstruct_activity(
             event_type="POSSIBLE_VEHICLE_INTERACTION",
             start_time=min(
                 event.start_time
-                for event in events
+                for event in vehicle_events
             ),
             end_time=max(
                 event.end_time
-                for event in events
+                for event in vehicle_events
             ),
             title="Possible vehicle interaction",
             description=(
-                "Multiple vehicles were detected "
-                "within the same activity window. "
-                "The available detections support "
-                "a possible vehicle interaction, "
-                "but do not by themselves establish "
+                "Two or more vehicles were detected "
+                "with reasonably strong confidence and "
+                "within a short temporal interval. "
+                "This supports a possible vehicle "
+                "interaction, but the available evidence "
+                "does not establish physical contact or "
                 "a collision."
             ),
             objects=objects,
-            confidence=_confidence(events),
-            evidence=_evidence(events),
+            confidence=_confidence(
+                vehicle_events
+            ),
+            evidence=_evidence(
+                vehicle_events
+            ),
             metadata={
-                "rule": "multiple_vehicles",
+                "rule": "vehicle_temporal_proximity",
+                "temporal_window_seconds": (
+                    VEHICLE_INTERACTION_WINDOW_SECONDS
+                ),
+                "minimum_confidence": (
+                    VEHICLE_INTERACTION_CONFIDENCE
+                ),
+                "spatial_relationship_verified": False,
             },
         )
 
-    # ---------------------------------------------------------
+    # =========================================================
     # PERSON + VEHICLE
-    # ---------------------------------------------------------
+    # =========================================================
 
     people = any(
         event.object_type == "person"
@@ -130,7 +231,14 @@ def reconstruct_activity(
     )
 
     vehicle = any(
-        event.object_type in vehicles
+        event.object_type
+        in {
+            "car",
+            "truck",
+            "bus",
+            "motorcycle",
+            "bicycle",
+        }
         for event in events
     )
 
@@ -161,9 +269,9 @@ def reconstruct_activity(
             },
         )
 
-    # ---------------------------------------------------------
+    # =========================================================
     # PERSON + OBJECT
-    # ---------------------------------------------------------
+    # =========================================================
 
     if people and len(objects) >= 2:
 
@@ -200,9 +308,9 @@ def reconstruct_activity(
             },
         )
 
-    # ---------------------------------------------------------
+    # =========================================================
     # MOTION
-    # ---------------------------------------------------------
+    # =========================================================
 
     if "MOTION" in event_types:
 
@@ -231,9 +339,9 @@ def reconstruct_activity(
             },
         )
 
-    # ---------------------------------------------------------
+    # =========================================================
     # GENERIC ACTIVITY
-    # ---------------------------------------------------------
+    # =========================================================
 
     return ReconstructedEvent(
         video_id=first.video_id,

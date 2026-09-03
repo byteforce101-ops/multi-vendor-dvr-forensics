@@ -39,10 +39,6 @@ from backend.video.timeline.service import (
     build_timeline,
 )
 
-# =========================================================
-# AI FORENSIC EVENT RECONSTRUCTION
-# =========================================================
-
 from backend.video.reconstruction.models import (
     ForensicSummary,
     ReconstructedEvent,
@@ -59,6 +55,7 @@ from backend.video.reconstruction.summarizer import (
 
 @dataclass
 class VideoAnalysisResult:
+
     video_id: str
     camera_id: str
 
@@ -70,10 +67,10 @@ class VideoAnalysisResult:
 
     frame_count_analyzed: int
 
-    # AI forensic reconstruction
-    reconstructed_events: list[ReconstructedEvent]
+    reconstructed_events: list[
+        ReconstructedEvent
+    ]
 
-    # Final AI-generated forensic summary
     forensic_summary: ForensicSummary
 
 
@@ -82,9 +79,10 @@ class VideoAnalysisService:
     def __init__(
         self,
         yolo_model: str = "yolo26n.pt",
-        ai_confidence: float = 0.35,
+        ai_confidence: float = 0.25,
         ai_iou: float = 0.50,
         device: str | None = None,
+        enable_grounding_dino: bool = True,
     ):
 
         self.ai = AIService(
@@ -92,6 +90,9 @@ class VideoAnalysisService:
             confidence=ai_confidence,
             iou=ai_iou,
             device=device,
+            enable_grounding_dino=(
+                enable_grounding_dino
+            ),
         )
 
     def analyze(
@@ -123,7 +124,7 @@ class VideoAnalysisService:
         )
 
         # =====================================================
-        # 3. MOTION DETECTION
+        # 3. MOTION
         # =====================================================
 
         motion_events = detect_motion(
@@ -131,18 +132,22 @@ class VideoAnalysisService:
         )
 
         # =====================================================
-        # 4. YOLO / AI ANALYSIS
+        # 4. AI
         # =====================================================
 
-        ai_results = self.ai.analyze_frames(
-            frames
+        ai_results = (
+            self.ai.analyze_frames(
+                frames
+            )
         )
 
         # =====================================================
-        # 5. CONVERT AI RESULTS INTO DETECTIONS
+        # 5. AI → DETECTIONS
         # =====================================================
 
-        detections: list[Detection] = []
+        detections: list[
+            Detection
+        ] = []
 
         for result in ai_results:
 
@@ -157,25 +162,61 @@ class VideoAnalysisService:
                 Detection(
                     video_id=video_id,
                     camera_id=camera_id,
-                    frame_number=result.frame_number,
-                    timestamp=absolute_timestamp,
-                    object_type=result.object_type,
-                    confidence=result.confidence,
+
+                    frame_number=(
+                        result.frame_number
+                    ),
+
+                    timestamp=(
+                        absolute_timestamp
+                    ),
+
+                    object_type=(
+                        result.object_type
+                    ),
+
+                    confidence=(
+                        result.confidence
+                    ),
+
                     bbox=result.bbox,
-                    track_id=result.track_id,
+
+                    track_id=(
+                        result.track_id
+                    ),
+
+                    metadata={
+                        "source": (
+                            result.source
+                        ),
+
+                        "dino_confidence": (
+                            result.dino_confidence
+                        ),
+
+                        "verified": (
+                            result.verified
+                        ),
+
+                        "entity_id": (
+                            result.entity_id
+                        ),
+                    },
                 )
             )
 
         # =====================================================
-        # 6. BUILD AI DETECTION EVENTS
+        # 6. BUILD OBJECT EVENTS
         # =====================================================
 
-        ai_events = build_detection_events(
-            detections
+        ai_events = (
+            build_detection_events(
+                detections
+            )
         )
 
         # =====================================================
-        # 7. CONVERT MOTION EVENTS
+        # 7. MOTION EVENTS
         # =====================================================
 
         converted_motion_events: list[
@@ -184,32 +225,44 @@ class VideoAnalysisService:
 
         for motion in motion_events:
 
-            start = frame_to_absolute_timestamp(
-                video_start_time,
-                motion.start_seconds,
+            start = (
+                frame_to_absolute_timestamp(
+                    video_start_time,
+                    motion.start_seconds,
+                )
             )
 
-            end = frame_to_absolute_timestamp(
-                video_start_time,
-                motion.end_seconds,
+            end = (
+                frame_to_absolute_timestamp(
+                    video_start_time,
+                    motion.end_seconds,
+                )
             )
 
             converted_motion_events.append(
                 VideoEvent(
                     video_id=video_id,
                     camera_id=camera_id,
+
                     event_type="MOTION",
+
                     start_time=start,
                     end_time=end,
-                    confidence=motion.peak_score,
+
+                    confidence=(
+                        motion.peak_score
+                    ),
+
                     metadata={
-                        "source": "opencv_motion",
+                        "source": (
+                            "opencv_motion"
+                        ),
                     },
                 )
             )
 
         # =====================================================
-        # 8. COMBINE ALL LOW-LEVEL EVENTS
+        # 8. COMBINE
         # =====================================================
 
         all_events = (
@@ -218,11 +271,12 @@ class VideoAnalysisService:
         )
 
         all_events.sort(
-            key=lambda event: event.start_time
+            key=lambda event:
+            event.start_time
         )
 
         # =====================================================
-        # 9. BUILD NORMAL FORENSIC TIMELINE
+        # 9. TIMELINE
         # =====================================================
 
         timeline = build_timeline(
@@ -230,34 +284,50 @@ class VideoAnalysisService:
         )
 
         # =====================================================
-        # 10. AI FORENSIC EVENT RECONSTRUCTION
+        # 10. RECONSTRUCTION
         # =====================================================
 
-        reconstructed_events = reconstruct_events(
-            all_events
+        reconstructed_events = (
+            reconstruct_events(
+                all_events
+            )
         )
 
         # =====================================================
-        # 11. BUILD FINAL FORENSIC SUMMARY
+        # 11. FORENSIC SUMMARY
         # =====================================================
 
-        forensic_summary = build_forensic_summary(
-            video_id=video_id,
-            camera_id=camera_id,
-            events=reconstructed_events,
+        forensic_summary = (
+            build_forensic_summary(
+                video_id=video_id,
+                camera_id=camera_id,
+                events=reconstructed_events,
+            )
         )
 
         # =====================================================
-        # 12. RETURN COMPLETE ANALYSIS RESULT
+        # 12. RESULT
         # =====================================================
 
         return VideoAnalysisResult(
             video_id=video_id,
             camera_id=camera_id,
+
             metadata=metadata,
+
             events=all_events,
+
             timeline=timeline,
-            frame_count_analyzed=len(frames),
-            reconstructed_events=reconstructed_events,
-            forensic_summary=forensic_summary,
+
+            frame_count_analyzed=(
+                len(frames)
+            ),
+
+            reconstructed_events=(
+                reconstructed_events
+            ),
+
+            forensic_summary=(
+                forensic_summary
+            ),
         )

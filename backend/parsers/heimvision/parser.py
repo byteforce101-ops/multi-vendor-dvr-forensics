@@ -134,6 +134,7 @@ def remux_to_mp4(input_file, output_file):
         "-f", "hevc",
         "-i", str(input_file),
         "-c", "copy",
+        "-tag:v", "hvc1",
         str(output_file),
     ]
 
@@ -145,8 +146,26 @@ def remux_to_mp4(input_file, output_file):
             timeout=60,
         )
 
+        if result.returncode == 0 and output_file.exists() and output_file.stat().st_size > 0:
+            return True
+
+        # Fallback to re-encoding if copy muxing fails
+        fallback = [
+            "ffmpeg",
+            "-y",
+            "-v", "error",
+            "-f", "hevc",
+            "-i", str(input_file),
+            "-c:v", "libx264",
+            "-preset", "veryfast",
+            "-crf", "22",
+            "-pix_fmt", "yuv420p",
+            "-movflags", "+faststart",
+            str(output_file),
+        ]
+        fallback_res = subprocess.run(fallback, capture_output=True, text=True, timeout=120)
         return (
-            result.returncode == 0
+            fallback_res.returncode == 0
             and output_file.exists()
             and output_file.stat().st_size > 0
         )
@@ -166,7 +185,7 @@ class HeimVisionParser(BaseDVRParser):
             if not path.exists() or not path.is_file():
                 return False, 0.0, {}
 
-            if path.suffix.lower() not in [".dat", ".bin", ".img"]:
+            if path.suffix.lower() not in [".dat", ".bin", ".img", ".dd", ".raw"]:
                 return False, 0.0, {}
 
             with open(path, "rb") as f:

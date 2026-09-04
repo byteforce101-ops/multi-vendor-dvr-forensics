@@ -53,6 +53,11 @@ from backend.video.reconstruction.summarizer import (
 )
 
 
+from backend.video.reconstruction.opencv_reconstructor import (
+    OpenCVForensicReconstructor,
+)
+
+
 @dataclass
 class VideoAnalysisResult:
 
@@ -82,8 +87,13 @@ class VideoAnalysisService:
         ai_confidence: float = 0.25,
         ai_iou: float = 0.50,
         device: str | None = None,
-        enable_grounding_dino: bool = True,
+        enable_grounding_dino: bool = False,
+        enable_enhancement: bool = True,
+        enable_motion_rois: bool = True,
+        detector_engine: str = "opencv",  # "opencv" | "hybrid" | "yolo"
     ):
+        self.detector_engine = detector_engine
+        self.opencv_reconstructor = OpenCVForensicReconstructor()
 
         self.ai = AIService(
             model_path=yolo_model,
@@ -93,6 +103,9 @@ class VideoAnalysisService:
             enable_grounding_dino=(
                 enable_grounding_dino
             ),
+            enable_enhancement=enable_enhancement,
+            enable_motion_rois=enable_motion_rois,
+            detector_engine=detector_engine,
         )
 
     def analyze(
@@ -201,6 +214,18 @@ class VideoAnalysisService:
                         "entity_id": (
                             result.entity_id
                         ),
+
+                        "velocity": getattr(
+                            result,
+                            "velocity",
+                            (0.0, 0.0),
+                        ),
+
+                        "attributes": getattr(
+                            result,
+                            "attributes",
+                            {},
+                        ),
                     },
                 )
             )
@@ -284,26 +309,29 @@ class VideoAnalysisService:
         )
 
         # =====================================================
-        # 10. RECONSTRUCTION
+        # 10. RECONSTRUCTION & FORENSIC SUMMARY
         # =====================================================
 
-        reconstructed_events = (
-            reconstruct_events(
-                all_events
-            )
-        )
-
-        # =====================================================
-        # 11. FORENSIC SUMMARY
-        # =====================================================
-
-        forensic_summary = (
-            build_forensic_summary(
+        if self.detector_engine == "opencv" and ai_results:
+            reconstructed_events, forensic_summary = self.opencv_reconstructor.reconstruct_from_detections(
+                [(r.timestamp_seconds, [r]) for r in ai_results],
+                video_start_time=video_start_time,
                 video_id=video_id,
                 camera_id=camera_id,
-                events=reconstructed_events,
             )
-        )
+        else:
+            reconstructed_events = (
+                reconstruct_events(
+                    all_events
+                )
+            )
+            forensic_summary = (
+                build_forensic_summary(
+                    video_id=video_id,
+                    camera_id=camera_id,
+                    events=reconstructed_events,
+                )
+            )
 
         # =====================================================
         # 12. RESULT

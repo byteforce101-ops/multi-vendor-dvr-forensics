@@ -96,8 +96,10 @@ def _ask_about_video(
     console,
     events: list,
     video_path: Path,
+    reconstructed_events: list | None = None,
+    summaries: list | None = None,
 ) -> None:
-    """Conversational Q&A over the events detected in this run."""
+    """Conversational Q&A over the events detected in this run with compact context compression."""
 
     if not events:
         return
@@ -129,35 +131,25 @@ def _ask_about_video(
 
         return
 
-    event_lines = "\n".join(
-        f"- {e.event_type} ({e.object_type or 'n/a'}) "
-        f"on {cam} at "
-        f"{e.start_time.isoformat(sep=' ', timespec='seconds')}, "
-        f"confidence {e.confidence:.2f}"
-        + (
-            f" — {e.metadata['note']}"
-            if e.metadata.get("note")
-            else ""
-        )
-        for cam, e in sorted(
-            events,
-            key=lambda pair: pair[1].start_time,
-        )
-    )
+    from backend.core.search.context_compressor import build_compact_forensic_context
 
-    system_prompt = (
-        "You are a forensic video-analysis assistant. "
-        "You are given a timeline of AI-detected events from one video file, "
-        "in chronological order. Events starting with REVIEW_FLAG_ are "
-        "heuristic candidates for human review (bounding-box overlap or "
-        "sudden deceleration) — they are NOT confirmed incidents. "
-        "Never state that an accident/collision/incident definitely happened; "
-        "at most say the data flags a moment worth a human reviewing. "
-        "Answer using ONLY this event data, concisely. "
-        "If the data doesn't support an answer, say so plainly rather than guessing.\n\n"
-        f"Video: {video_path.name}\n\n"
-        f"Detected events:\n{event_lines}"
-    )
+    def _get_system_prompt(query: str | None = None) -> str:
+        context_text = build_compact_forensic_context(
+            video_name=video_path.name,
+            raw_events=events,
+            reconstructed_events=reconstructed_events,
+            forensic_summaries=summaries,
+            query=query,
+            max_reconstructed=20,
+            max_spans=30,
+        )
+        return (
+            "You are an expert forensic video-analysis assistant for TraceX. "
+            "You are given structured forensic findings, reconstructed activities, and entity timeline tracks from video analysis. "
+            "Answer the investigator's questions factually, concisely, and precisely based strictly on this forensic timeline. "
+            "If the forensic data does not support or confirm an answer, say so plainly rather than guessing.\n\n"
+            f"{context_text}"
+        )
 
     section_header(
         console,
@@ -171,7 +163,7 @@ def _ask_about_video(
     history = [
         {
             "role": "system",
-            "content": system_prompt,
+            "content": _get_system_prompt(),
         }
     ]
 
@@ -968,12 +960,17 @@ def _run_video_integrity_analysis(video_path: Path) -> dict:
                         pass
 
     except Exception as exc:
-        result["corrupted_frames"] += 1
-        result["frame_continuity"] = False
-        result["details"]["decode"] = str(exc)
-        result["anomalies"].append(
-            f"Frame decoding stopped unexpectedly: {exc}"
-        )
+        if result["frames_checked"] == 0:
+            result["corrupted_frames"] += 1
+            result["frame_continuity"] = False
+            result["details"]["decode"] = str(exc)
+            result["anomalies"].append(
+                f"Frame decoding stopped unexpectedly: {exc}"
+            )
+        else:
+            result["details"]["decode_note"] = (
+                f"Decoded {result['frames_checked']} frames to end of stream ({exc})"
+            )
 
     # ---------------------------------------------------------
     # Aggregate checks
@@ -1997,72 +1994,44 @@ def _run_pipeline_once(console) -> None:
     # EXISTING FINAL EVENT TABLE
     # =========================================================
 
-    section_header(
-        console,
-        "Final AI Analysis Summary",
+    # =========================================================
+    # 1. PIPELINE ARCHITECTURE & EVIDENCE PROFILE
+    # =========================================================
+    from backend.cli.ui.forensic_report import (
+        print_pipeline_architecture_banner,
+        print_executive_forensic_summary,
+        print_critical_alerts_and_reconstruction,
     )
 
-    summary_table = Table(
-        border_style="bright_cyan",
-        header_style="bold bright_cyan",
-        title=(
-            f"{len(all_events)} "
-            "total event(s)"
-        ),
-    )
-
-    for column in (
-        "Type",
-        "Object",
-        "Camera",
-        "Start",
-        "Confidence",
-    ):
-
-        summary_table.add_column(
-            column
-        )
-
-    for cam, event in sorted(
-        all_events,
-        key=lambda pair: pair[1].start_time,
-    ):
-
-        summary_table.add_row(
-            event.event_type,
-            event.object_type or "-",
-            cam,
-            event.start_time.isoformat(
-                sep=" ",
-                timespec="seconds",
-            ),
-            (
-                f"{event.confidence:.2f}"
-                if event.confidence is not None
-                else "-"
-            ),
-        )
-
-    console.print(
-        summary_table
+    print_pipeline_architecture_banner(
+        console=console,
+        video_path=path,
+        vendor_name=parser.vendor_name,
+        frame_count=len(all_events),
+        duration_sec=float(len(all_events)) * 0.5,
+        resolution="720p/1080p CCTV",
+        fps=2.0,
+        detector_engine="Pure OpenCV (HOG + Morphometrics + Centroid Tracker)",
     )
 
     # =========================================================
-    # AI FORENSIC EVENT RECONSTRUCTION
+    # 2. EXECUTIVE FORENSIC SUMMARY
     # =========================================================
-
-    _print_reconstructed_events(
-        console,
-        all_reconstructed_events,
+    primary_summary = all_summaries[0] if all_summaries else None
+    print_executive_forensic_summary(
+        console=console,
+        summary=primary_summary,
+        reconstructed_events=all_reconstructed_events,
+        total_raw_events=len(all_events),
     )
 
     # =========================================================
-    # FINAL FORENSIC SUMMARY
+    # 3. CRITICAL FORENSIC ALERTS & TRAJECTORY TIMELINE
     # =========================================================
-
-    _print_forensic_summary(
-        console,
-        all_summaries,
+    print_critical_alerts_and_reconstruction(
+        console=console,
+        reconstructed_events=all_reconstructed_events,
+        raw_events=all_events,
     )
 
     # =========================================================
@@ -2089,6 +2058,8 @@ def _run_pipeline_once(console) -> None:
         console,
         all_events,
         path,
+        reconstructed_events=all_reconstructed_events,
+        summaries=all_summaries,
     )
 
 

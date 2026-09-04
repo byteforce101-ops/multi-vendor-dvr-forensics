@@ -2,6 +2,10 @@
 
 import asyncio
 from pathlib import Path
+import pytest
+
+pytest.importorskip("textual")
+
 from backend.cli.tui.app import TraceXApp
 from backend.cli.tui.engine import TraceXPipelineEngine
 

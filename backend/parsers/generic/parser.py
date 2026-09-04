@@ -71,3 +71,15 @@ class GenericVideoParser(BaseDVRParser):
             vendor=self.vendor_name, parser_version=self.parser_version,
             success=True, recordings=[recording],
         )
+
+    def extract_recordings(
+        self, evidence_path: str, output_directory: str,
+        recordings: list[NormalizedRecording], raw_master_block: object | None = None,
+    ) -> ParseResult:
+        return ParseResult(
+            vendor=self.vendor_name,
+            parser_version=self.parser_version,
+            success=True,
+            recordings=recordings,
+            raw_master_block=raw_master_block,
+        )

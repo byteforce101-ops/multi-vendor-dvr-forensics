@@ -7,12 +7,14 @@ nothing else in the app should need to change to add one.
 from backend.parsers.common.base import BaseDVRParser, ParseResult, ParseError
 from backend.parsers.hikvision.parser import HikvisionParser
 from backend.parsers.heimvision.parser import HeimVisionParser
+from backend.parsers.carver.parser import ForensicDiskCarverParser
 from backend.parsers.generic.parser import GenericVideoParser
 # Order matters: more specific/proprietary parsers should be tried before
-# the generic fallback. Dahua's parser slots in here once it exists.
+# disk carvers and generic fallbacks.
 PARSERS: list[BaseDVRParser] = [
     HikvisionParser(),
     HeimVisionParser(),
+    ForensicDiskCarverParser(),
     GenericVideoParser(),
 ]
 

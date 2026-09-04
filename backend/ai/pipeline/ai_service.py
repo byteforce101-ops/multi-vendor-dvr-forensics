@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from backend.ai.detectors.grounding_dino_detector import (
     GroundingDINODetector,
@@ -12,6 +12,18 @@ from backend.ai.detectors.yolo_detector import (
 
 from backend.video.extraction.frame_extractor import (
     FrameSample,
+)
+
+from backend.video.enhancement.preprocessor import (
+    enhance_surveillance_frame,
+)
+
+from backend.video.analysis.motion import (
+    DVRScanMotionDetector,
+)
+
+from backend.ai.detectors.opencv_forensic_detector import (
+    OpenCVForensicDetector,
 )
 
 
@@ -43,6 +55,10 @@ class AIDetectionResult:
 
     # Unique entity identifier
     entity_id: str | None = None
+
+    # Kinematic trajectory & attributes
+    velocity: tuple[float, float] = (0.0, 0.0)
+    attributes: dict = field(default_factory=dict)
 
 
 # =============================================================
@@ -361,18 +377,52 @@ class AIService:
         confidence: float = 0.25,
         iou: float = 0.50,
         device: str | None = None,
-        enable_grounding_dino: bool = True,
+        enable_grounding_dino: bool = False,
+        enable_enhancement: bool = True,
+        enable_motion_rois: bool = True,
+        detector_engine: str = "opencv",  # "opencv" | "hybrid" | "yolo"
     ):
+        self.detector_engine = detector_engine
 
         # -----------------------------------------------------
-        # YOLO
+        # OPENCV PURE FORENSIC DETECTOR
         # -----------------------------------------------------
 
-        self.yolo = YOLODetector(
-            model_path=model_path,
-            confidence=confidence,
-            iou=iou,
-            device=device,
+        self.opencv_detector = (
+            OpenCVForensicDetector(
+                confidence_threshold=confidence,
+                enable_enhancement=enable_enhancement,
+            )
+            if detector_engine in ("opencv", "hybrid")
+            else None
+        )
+
+        # -----------------------------------------------------
+        # YOLO (Optional / Hybrid)
+        # -----------------------------------------------------
+
+        self.yolo = None
+        if detector_engine in ("yolo", "hybrid"):
+            try:
+                self.yolo = YOLODetector(
+                    model_path=model_path,
+                    confidence=confidence,
+                    iou=iou,
+                    device=device,
+                )
+            except Exception as exc:
+                logger.debug(f"YOLO detector load notice: {exc}")
+
+        # -----------------------------------------------------
+        # OPENCV ENHANCEMENT & MOTION-GUIDED ROI
+        # -----------------------------------------------------
+
+        self.enable_enhancement = enable_enhancement
+        self.enable_motion_rois = enable_motion_rois
+        self.motion_detector = (
+            DVRScanMotionDetector()
+            if enable_motion_rois
+            else None
         )
 
         # -----------------------------------------------------
@@ -653,15 +703,64 @@ class AIService:
 
         for frame_index, frame in enumerate(frames):
 
+            # Preprocess and enhance surveillance frame (CLAHE, gamma correction)
+            processed_image = (
+                enhance_surveillance_frame(frame.image)
+                if self.enable_enhancement
+                else frame.image
+            )
+
+            # Extract OpenCV MOG2 motion regions for high-res ROI patching
+            motion_boxes = None
+            if self.enable_motion_rois and self.motion_detector is not None:
+                _, motion_boxes = self.motion_detector.process_frame(processed_image)
+
             # =================================================
-            # 1. YOLO
+            # 1. PURE OPENCV FORENSIC DETECTION
+            # =================================================
+            if self.detector_engine == "opencv" and self.opencv_detector is not None:
+                opencv_detections = self.opencv_detector.detect_frame(frame.image, fps=2.0)
+                for det in opencv_detections:
+                    obj_type = self._normalise_label(det.class_name)
+                    results.append(
+                        AIDetectionResult(
+                            frame_number=frame.frame_number,
+                            timestamp_seconds=frame.timestamp_seconds,
+                            object_type=obj_type,
+                            confidence=det.confidence,
+                            bbox=det.bbox,
+                            track_id=det.track_id,
+                            source="opencv",
+                            dino_confidence=None,
+                            verified=True,
+                            entity_id=self._entity_id(obj_type, det.track_id),
+                            velocity=det.velocity,
+                            attributes=det.attributes,
+                        )
+                    )
+                continue
+
+            # =================================================
+            # 2. YOLO (with Motion-Guided High-Res ROI Patching)
             # =================================================
 
-            yolo_detections = (
-                self.yolo.track(
-                    frame.image
-                )
-            )
+            if self.yolo is not None:
+                if self.enable_motion_rois and motion_boxes:
+                    yolo_detections = (
+                        self.yolo.detect_with_motion_rois(
+                            processed_image,
+                            motion_boxes=motion_boxes,
+                            use_tracking=True,
+                        )
+                    )
+                else:
+                    yolo_detections = (
+                        self.yolo.track(
+                            processed_image
+                        )
+                    )
+            else:
+                yolo_detections = []
 
             # =================================================
             # 2. DINO DISCOVERY

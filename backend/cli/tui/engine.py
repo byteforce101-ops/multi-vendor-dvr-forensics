@@ -316,41 +316,26 @@ class TraceXPipelineEngine:
         self._init_qa_session(res)
         return res
 
-    def _init_qa_session(self, res: PipelineResult) -> None:
-        """Initialize the Groq system prompt for video Q&A as done in interactive.py."""
-        event_lines = "\n".join(
-            f"- {e.event_type} ({e.object_type or 'n/a'}) on {cam} at "
-            f"{e.start_time.isoformat(sep=' ', timespec='seconds') if hasattr(e, 'start_time') else 'unknown'}, "
-            f"confidence {getattr(e, 'confidence', 0.0):.2f}"
-            + (
-                f" — {e.metadata['note']}"
-                if getattr(e, 'metadata', None) and e.metadata.get("note")
-                else ""
-            )
-            for cam, e in sorted(
-                res.events,
-                key=safe_event_sort_key,
-            )
+    def _init_qa_session(self, res: PipelineResult, query: str | None = None) -> None:
+        """Initialize the Groq system prompt with compact, token-budgeted forensic context."""
+        from backend.core.search.context_compressor import build_compact_forensic_context
+
+        context_text = build_compact_forensic_context(
+            video_name=res.file_path.name,
+            raw_events=res.events,
+            reconstructed_events=res.reconstructed_events,
+            forensic_summaries=res.summaries,
+            query=query,
+            max_reconstructed=20,
+            max_spans=30,
         )
 
-        headline_text = ""
-        summary_text = ""
-        if res.summaries:
-            s0 = res.summaries[0]
-            headline_text = getattr(s0, "headline", "")
-            summary_text = getattr(s0, "summary", "")
-
         system_prompt = (
-            "You are a forensic video-analysis assistant for TraceX. "
-            "You are given a timeline of AI-detected events from one video file, in chronological order. "
-            "Events starting with REVIEW_FLAG_ are heuristic candidates for human review "
-            "(bounding-box overlap or sudden deceleration) — they are NOT confirmed incidents. "
-            "Never state that an accident/collision/incident definitely happened; at most say the data flags a moment worth a human reviewing. "
-            "Answer using ONLY this event data, concisely and factually. "
-            "If the data doesn't support an answer, say so plainly rather than guessing.\n\n"
-            f"Video: {res.file_path.name}\n"
-            f"Forensic Summary: {headline_text} — {summary_text}\n\n"
-            f"Detected events:\n{event_lines if event_lines else 'No AI events detected in video.'}"
+            "You are an expert forensic video-analysis assistant for TraceX. "
+            "You are given structured forensic findings, reconstructed activities, and entity timeline tracks from video analysis. "
+            "Answer the investigator's questions factually, concisely, and precisely based strictly on this forensic timeline. "
+            "If the forensic data does not confirm an answer, say so plainly.\n\n"
+            f"{context_text}"
         )
 
         self.qa_history = [
@@ -374,6 +359,9 @@ class TraceXPipelineEngine:
                 answer="No video has been analyzed yet. Please provide a file first.",
                 source="system",
             )
+
+        # Refresh prompt with query-aware focus if needed
+        self._init_qa_session(self.current_pipeline_result, query=clean_q)
 
         events = self.current_pipeline_result.events
 

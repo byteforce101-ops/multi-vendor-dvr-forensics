@@ -1,8 +1,8 @@
 import hashlib
 from pathlib import Path
+from typing import Optional
 
 import typer
-from rich.console import Console
 from rich.panel import Panel
 from rich.progress import (
     BarColumn,
@@ -12,12 +12,14 @@ from rich.progress import (
 )
 from rich.table import Table
 
+from backend.cli.common import db_session
+from backend.cli.exit_codes import ExitCode
+from backend.cli.theme import get_console, error, warn, success
 from backend.core.acquisition.service import (
     hash_evidence as hash_stored_evidence,
     import_evidence,
     reference_evidence,
 )
-from backend.db.database import SessionLocal
 from backend.db.models import Case, Evidence
 
 app = typer.Typer(
@@ -25,7 +27,7 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 
-console = Console()
+console = get_console()
 
 CHUNK_SIZE = 8 * 1024 * 1024
 
@@ -41,7 +43,16 @@ def hash_evidence(
         resolve_path=True,
         help="Path to the evidence file.",
     ),
+    chunk_size: int = typer.Option(
+        CHUNK_SIZE,
+        "--chunk-size",
+        help="Chunk size in bytes for reading.",
+    ),
 ):
+    if chunk_size <= 0:
+        error(console, "Chunk size must be greater than 0.")
+        raise typer.Exit(code=ExitCode.INVALID_ARGUMENT)
+
     sha256 = hashlib.sha256()
     md5 = hashlib.md5()
 
@@ -69,7 +80,7 @@ def hash_evidence(
 
         try:
             with evidence_path.open("rb") as file:
-                while chunk := file.read(CHUNK_SIZE):
+                while chunk := file.read(chunk_size):
                     sha256.update(chunk)
                     md5.update(chunk)
 
@@ -79,15 +90,11 @@ def hash_evidence(
                     )
 
         except OSError as exc:
-            console.print(
-                f"[bold red]Unable to read evidence:[/bold red] {exc}"
-            )
-            raise typer.Exit(code=1)
+            error(console, f"Unable to read evidence: {exc}")
+            raise typer.Exit(code=ExitCode.GENERAL_ERROR)
 
     console.print()
-    console.print(
-        "[bold green]Hashing completed successfully.[/bold green]"
-    )
+    success(console, "Hashing completed successfully.")
 
     console.print(
         f"\n[bold cyan]MD5:[/bold cyan]\n{md5.hexdigest()}"
@@ -109,8 +116,13 @@ def add_evidence(
         resolve_path=True,
         help="Path to the evidence file.",
     ),
-    case_id: str = typer.Option(
-        ...,
+    case: Optional[str] = typer.Option(
+        None,
+        "--case",
+        help="ID of the case this evidence belongs to.",
+    ),
+    case_id: Optional[str] = typer.Option(
+        None,
         "--case-id",
         "-c",
         help="ID of the case this evidence belongs to.",
@@ -122,14 +134,15 @@ def add_evidence(
         help="Acquisition mode: reference or copy.",
     ),
 ):
-    mode = mode.lower()
+    target_case_id = case or case_id
+    if not target_case_id:
+        error(console, "--case or --case-id is required.")
+        raise typer.Exit(code=ExitCode.INVALID_ARGUMENT)
 
+    mode = mode.lower()
     if mode not in {"reference", "copy"}:
-        console.print(
-            "[bold red]Invalid mode.[/bold red] "
-            "Use 'reference' or 'copy'."
-        )
-        raise typer.Exit(code=1)
+        error(console, "Invalid mode. Use 'reference' or 'copy'.")
+        raise typer.Exit(code=ExitCode.INVALID_ARGUMENT)
 
     console.print(
         Panel.fit(
@@ -139,144 +152,107 @@ def add_evidence(
         )
     )
 
-    console.print(
-        f"[bold cyan]File:[/bold cyan] {evidence_path}"
-    )
-    console.print(
-        f"[bold cyan]Mode:[/bold cyan] {mode}"
-    )
-    console.print(
-        f"[bold cyan]Case ID:[/bold cyan] {case_id}"
-    )
+    console.print(f"[bold cyan]File:[/bold cyan] {evidence_path}")
+    console.print(f"[bold cyan]Mode:[/bold cyan] {mode}")
+    console.print(f"[bold cyan]Case ID:[/bold cyan] {target_case_id}")
 
-    db = SessionLocal()
-
-    try:
-        case = (
+    with db_session() as db:
+        case_obj = (
             db.query(Case)
-            .filter(Case.id == case_id)
+            .filter(Case.id == target_case_id)
             .one_or_none()
         )
 
-        if case is None:
-            console.print(
-                "\n[bold red]Case not found.[/bold red]"
-            )
-            raise typer.Exit(code=1)
+        if case_obj is None:
+            error(console, "Case not found.")
+            raise typer.Exit(code=ExitCode.NOT_FOUND)
 
         if mode == "reference":
-            console.print(
-                "\n[cyan]Registering evidence without copying the original...[/cyan]"
-            )
-
+            console.print("\n[cyan]Registering evidence in reference mode (without copying)...[/cyan]")
             evidence = reference_evidence(
                 db,
-                case_id,
+                target_case_id,
                 str(evidence_path),
             )
-
         else:
-            console.print(
-                "\n[yellow]Copying evidence into managed storage...[/yellow]"
-            )
-
+            console.print("\n[yellow]Copying evidence into managed storage...[/yellow]")
             evidence = import_evidence(
                 db,
-                case_id,
+                target_case_id,
                 str(evidence_path),
             )
 
-        console.print(
-            "\n[cyan]Calculating cryptographic hashes...[/cyan]"
-        )
-
+        console.print("\n[cyan]Calculating cryptographic hashes...[/cyan]")
         evidence = hash_stored_evidence(
             db,
             evidence,
         )
 
-        table = Table(
-            title="Evidence Registered Successfully"
-        )
+        if mode == "copy":
+            from backend.core.acquisition.service import verify_evidence
+            evidence = verify_evidence(
+                db,
+                evidence,
+            )
 
-        table.add_column(
-            "Property",
-            style="bold cyan",
-        )
+        table = Table(title="Evidence Registered Successfully")
+        table.add_column("Property", style="bold cyan")
         table.add_column("Value")
 
-        table.add_row(
-            "Evidence ID",
-            evidence.id,
-        )
-
-        table.add_row(
-            "Case ID",
-            evidence.case_id,
-        )
-
-        table.add_row(
-            "Filename",
-            evidence.original_filename,
-        )
-
-        table.add_row(
-            "Mode",
-            mode,
-        )
-
-        table.add_row(
-            "Original Path",
-            evidence.original_path,
-        )
-
-        table.add_row(
-            "Working Path",
-            evidence.working_copy_path,
-        )
-
-        table.add_row(
-            "SHA-256",
-            evidence.sha256 or "Not available",
-        )
-
-        table.add_row(
-            "MD5",
-            evidence.md5 or "Not available",
-        )
-
-        table.add_row(
-            "Status",
-            evidence.status.value,
-        )
+        table.add_row("Evidence ID", evidence.id)
+        table.add_row("Case ID", evidence.case_id)
+        table.add_row("Filename", evidence.original_filename)
+        table.add_row("Mode", mode)
+        table.add_row("Original Path", evidence.original_path)
+        table.add_row("Working Path", evidence.working_copy_path)
+        table.add_row("SHA-256", evidence.sha256 or "Not available")
+        table.add_row("MD5", evidence.md5 or "Not available")
+        table.add_row("Status", evidence.status.value)
 
         console.print()
         console.print(table)
+        success(console, f"Evidence registered and verified successfully in {mode} mode.")
 
-        console.print(
-            "\n[bold green]✓ Evidence registered successfully.[/bold green]"
-        )
 
-    except FileNotFoundError as exc:
-        console.print(
-            f"\n[bold red]File not found:[/bold red] {exc}"
-        )
-        raise typer.Exit(code=1)
+@app.command("list")
+def list_evidence(
+    case: Optional[str] = typer.Option(
+        None,
+        "--case",
+        "--case-id",
+        "-c",
+        help="Filter evidence by case ID.",
+    ),
+):
+    with db_session() as db:
+        query = db.query(Evidence)
+        if case:
+            query = query.filter(Evidence.case_id == case)
+        items = query.order_by(Evidence.acquired_at.desc()).all()
 
-    except typer.Exit:
-        raise
+        if not items:
+            warn(console, "No evidence items found.")
+            return
 
-    except Exception as exc:
-        db.rollback()
+        table = Table(title="Evidence Items")
+        table.add_column("Evidence ID", style="cyan")
+        table.add_column("Filename")
+        table.add_column("Case ID")
+        table.add_column("Vendor")
+        table.add_column("Status")
+        table.add_column("Acquired")
 
-        console.print(
-            f"\n[bold red]Evidence acquisition failed:[/bold red] {exc}"
-        )
+        for item in items:
+            table.add_row(
+                item.id,
+                item.original_filename,
+                item.case_id,
+                item.vendor or "Unknown",
+                item.status.value,
+                str(item.acquired_at),
+            )
 
-        raise typer.Exit(code=1)
-
-    finally:
-        db.close()
+        console.print(table)
 
 
 @app.command("info")
@@ -286,9 +262,7 @@ def evidence_info(
         help="ID of the evidence record.",
     ),
 ):
-    db = SessionLocal()
-
-    try:
+    with db_session() as db:
         evidence = (
             db.query(Evidence)
             .filter(Evidence.id == evidence_id)
@@ -296,85 +270,23 @@ def evidence_info(
         )
 
         if evidence is None:
-            console.print(
-                "[bold red]Evidence not found.[/bold red]"
-            )
-            raise typer.Exit(code=1)
+            error(console, "Evidence not found.")
+            raise typer.Exit(code=ExitCode.NOT_FOUND)
 
         table = Table(title="Evidence Information")
-
-        table.add_column(
-            "Property",
-            style="bold cyan",
-        )
+        table.add_column("Property", style="bold cyan")
         table.add_column("Value")
 
-        table.add_row(
-            "Evidence ID",
-            evidence.id,
-        )
+        table.add_row("Evidence ID", evidence.id)
+        table.add_row("Case ID", evidence.case_id)
+        table.add_row("Filename", evidence.original_filename)
+        table.add_row("Original Path", evidence.original_path)
+        table.add_row("Working Path", evidence.working_copy_path)
+        table.add_row("SHA-256", evidence.sha256 or "Not calculated")
+        table.add_row("MD5", evidence.md5 or "Not calculated")
+        table.add_row("Vendor", evidence.vendor or "Not detected")
+        table.add_row("Parser Version", evidence.parser_version or "Not available")
+        table.add_row("Status", evidence.status.value)
+        table.add_row("Acquired", str(evidence.acquired_at))
 
-        table.add_row(
-            "Case ID",
-            evidence.case_id,
-        )
-
-        table.add_row(
-            "Filename",
-            evidence.original_filename,
-        )
-
-        table.add_row(
-            "Original Path",
-            evidence.original_path,
-        )
-
-        table.add_row(
-            "Working Path",
-            evidence.working_copy_path,
-        )
-
-        table.add_row(
-            "SHA-256",
-            evidence.sha256 or "Not calculated",
-        )
-
-        table.add_row(
-            "MD5",
-            evidence.md5 or "Not calculated",
-        )
-
-        table.add_row(
-            "Vendor",
-            evidence.vendor or "Not detected",
-        )
-
-        table.add_row(
-            "Parser Version",
-            evidence.parser_version or "Not available",
-        )
-
-        table.add_row(
-            "Status",
-            evidence.status.value,
-        )
-
-        table.add_row(
-            "Acquired",
-            str(evidence.acquired_at),
-        )
-
-        console.print()
         console.print(table)
-
-    except typer.Exit:
-        raise
-
-    except Exception as exc:
-        console.print(
-            f"\n[bold red]Failed to retrieve evidence:[/bold red] {exc}"
-        )
-        raise typer.Exit(code=1)
-
-    finally:
-        db.close()

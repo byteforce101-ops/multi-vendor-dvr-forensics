@@ -149,8 +149,13 @@ def _print_reconstructed_events(console, result) -> None:
 
     console.print(table)
 
+    # Prioritize significant events (loitering, sudden changes, people/vehicle) then top generic tracks
+    significant = [e for e in reconstructed if any(k in getattr(e, "event_type", "").upper() for k in ("LOITER", "SUDDEN", "PERSON", "VEHICLE", "CAR", "TRUCK"))]
+    others = [e for e in reconstructed if e not in significant]
+    displayed_panels = (significant + others)[:10]
+
     for index, event in enumerate(
-        reconstructed,
+        displayed_panels,
         start=1,
     ):
 
@@ -181,6 +186,11 @@ def _print_reconstructed_events(console, result) -> None:
                     border_style="brand.dim",
                 )
             )
+
+    if len(reconstructed) > len(displayed_panels):
+        console.print(
+            f"\n[dim]... {len(reconstructed) - len(displayed_panels)} additional entity trajectory activities summarized in table above ...[/dim]"
+        )
 
 
 # ============================================================
@@ -1745,6 +1755,43 @@ def analyze(
         )
 
     # ========================================================
+    # DETECT DISK IMAGES / PARSER DISPATCH
+    # ========================================================
+
+    from backend.parsers.registry import ParserManager
+
+    manager = ParserManager()
+    parser, confidence, info = manager.detect(str(resolved))
+    is_disk_image = (
+        parser is not None and parser.vendor_name != "generic"
+    ) or resolved.suffix.lower() in {".dd", ".img", ".raw", ".dat", ".bin", ".001"}
+
+    target_video_path = resolved
+    if is_disk_image and parser is not None and parser.vendor_name != "generic":
+        console.print(
+            f"[brand]Detected forensic disk image:[/brand] "
+            f"[ok]{parser.vendor_name}[/ok] ({confidence * 100:.0f}%)"
+        )
+        out_dir = Path("./output") / resolved.stem
+        out_dir.mkdir(parents=True, exist_ok=True)
+        parse_result = manager.parse(str(resolved), str(out_dir))
+        extract_result = manager.extract(str(resolved), str(out_dir), parse_result) if parse_result.success else parse_result
+        recovered = [
+            r for r in extract_result.recordings
+            if r.extracted_path and Path(r.extracted_path).is_file() and Path(r.extracted_path).stat().st_size > 0
+        ]
+        if recovered:
+            target_video_path = Path(recovered[0].extracted_path)
+            console.print(f"[field]Extracted stream:[/field] [path]{target_video_path}[/path]\n")
+        else:
+            warn(
+                console,
+                f"Parsed {len(parse_result.recordings)} recording index entries from {parser.vendor_name} image, "
+                "but no playable video payloads could be carved out."
+            )
+            return
+
+    # ========================================================
     # RUN AI ANALYSIS
     # ========================================================
 
@@ -1764,7 +1811,7 @@ def analyze(
             result = service.analyze(
                 video_id=resolved.stem,
                 camera_id="CH-CLI",
-                video_path=resolved,
+                video_path=target_video_path,
                 video_start_time=video_start,
                 frame_sample_fps=sample_fps,
             )
@@ -1792,99 +1839,44 @@ def analyze(
             )
 
     # ========================================================
-    # VIDEO METADATA
+    # 1. PIPELINE ARCHITECTURE & EVIDENCE PROFILE
     # ========================================================
+    from backend.cli.ui.forensic_report import (
+        print_pipeline_architecture_banner,
+        print_executive_forensic_summary,
+        print_critical_alerts_and_reconstruction,
+    )
 
-    console.print(
-        f"[field]Frames analyzed:[/field] "
-        f"{result.frame_count_analyzed}   "
-        f"[field]Duration:[/field] "
-        f"{result.metadata.duration_seconds or 0:.1f}s   "
-        f"[field]Resolution:[/field] "
-        f"{result.metadata.width}x"
-        f"{result.metadata.height}\n"
+    detected_vendor = "Hikvision / DVR Disk Image" if target_video_path and target_video_path != resolved else "Direct Video Stream"
+
+    print_pipeline_architecture_banner(
+        console=console,
+        video_path=resolved,
+        vendor_name=detected_vendor,
+        frame_count=result.frame_count_analyzed,
+        duration_sec=result.metadata.duration_seconds or 0.0,
+        resolution=f"{result.metadata.width}x{result.metadata.height}",
+        fps=result.metadata.fps or 25.0,
+        detector_engine="Pure OpenCV (HOG + Morphometrics + Centroid Tracker)",
     )
 
     # ========================================================
-    # RAW FORENSIC EVENTS
+    # 2. EXECUTIVE FORENSIC SUMMARY
     # ========================================================
-
-    section_header(
-        console,
-        "Forensic Events",
-    )
-
-    if not result.events:
-
-        warn(
-            console,
-            "No events were detected.",
-        )
-
-    else:
-
-        table = Table(
-            border_style="brand.dim",
-            header_style="brand",
-            title=f"{len(result.events)} event(s)",
-        )
-
-        table.add_column("Type")
-        table.add_column("Object")
-        table.add_column("Start")
-        table.add_column("End")
-        table.add_column("Confidence")
-        table.add_column("Track ID")
-
-        for event in result.events:
-
-            table.add_row(
-                event.event_type,
-
-                event.object_type
-                or "[dim]-[/dim]",
-
-                event.start_time.isoformat(
-                    sep=" ",
-                    timespec="seconds",
-                ),
-
-                event.end_time.isoformat(
-                    sep=" ",
-                    timespec="seconds",
-                ),
-
-                (
-                    f"{event.confidence:.2f}"
-                    if event.confidence is not None
-                    else "[dim]-[/dim]"
-                ),
-
-                (
-                    str(event.track_id)
-                    if event.track_id is not None
-                    else "[dim]-[/dim]"
-                ),
-            )
-
-        console.print(table)
-
-    # ========================================================
-    # AI FORENSIC EVENT RECONSTRUCTION
-    # ========================================================
-
-    _print_reconstructed_events(
-        console,
-        result,
+    print_executive_forensic_summary(
+        console=console,
+        summary=result.forensic_summary,
+        reconstructed_events=getattr(result, "reconstructed_events", []),
+        total_raw_events=len(result.events),
     )
 
     # ========================================================
-    # FINAL FORENSIC SUMMARY
+    # 3. CRITICAL FORENSIC ALERTS & TRAJECTORY TIMELINE
     # ========================================================
-
-    _print_forensic_summary(
-        console,
-        result,
+    print_critical_alerts_and_reconstruction(
+        console=console,
+        reconstructed_events=getattr(result, "reconstructed_events", []),
+        raw_events=result.events,
     )
 
     # ========================================================
@@ -1914,7 +1906,7 @@ def analyze(
     ):
 
         integrity_result = _run_integrity_analysis(
-            resolved
+            target_video_path if target_video_path and Path(target_video_path).exists() else resolved
         )
 
     _print_integrity_analysis(

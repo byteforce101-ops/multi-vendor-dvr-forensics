@@ -5,9 +5,10 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
+from backend.cli.theme import get_console
 from backend.parsers.registry import ParserManager
 
-console = Console()
+console = get_console()
 
 
 def parse_evidence(

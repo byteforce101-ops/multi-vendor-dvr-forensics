@@ -41,6 +41,12 @@ _console: Console | None = None
 def get_console() -> Console:
     global _console
     if _console is None:
+        if sys.platform == "win32":
+            try:
+                sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+                sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+            except Exception:
+                pass
         kwargs: dict = {"theme": _THEME, "highlight": False}
         if not sys.stdout.isatty():
             # Rich's non-terminal fallback width (80) is too narrow for our

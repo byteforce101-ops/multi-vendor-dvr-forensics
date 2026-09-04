@@ -4,12 +4,12 @@ from pathlib import Path
 
 import cv2
 import numpy as np
-import torch
 from PIL import Image
-from transformers import (
-    AutoModelForZeroShotObjectDetection,
-    AutoProcessor,
-)
+
+try:
+    import torch
+except ImportError:
+    torch = None
 
 
 class GroundingDINODetector:
@@ -23,9 +23,12 @@ class GroundingDINODetector:
         label_chunk_size: int = 8,
         dedup_iou: float = 0.70,
     ):
-        self.device = device or (
-            "cuda" if torch.cuda.is_available() else "cpu"
-        )
+        if device is not None:
+            self.device = device
+        elif torch is not None and hasattr(torch, "cuda") and torch.cuda.is_available():
+            self.device = "cuda"
+        else:
+            self.device = "cpu"
 
         self.confidence = confidence
         self.text_confidence = text_confidence
@@ -40,17 +43,34 @@ class GroundingDINODetector:
 
         self.dedup_iou = float(dedup_iou)
 
-        self.processor = AutoProcessor.from_pretrained(
-            model_name
-        )
+        self.model_name = model_name
+        self.processor = None
+        self.model = None
+        self._load_failed = False
 
-        self.model = (
-            AutoModelForZeroShotObjectDetection
-            .from_pretrained(model_name)
-            .to(self.device)
-        )
-
-        self.model.eval()
+    def _ensure_model(self) -> bool:
+        if self.model is not None and self.processor is not None:
+            return True
+        if self._load_failed:
+            return False
+        try:
+            from transformers import (
+                AutoModelForZeroShotObjectDetection,
+                AutoProcessor,
+            )
+            self.processor = AutoProcessor.from_pretrained(
+                self.model_name
+            )
+            self.model = (
+                AutoModelForZeroShotObjectDetection
+                .from_pretrained(self.model_name)
+                .to(self.device)
+            )
+            self.model.eval()
+            return True
+        except Exception:
+            self._load_failed = True
+            return False
 
     # ------------------------------------------------------------------
     # IMAGE CONVERSION
@@ -91,6 +111,8 @@ class GroundingDINODetector:
         image,
         labels: list[str],
     ) -> list[dict]:
+        if not self._ensure_model():
+            return []
 
         pil_image = self._to_pil(image)
 

@@ -68,7 +68,8 @@ def detect(
                 border_style="yellow",
             )
         )
-        raise typer.Exit(code=2)
+        from backend.cli.exit_codes import ExitCode
+        raise typer.Exit(code=ExitCode.UNSUPPORTED_VENDOR)
 
     result_table = Table(
         title="Detection Result",

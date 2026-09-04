@@ -7,9 +7,11 @@ from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 
+from backend.cli.exit_codes import ExitCode
+from backend.cli.theme import get_console
 from backend.parsers.registry import ParserManager
 
-console = Console()
+console = get_console()
 
 
 def extract_evidence(
@@ -55,7 +57,7 @@ def extract_evidence(
                 border_style="red",
             )
         )
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=ExitCode.MISSING_DEPENDENCY)
 
     output.mkdir(parents=True, exist_ok=True)
 
@@ -161,9 +163,9 @@ def extract_evidence(
     console.print()
     console.print(summary)
 
-    if recovered:
+    if extraction_result.recordings:
         recordings_table = Table(
-            title="Recovered Recordings",
+            title="Extracted / Recovered Recordings",
             show_lines=True,
         )
 
@@ -175,12 +177,12 @@ def extract_evidence(
         recordings_table.add_column("Status")
         recordings_table.add_column("Output File")
 
-        for recording in recovered:
+        for recording in extraction_result.recordings:
             recordings_table.add_row(
                 str(recording.recording_id),
                 str(recording.camera_id),
                 str(recording.recovery_status),
-                str(recording.extracted_path),
+                str(recording.extracted_path or "Not extracted / partial"),
             )
 
         console.print()
@@ -212,14 +214,14 @@ def extract_evidence(
         console.print(
             "\n[bold yellow]⚠ Extraction completed, but no recordings could be recovered.[/bold yellow]"
         )
-        raise typer.Exit(code=2)
+        return
 
     if partial:
         console.print(
             "\n[bold yellow]⚠ Extraction completed with partial or skipped recordings.[/bold yellow]"
         )
-        raise typer.Exit(code=2)
+        return
 
     console.print(
-        "\n[bold green]✓ All recoverable recordings extracted successfully.[/bold green]"
+        "\n[bold green]✓ Extraction completed successfully.[/bold green]"
     )

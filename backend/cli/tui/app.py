@@ -18,6 +18,7 @@ Clean, uncluttered, highly readable 50/50 split forensic workspace:
 
 from __future__ import annotations
 
+import math
 import os
 import re
 from datetime import datetime, timezone
@@ -39,19 +40,21 @@ from backend.cli.tui.engine import (
     safe_event_sort_key,
 )
 
-# Original TraceX ASCII logo from initial specification
-ORIGINAL_ASCII_LOGO = r"""      .==-==-:.                                                                                                
-     --:.=+***+=:               *.                                                                             
-    -==-..-:-=+::==             *.                                                                             
-    :---::=-+=.=====-           *.    #@@@@@@@@@:-@@@@@@@%-      %@@%.     -@@@@@%:  =@@@@@@@@%.%@@=  :@@@-    
-    :-:*-==:===----=-:          *.    :--+@@%--- -@@#...*@@%.  .@@@@@%   .@@@=  *@@# =@@#------  +@@%*@@#      
-     ==+++--==--=--++-.         *.       :@@%    -@@%+++%@@*   *@@:-@@*  *@@=        =@@@@@@@*    :%@@@-       
-     .==:-+=:=+=+===-=--        *.       :@@%    -@@%++%@@*   *@@@@%@@@* =@@*    *#* =@@#::::.   :@@@@@@-      
-       :+==+==+**====+=-        *.       :@@%    -@@#   =@@%.=@@*...:#@@= +@@@%@@@@= =@@@@@@@@@ +@@%  *@@#     
-       :-::-+=:-:=- :=--        *.                                           .::.                              
-         =-=*++-=-=:=:          *.                                                                             
-           .-=---=-:            *.                                                                             
-             . ..:                                                                                             """
+from backend.cli.tui.plasma_visualizer import LivePlasmaWidget
+
+# Original TraceX ASCII logo from attached specification
+ORIGINAL_ASCII_LOGO = r"""        .                                                                   
+      -===-=-                .                                              
+    :=::=+**++-:             +                                              
+    =+==----=*==-.           +                                              
+    :---.=--=:=:===.         +    *@@@@@@@@=:@@@@@@@@=    #@@@=    *@@@@@@%. #@@@@@@@+.%@%. #@@:
+    ===+=::===:-*++          +       =@@-   :@@+   #@@.  *@%-@@-  #@@.   *#+ #@@.       *@@@@#  
+    .==+*+:=:-=+.+=-.        +       =@@-   :@@@@@@@#   -@@=:%@@. %@@        #@@%%%%:   :@@@@-  
+     .-=:=+--+-==+++-.       +       =@@-   :@@+  =@@* -@@@@@@@@%.=@@#=-#@@+ #@@*++++- +@@+=@@# 
+      --+=-=+*-=.---=-       +       -%%-   :%%=   -%%=%%*    .%%*  -%@@%+   *%%%%%%%+%%%:  .%%%.
+       .+-++*=-:=:-::        +                                              
+         .====--:..          +                                              
+           . :.:."""
 
 COMPACT_LOGO = r"""  ██████ ██████   █████   ██████ ███████ ██   ██
     ██   ██   ██ ██   ██ ██      ██       ██ ██ 
@@ -79,12 +82,31 @@ Screen {
 
 #header-box {
     dock: top;
-    height: auto;
-    max-height: 12;
-    align: center middle;
+    height: 13;
+    layout: horizontal;
+    align: left middle;
     padding: 0 1;
     margin-bottom: 0;
+}
+
+#logo-widget {
+    width: 1fr;
+    height: 100%;
     color: #58a6ff;
+    content-align: left middle;
+}
+
+#plasma-widget {
+    width: 38;
+    height: 100%;
+    border: round #30363d;
+    background: #05070a;
+    padding: 0 1;
+    content-align: center middle;
+}
+
+#plasma-widget:focus-within {
+    border: round #58a6ff;
 }
 
 #tab-bar {
@@ -197,16 +219,72 @@ Screen {
 
 
 class TraceXHeader(Static):
-    """Header widget displaying the original TraceX ASCII art logo."""
+    """Header widget displaying the animated TraceX ASCII art logo in shimmering shades of blue."""
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.time: float = 0.0
+
+    def on_mount(self) -> None:
+        self.set_interval(0.066, self._tick)
+
+    def _tick(self) -> None:
+        self.time += 0.08
+        self.update(self._generate_colored_logo())
+
+    def _generate_colored_logo(self) -> Text:
+        width = self.size.width or 100
+        t = self.time
+
+        if width >= 75:
+            res = Text()
+            lines = ORIGINAL_ASCII_LOGO.splitlines()
+            for y_idx, line in enumerate(lines):
+                if not line:
+                    res.append("\n")
+                    continue
+
+                idx_div = line.find("+")
+                for x_idx, ch in enumerate(line):
+                    if ch == " ":
+                        res.append(" ")
+                        continue
+
+                    if idx_div != -1 and x_idx == idx_div:
+                        # Animated pulsing divider
+                        div_wave = 0.5 + 0.5 * math.sin(t * 2.0 + y_idx * 0.25)
+                        r = int(20 + 30 * div_wave)
+                        g = int(100 + 80 * div_wave)
+                        b = int(220 + 35 * div_wave)
+                        res.append(ch, style=f"bold #{r:02x}{g:02x}{b:02x}")
+                    elif idx_div != -1 and x_idx > idx_div:
+                        # TRACEX typography: Dynamic shimmering wave from sapphire to electric cyan
+                        phase = t * 2.2 + x_idx * 0.08 + y_idx * 0.15
+                        wave = 0.5 + 0.5 * math.sin(phase)
+                        wave2 = 0.5 + 0.5 * math.cos(t * 1.5 - x_idx * 0.05 + y_idx * 0.1)
+                        r = int(10 + 50 * wave2)
+                        g = int(140 + 95 * wave)
+                        b = int(215 + 40 * wave2)
+                        res.append(ch, style=f"bold #{r:02x}{g:02x}{b:02x}")
+                    else:
+                        # Radar reticle on left: Concentric radar shades of blue
+                        phase = t * 1.8 + x_idx * 0.12 - y_idx * 0.18
+                        wave = 0.5 + 0.5 * math.sin(phase)
+                        r = int(5 + 35 * wave)
+                        g = int(75 + 90 * wave)
+                        b = int(170 + 85 * wave)
+                        res.append(ch, style=f"#{r:02x}{g:02x}{b:02x}")
+                res.append("\n")
+            return res
+        else:
+            t_wave = 0.5 + 0.5 * math.sin(t * 2.0)
+            g_val = int(140 + 90 * t_wave)
+            comp = Text(COMPACT_LOGO, style=f"bold #10{g_val:02x}ff")
+            comp.append("\n  TRACE  ·  RECOVER  ·  ANALYZE", style="bold #58a6ff")
+            return comp
 
     def render(self) -> Text:
-        width = self.size.width or 100
-        if width >= 80:
-            return Text(ORIGINAL_ASCII_LOGO, style="bold cyan")
-        else:
-            t = Text(COMPACT_LOGO, style="bold cyan")
-            t.append("\n  TRACE  ·  RECOVER  ·  ANALYZE", style="bold magenta")
-            return t
+        return self._generate_colored_logo()
 
 
 def clean_pasted_path(text: str) -> str:
@@ -352,6 +430,7 @@ class TraceXApp(App):
         Binding("bracket_right", "video_seek_next_second", "Forward 1s", show=False),
         Binding("r", "video_restart", "Restart Video", show=False),
         Binding("m", "video_toggle_mode", "Toggle Color Mode", show=False),
+        Binding("p", "next_plasma_pattern", "Cycle Animation Pattern", show=False),
         Binding("escape", "clear_or_focus_search", "Clear / Focus", show=True),
         Binding("ctrl+c", "quit", "Exit", show=True),
         Binding("ctrl+q", "quit", "Exit", show=False),
@@ -385,8 +464,10 @@ class TraceXApp(App):
         set_clipboard_text(value)
 
     def compose(self) -> ComposeResult:
-        # 1. Original Header Logo
-        yield Container(TraceXHeader(id="logo-widget"), id="header-box")
+        # 1. Header with Attached ASCII Logo (Left) and Live Generative Plasma Animation (Right)
+        with Horizontal(id="header-box"):
+            yield TraceXHeader(id="logo-widget")
+            yield LivePlasmaWidget(id="plasma-widget")
 
         # 2. Interactive Tab Navigation Bar
         yield Static(self._get_tab_bar_text(), id="tab-bar")
@@ -421,7 +502,7 @@ class TraceXApp(App):
                     id="search-input",
                 )
             yield Static(
-                "[bold #58a6ff]ENTER[/] Submit   [bold #58a6ff]1[/] Query Log   [bold #58a6ff]2[/] AI Dossier   [bold #58a6ff]3[/] ASCII Video   [bold #58a6ff]0[/] Split View   [bold #58a6ff]SPACE[/] Play/Pause   [bold #58a6ff]CTRL+O[/] Upload   [bold #58a6ff]ESC[/] Return",
+                "[bold #58a6ff]ENTER[/] Submit   [bold #58a6ff]1[/] Query Log   [bold #58a6ff]2[/] AI Dossier   [bold #58a6ff]3[/] ASCII Video   [bold #58a6ff]0[/] Split View   [bold #58a6ff]P[/] Pattern   [bold #58a6ff]CTRL+O[/] Upload   [bold #58a6ff]ESC[/] Return",
                 id="footer-bar",
             )
 
@@ -602,6 +683,14 @@ class TraceXApp(App):
                 "ascii" if self.playback_session.color_mode == "half_blocks" else "half_blocks"
             )
             self._render_video_frame()
+
+    def action_next_plasma_pattern(self) -> None:
+        """Cycle through the 15 live generative mathematical animation patterns."""
+        try:
+            widget = self.query_one("#plasma-widget", LivePlasmaWidget)
+            widget.next_pattern()
+        except Exception:
+            pass
 
     def _on_playback_tick(self) -> None:
         """Timer callback advancing video playback when active."""

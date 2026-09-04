@@ -13,6 +13,12 @@ av<15.0,>=12.0
 typer<1.0,>=0.12
 rich>=13.7
 textual>=0.80.0
+pyperclip>=1.8.0
+opencv-python-headless>=4.8.0
+numpy>=1.26.0
+torch>=2.0.0
+transformers>=4.40.0
+Pillow>=10.0.0
 
 [dev]
 pytest<9.0,>=8.0

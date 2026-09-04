@@ -19,6 +19,12 @@ Requires-Dist: av<15.0,>=12.0
 Requires-Dist: typer<1.0,>=0.12
 Requires-Dist: rich>=13.7
 Requires-Dist: textual>=0.80.0
+Requires-Dist: pyperclip>=1.8.0
+Requires-Dist: opencv-python-headless>=4.8.0
+Requires-Dist: numpy>=1.26.0
+Requires-Dist: torch>=2.0.0
+Requires-Dist: transformers>=4.40.0
+Requires-Dist: Pillow>=10.0.0
 Provides-Extra: dev
 Requires-Dist: pytest<9.0,>=8.0; extra == "dev"
 

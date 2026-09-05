@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { VideoAnalysisResult } from '../types';
-import { API_BASE, getAuthHeaders } from '../api/client';
+import { API_BASE, getAuthHeaders, api } from '../api/client';
 import { jsPDF } from 'jspdf';
 
 interface AnalysesViewProps {
@@ -59,13 +59,19 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({
   const [currentTime, setCurrentTime] = useState(0);
   const [activeTab, setActiveTab] = useState<'video' | 'events' | 'reconstruction' | 'integrity' | 'disappearance' | 'query'>('video');
   const [selectedEventType, setSelectedEventType] = useState<string>('ALL');
+  const [fallbackVideoSrc, setFallbackVideoSrc] = useState<string | null>(null);
+
+  const resolvedVideoSrc =
+    fallbackVideoSrc ||
+    videoUrl ||
+    (analysis?.analysis_id ? api.getVideoStreamUrl(analysis.analysis_id) : null);
 
   // Conversational Video Q&A (Groq AI Agent + OpenCV Forensic Integration)
   const [groqApiKey, setGroqApiKey] = useState<string>(() => {
     return localStorage.getItem('tracex_groq_api_key') || '';
   });
   const [selectedGroqModel, setSelectedGroqModel] = useState<string>(() => {
-    return localStorage.getItem('tracex_groq_model') || 'llama-3.3-70b-versatile';
+    return localStorage.getItem('tracex_groq_model') || 'llama-3.1-8b-instant';
   });
   const [isGroqConfigOpen, setIsGroqConfigOpen] = useState(false);
   const [queryInput, setQueryInput] = useState('');
@@ -84,7 +90,7 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({
       sender: 'assistant',
       text: 'Hello! I am your TraceX Forensic AI Agent (powered by Groq LLaMA & OpenCV Vision). Ask questions about observed timeline events, vehicle identifications, kinematic velocities, or video integrity findings.',
       source: 'groq',
-      model: 'llama-3.3-70b-versatile',
+      model: 'llama-3.1-8b-instant',
     },
   ]);
 
@@ -723,16 +729,33 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({
           >
             <div className="lg:col-span-8 spotlight-card overflow-hidden">
               <div className="relative bg-slate-950 aspect-video flex items-center justify-center">
-                {videoUrl ? (
+                {resolvedVideoSrc ? (
                   <video
                     ref={videoRef}
-                    src={videoUrl}
+                    src={resolvedVideoSrc}
+                    onPlay={() => setIsPlaying(true)}
+                    onPause={() => setIsPlaying(false)}
                     onTimeUpdate={() => {
                       if (videoRef.current) setCurrentTime(videoRef.current.currentTime);
                     }}
+                    onDurationChange={(e) => {
+                      const dur = (e.target as HTMLVideoElement).duration;
+                      if (dur && !isNaN(dur) && dur > 0 && (!analysis?.metadata?.duration_seconds || analysis.metadata.duration_seconds <= 0)) {
+                        // Keep time synced
+                      }
+                    }}
                     onEnded={() => setIsPlaying(false)}
+                    onError={() => {
+                      if (analysis?.analysis_id && !fallbackVideoSrc) {
+                        const fallback = api.getVideoStreamUrl(analysis.analysis_id);
+                        if (fallback !== resolvedVideoSrc) {
+                          setFallbackVideoSrc(fallback);
+                        }
+                      }
+                    }}
                     className="w-full h-full object-contain"
                     controls={false}
+                    playsInline
                   />
                 ) : (
                   <div className="text-center p-8 text-slate-500">
@@ -1147,65 +1170,7 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({
                   Natural-language conversational Q&A over OpenCV timeline events, object kinematics, disappearances, and integrity audit.
                 </p>
               </div>
-
-              <button
-                type="button"
-                onClick={() => setIsGroqConfigOpen((v) => !v)}
-                className="text-xs px-2.5 py-1.5 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
-              >
-                <Settings className="w-3.5 h-3.5" />
-                <span>Groq Setup</span>
-              </button>
             </div>
-
-            {/* Groq Settings Drawer */}
-            {isGroqConfigOpen && (
-              <div className="p-3.5 rounded-lg bg-slate-50 border border-slate-200 space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-blue-600" /> Groq AI Configuration
-                  </span>
-                  <span className="text-[10px] text-slate-400">Stored in browser localStorage</span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
-                      GROQ API KEY
-                    </label>
-                    <input
-                      type="password"
-                      placeholder="gsk_..."
-                      value={groqApiKey}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setGroqApiKey(val);
-                        localStorage.setItem('tracex_groq_api_key', val);
-                      }}
-                      className="w-full px-2.5 py-1.5 text-xs rounded border border-slate-300 bg-white font-mono focus:outline-none focus:border-blue-600"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
-                      LLM MODEL
-                    </label>
-                    <select
-                      value={selectedGroqModel}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setSelectedGroqModel(val);
-                        localStorage.setItem('tracex_groq_model', val);
-                      }}
-                      className="w-full px-2.5 py-1.5 text-xs rounded border border-slate-300 bg-white focus:outline-none focus:border-blue-600"
-                    >
-                      <option value="llama-3.3-70b-versatile">LLaMA 3.3 70B (Forensic Versatile)</option>
-                      <option value="llama-3.1-8b-instant">LLaMA 3.1 8B (Instant Low Latency)</option>
-                      <option value="llama3-70b-8192">LLaMA 3 70B</option>
-                      <option value="mixtral-8x7b-32768">Mixtral 8x7B</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-            )}
 
             {/* Quick Query Suggestion Chips */}
             <div className="flex flex-wrap gap-2">
@@ -1270,14 +1235,7 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({
 
                     {msg.groq_error && (
                       <div className="p-2 rounded bg-amber-50 border border-amber-200 text-amber-800 text-[10px]">
-                        <b>Groq Notice:</b> {msg.groq_error}.{' '}
-                        <button
-                          type="button"
-                          onClick={() => setIsGroqConfigOpen(true)}
-                          className="underline font-bold cursor-pointer"
-                        >
-                          Check Groq Key in Setup
-                        </button>
+                        <b>Groq Notice:</b> {msg.groq_error}
                       </div>
                     )}
 

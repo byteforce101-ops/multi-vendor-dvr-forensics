@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, ShieldCheck, LogOut, Mail, Lock, Loader2 } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import TraceXLogo from './TraceXLogo';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -53,11 +54,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, isAuthent
       <div className="bg-white rounded-xl max-w-sm w-full border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-blue-50 text-slate-900 flex items-center justify-center">
-              <ShieldCheck className="w-4 h-4" />
-            </div>
+            <TraceXLogo variant="dark" className="h-6 w-auto" />
             <h3 className="text-sm font-bold text-slate-900">
-              {isAuthenticated ? 'Examiner Session' : 'Sign In to Station'}
+              {isAuthenticated ? '— Examiner Session' : '— Sign In'}
             </h3>
           </div>
           <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-900 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer">

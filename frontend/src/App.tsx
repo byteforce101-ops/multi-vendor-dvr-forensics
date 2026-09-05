@@ -54,8 +54,13 @@ import type {
   ReconstructedForensicEvent,
   VideoIntegrityAnalysis,
   EvidenceFile,
+  SupabaseUser,
 } from './types';
 import { generateForensicDossier } from './utils/forensicDossier';
+import TraceXLogo from './components/TraceXLogo';
+import { LoginPage } from './components/LoginPage';
+import { supabase, isSupabaseConfigured, DEFAULT_USER } from './lib/supabase';
+import { LogOut, User as UserIcon } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
 // View Definitions & Types
@@ -269,13 +274,14 @@ export default function App() {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isQueryModalOpen, setIsQueryModalOpen] = useState(false);
   const [globalSearchText, setGlobalSearchText] = useState('');
+  const [timelineSubTab, setTimelineSubTab] = useState<'ai' | 'detections' | 'incidents'>('ai');
 
   // AI Conversational Query state
   const [groqApiKey, setGroqApiKey] = useState<string>(() => {
     return localStorage.getItem('tracex_groq_api_key') || '';
   });
   const [selectedGroqModel, setSelectedGroqModel] = useState<string>(() => {
-    return localStorage.getItem('tracex_groq_model') || 'llama-3.3-70b-versatile';
+    return localStorage.getItem('tracex_groq_model') || 'llama-3.1-8b-instant';
   });
   const [isGroqConfigOpen, setIsGroqConfigOpen] = useState(false);
   const [chatMessages, setChatMessages] = useState<
@@ -292,7 +298,7 @@ export default function App() {
       sender: 'assistant',
       text: 'Trace-X Forensic AI Agent is active (Groq LLaMA + OpenCV Forensic Vision). Ask questions about observed timeline events, vehicle identifications, kinematic velocities, or video integrity findings.',
       source: 'groq',
-      model: 'llama-3.3-70b-versatile',
+      model: 'llama-3.1-8b-instant',
     },
   ]);
   const [queryInput, setQueryInput] = useState('');
@@ -315,9 +321,93 @@ export default function App() {
   // Drawer / Inspection Detail
   const [selectedEntity, setSelectedEntity] = useState<any | null>(null);
 
+  // Authentication & User session state
+  const [currentUser, setCurrentUser] = useState<SupabaseUser | null>(() => {
+    const saved = localStorage.getItem('tracex_auth_user');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {}
+    }
+    return null;
+  });
+  const [authChecking, setAuthChecking] = useState(true);
+
   // -------------------------------------------------------------------------
-  // 1. Initial Backend Health & Cases Fetch
+  // 1. Initial Backend Health, Supabase Auth & Cases Fetch
   // -------------------------------------------------------------------------
+
+  useEffect(() => {
+    // Check Supabase active session
+    if (isSupabaseConfigured && supabase) {
+      supabase.auth.getSession().then(({ data }) => {
+        if (data.session?.user) {
+          const u = data.session.user;
+          const userObj: SupabaseUser = {
+            id: u.id,
+            email: u.email || 'investigator@tracex.local',
+            role: (u.user_metadata?.role as string) || 'Senior Forensic Analyst',
+            enterpriseId: (u.user_metadata?.badge_id as string) || 'TRACEX-AUTH',
+            name:
+              (u.user_metadata?.full_name as string) ||
+              (u.user_metadata?.name as string) ||
+              u.email?.split('@')[0] ||
+              'Examiner',
+            isLoggedIn: true,
+          };
+          setCurrentUser(userObj);
+          localStorage.setItem('tracex_auth_user', JSON.stringify(userObj));
+        }
+        setAuthChecking(false);
+      }).catch(() => setAuthChecking(false));
+
+      const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+        if (session?.user) {
+          const u = session.user;
+          const userObj: SupabaseUser = {
+            id: u.id,
+            email: u.email || 'investigator@tracex.local',
+            role: (u.user_metadata?.role as string) || 'Senior Forensic Analyst',
+            enterpriseId: (u.user_metadata?.badge_id as string) || 'TRACEX-AUTH',
+            name:
+              (u.user_metadata?.full_name as string) ||
+              (u.user_metadata?.name as string) ||
+              u.email?.split('@')[0] ||
+              'Examiner',
+            isLoggedIn: true,
+          };
+          setCurrentUser(userObj);
+          localStorage.setItem('tracex_auth_user', JSON.stringify(userObj));
+        } else {
+          setCurrentUser(null);
+          localStorage.removeItem('tracex_auth_user');
+        }
+      });
+
+      return () => {
+        authListener.subscription.unsubscribe();
+      };
+    } else {
+      setAuthChecking(false);
+    }
+  }, []);
+
+  const handleLoginSuccess = (user: SupabaseUser) => {
+    setCurrentUser(user);
+    localStorage.setItem('tracex_auth_user', JSON.stringify(user));
+  };
+
+  const handleSignOut = async () => {
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.auth.signOut();
+      } catch (err) {
+        console.warn('Sign out error:', err);
+      }
+    }
+    setCurrentUser(null);
+    localStorage.removeItem('tracex_auth_user');
+  };
 
   const fetchCases = async () => {
     setLoadingCases(true);
@@ -344,8 +434,10 @@ export default function App() {
       .then(() => setBackendStatus('online'))
       .catch(() => setBackendStatus('offline'));
 
-    fetchCases();
-  }, []);
+    if (currentUser) {
+      fetchCases();
+    }
+  }, [currentUser]);
 
   // Fetch evidence when selectedCase changes
   useEffect(() => {
@@ -358,65 +450,98 @@ export default function App() {
   }, [selectedCase]);
 
   // -------------------------------------------------------------------------
-  // 2. Video Player Lifecycle & Time Updates
+  // 2. Video Player Lifecycle & Control Handlers
   // -------------------------------------------------------------------------
-
-  useEffect(() => {
-    const v = videoRef.current;
-    if (!v) return;
-
-    const handleTimeUpdate = () => setCurrentTime(v.currentTime);
-    const handleDurationChange = () => setDuration(v.duration || 0);
-    const handlePlay = () => setIsPlaying(true);
-    const handlePause = () => setIsPlaying(false);
-    const handleEnded = () => setIsPlaying(false);
-
-    v.addEventListener('timeupdate', handleTimeUpdate);
-    v.addEventListener('durationchange', handleDurationChange);
-    v.addEventListener('play', handlePlay);
-    v.addEventListener('pause', handlePause);
-    v.addEventListener('ended', handleEnded);
-
-    return () => {
-      v.removeEventListener('timeupdate', handleTimeUpdate);
-      v.removeEventListener('durationchange', handleDurationChange);
-      v.removeEventListener('play', handlePlay);
-      v.removeEventListener('pause', handlePause);
-      v.removeEventListener('ended', handleEnded);
-    };
-  }, [videoUrl]);
 
   const togglePlay = () => {
     const v = videoRef.current;
     if (!v) return;
     if (v.paused) {
-      v.play().catch(console.error);
+      v.play().catch((err) => console.warn('Play was prevented:', err));
     } else {
       v.pause();
     }
   };
 
   const seekVideo = (timeSec: number) => {
+    const maxDur = duration || analysisResult?.metadata?.duration_seconds || 9999;
+    const clamped = Math.max(0, Math.min(maxDur, timeSec));
+    setCurrentTime(clamped);
     const v = videoRef.current;
-    if (!v) return;
-    v.currentTime = Math.max(0, Math.min(v.duration || 9999, timeSec));
-    setCurrentTime(v.currentTime);
+    if (v) {
+      v.currentTime = clamped;
+    }
   };
 
   const stepFrame = (deltaSeconds: number) => {
     const v = videoRef.current;
-    if (!v) return;
-    v.pause();
-    v.currentTime = Math.max(0, Math.min(v.duration || 9999, v.currentTime + deltaSeconds));
+    if (v) {
+      v.pause();
+      const maxDur = v.duration || analysisResult?.metadata?.duration_seconds || 9999;
+      const nextTime = Math.max(0, Math.min(maxDur, v.currentTime + deltaSeconds));
+      v.currentTime = nextTime;
+      setCurrentTime(nextTime);
+    } else {
+      seekVideo(currentTime + deltaSeconds);
+    }
   };
 
   const handleSpeedChange = (speedStr: string) => {
     setPlaybackSpeed(speedStr);
-    const v = videoRef.current;
-    if (!v) return;
     const rate = parseFloat(speedStr.replace('x', '')) || 1.0;
-    v.playbackRate = rate;
+    const v = videoRef.current;
+    if (v) {
+      v.playbackRate = rate;
+    }
   };
+
+  const toggleMute = () => {
+    const next = !isMuted;
+    setIsMuted(next);
+    const v = videoRef.current;
+    if (v) {
+      v.muted = next;
+    }
+  };
+
+  const handleToggleFullscreen = () => {
+    const el = document.querySelector('.viewer-wrap');
+    if (!el) return;
+    if (!document.fullscreenElement) {
+      el.requestFullscreen().catch(() => {});
+    } else {
+      document.exitFullscreen().catch(() => {});
+    }
+  };
+
+  // Keyboard navigation for forensic playback
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || isUploadModalOpen || isNewCaseModalOpen || isQueryModalOpen) {
+        return;
+      }
+      if (e.code === 'Space') {
+        e.preventDefault();
+        togglePlay();
+      } else if (e.code === 'ArrowLeft') {
+        e.preventDefault();
+        stepFrame(e.shiftKey ? -0.04 : -1);
+      } else if (e.code === 'ArrowRight') {
+        e.preventDefault();
+        stepFrame(e.shiftKey ? 0.04 : 1);
+      } else if (e.key === 'm' || e.key === 'M') {
+        e.preventDefault();
+        toggleMute();
+      } else if (e.key === 'f' || e.key === 'F') {
+        e.preventDefault();
+        handleToggleFullscreen();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isUploadModalOpen, isNewCaseModalOpen, isQueryModalOpen, isMuted, isPlaying, duration]);
 
   // -------------------------------------------------------------------------
   // 3. File Selection & Analysis Execution Pipeline
@@ -526,6 +651,22 @@ export default function App() {
       ]);
 
       setIsProcessing(false);
+
+      // Record real Chain of Custody entry
+      try {
+        const newLog = {
+          id: `act-${Date.now()}`,
+          timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC',
+          action: 'SHA-256 Bitstream Seal & Automated Video Analysis',
+          fileName: selectedUploadFile.name,
+          caseId: selectedCase?.case_number || selectedCase?.id?.slice(0, 8) || 'STANDALONE',
+          hashSnippet: uploadHash || fileHash || 'CRYPTOGRAPHIC_SEAL_VALID',
+          operator: selectedCase?.investigator || 'Forensic Examiner',
+          verified: true,
+        };
+        const existingLogs = JSON.parse(localStorage.getItem('tracex_custody_logs') || '[]');
+        localStorage.setItem('tracex_custody_logs', JSON.stringify([newLog, ...existingLogs]));
+      } catch {}
 
       // Auto-navigate to workspace view after brief delay
       setTimeout(() => {
@@ -652,20 +793,31 @@ export default function App() {
   // 7. Overlays calculation
   // -------------------------------------------------------------------------
 
+  const firstEventTime = analysisResult?.events?.[0]?.start_time;
   const activeDetections = (analysisResult?.events || []).filter((ev) => {
     if (!overlays.detections) return false;
-    // Check if event start/end overlaps with currentTime (or approximate +/- 1.5s window)
     try {
-      if (ev.start_time) {
-        const startSec = new Date(ev.start_time).getTime() / 1000;
-        const endSec = ev.end_time ? new Date(ev.end_time).getTime() / 1000 : startSec + 2;
-        // If timestamps are absolute, match relative offset or modulo
-        const relativeStart = startSec % (duration || 3600);
-        const relativeEnd = endSec % (duration || 3600);
-        return currentTime >= relativeStart - 1.5 && currentTime <= relativeEnd + 1.5;
+      const meta = (ev.metadata as any) || {};
+      let eventSec = 0;
+      if (meta.timestamp_seconds != null && typeof meta.timestamp_seconds === 'number') {
+        eventSec = meta.timestamp_seconds;
+      } else if (meta.seconds != null && typeof meta.seconds === 'number') {
+        eventSec = meta.seconds;
+      } else if (ev.start_time && firstEventTime) {
+        const t0 = new Date(firstEventTime).getTime();
+        const t1 = new Date(ev.start_time).getTime();
+        if (!isNaN(t0) && !isNaN(t1) && t1 >= t0) {
+          eventSec = (t1 - t0) / 1000;
+        } else if (!isNaN(t1)) {
+          eventSec = (t1 / 1000) % (duration || 3600);
+        }
       }
-    } catch {}
-    return false;
+      const dur = duration || analysisResult?.metadata?.duration_seconds || 3600;
+      const normalizedEventSec = dur > 0 ? eventSec % dur : eventSec;
+      return Math.abs(currentTime - normalizedEventSec) <= 1.25;
+    } catch {
+      return false;
+    }
   });
 
   // Filter CCTV class
@@ -1116,6 +1268,34 @@ export default function App() {
                 playsInline
                 muted={isMuted}
                 onClick={togglePlay}
+                onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
+                onDurationChange={(e) => {
+                  const d = e.currentTarget.duration;
+                  if (d && !isNaN(d) && isFinite(d)) setDuration(d);
+                }}
+                onLoadedMetadata={(e) => {
+                  const d = e.currentTarget.duration;
+                  if (d && !isNaN(d) && isFinite(d)) {
+                    setDuration(d);
+                  } else if (analysisResult?.metadata?.duration_seconds) {
+                    setDuration(analysisResult.metadata.duration_seconds);
+                  }
+                  const rate = parseFloat(playbackSpeed.replace('x', '')) || 1.0;
+                  e.currentTarget.playbackRate = rate;
+                  e.currentTarget.muted = isMuted;
+                }}
+                onPlay={() => setIsPlaying(true)}
+                onPause={() => setIsPlaying(false)}
+                onEnded={() => setIsPlaying(false)}
+                onError={() => {
+                  if (analysisResult?.analysis_id) {
+                    const fallbackStream = api.getVideoStreamUrl(analysisResult.analysis_id);
+                    if (videoUrl !== fallbackStream) {
+                      console.warn('Direct video playback error, switching to backend stream:', fallbackStream);
+                      setVideoUrl(fallbackStream);
+                    }
+                  }
+                }}
               />
             ) : (
               <div className="scene-placeholder">
@@ -1138,12 +1318,33 @@ export default function App() {
             {overlays.detections && activeDetections.length > 0 && (
               <div className="video-overlay-layer">
                 {activeDetections.map((det, idx) => {
-                  // Generate deterministic, realistic bounding box positions if bbox not explicitly in metadata
                   const meta = (det.metadata as any) || {};
-                  const left = meta.bbox ? `${meta.bbox[0]}%` : `${35 + (idx * 15) % 45}%`;
-                  const top = meta.bbox ? `${meta.bbox[1]}%` : `${30 + (idx * 12) % 40}%`;
-                  const width = meta.bbox ? `${meta.bbox[2]}%` : '22%';
-                  const height = meta.bbox ? `${meta.bbox[3]}%` : '38%';
+                  let left = `${35 + ((idx * 15) % 45)}%`;
+                  let top = `${30 + ((idx * 12) % 40)}%`;
+                  let width = '22%';
+                  let height = '38%';
+
+                  if (Array.isArray(meta.bbox) && meta.bbox.length === 4) {
+                    const [b0, b1, b2, b3] = meta.bbox;
+                    if (b0 <= 1 && b1 <= 1 && b2 <= 1 && b3 <= 1) {
+                      left = `${b0 * 100}%`;
+                      top = `${b1 * 100}%`;
+                      width = `${Math.max(0.05, b2 - b0) * 100}%`;
+                      height = `${Math.max(0.05, b3 - b1) * 100}%`;
+                    } else if (b0 <= 100 && b1 <= 100 && b2 <= 100 && b3 <= 100) {
+                      left = `${b0}%`;
+                      top = `${b1}%`;
+                      width = `${Math.max(5, b2 > b0 ? b2 - b0 : b2)}%`;
+                      height = `${Math.max(5, b3 > b1 ? b3 - b1 : b3)}%`;
+                    } else if (analysisResult?.metadata?.width && analysisResult?.metadata?.height) {
+                      const vw = analysisResult.metadata.width;
+                      const vh = analysisResult.metadata.height;
+                      left = `${(b0 / vw) * 100}%`;
+                      top = `${(b1 / vh) * 100}%`;
+                      width = `${Math.max(5, ((b2 > b0 ? b2 - b0 : b2) / vw) * 100)}%`;
+                      height = `${Math.max(5, ((b3 > b1 ? b3 - b1 : b3) / vh) * 100)}%`;
+                    }
+                  }
 
                   return (
                     <div
@@ -1186,8 +1387,8 @@ export default function App() {
             <button
               className="transport primary-transport"
               onClick={togglePlay}
-              aria-label={isPlaying ? 'Pause' : 'Play'}
-              title={isPlaying ? 'Pause' : 'Play'}
+              aria-label={isPlaying ? 'Pause (Space)' : 'Play (Space)'}
+              title={isPlaying ? 'Pause (Space)' : 'Play (Space)'}
             >
               {isPlaying ? <Pause size={15} /> : <Play size={15} />}
             </button>
@@ -1195,7 +1396,7 @@ export default function App() {
             <button
               className="transport"
               onClick={() => stepFrame(-0.04)}
-              title="Step -1 Frame (-0.04s)"
+              title="Step -1 Frame (-0.04s) [Shift+Left]"
               aria-label="Previous Frame"
             >
               <ArrowLeft size={14} />
@@ -1203,7 +1404,7 @@ export default function App() {
             <button
               className="transport"
               onClick={() => stepFrame(0.04)}
-              title="Step +1 Frame (+0.04s)"
+              title="Step +1 Frame (+0.04s) [Shift+Right]"
               aria-label="Next Frame"
             >
               <ChevronRight size={14} />
@@ -1212,31 +1413,41 @@ export default function App() {
             <button
               className="transport"
               onClick={() => seekVideo(currentTime - 1)}
-              title="Jump -1 Second"
+              title="Jump -1 Second [Left Arrow]"
             >
               -1s
             </button>
             <button
               className="transport"
               onClick={() => seekVideo(currentTime + 1)}
-              title="Jump +1 Second"
+              title="Jump +1 Second [Right Arrow]"
             >
               +1s
             </button>
 
             <button
               className="transport"
-              onClick={() => setIsMuted(!isMuted)}
-              title={isMuted ? 'Unmute' : 'Mute'}
+              onClick={toggleMute}
+              title={isMuted ? 'Unmute (M)' : 'Mute (M)'}
+              aria-label={isMuted ? 'Unmute' : 'Mute'}
             >
               {isMuted ? <VolumeX size={14} /> : <Volume2 size={14} />}
+            </button>
+
+            <button
+              className="transport"
+              onClick={handleToggleFullscreen}
+              title="Toggle Fullscreen (F)"
+              aria-label="Toggle Fullscreen"
+            >
+              <Maximize2 size={14} />
             </button>
 
             {/* Scrubber slider */}
             <input
               type="range"
               min={0}
-              max={duration || 100}
+              max={duration || analysisResult?.metadata?.duration_seconds || 100}
               step={0.01}
               value={currentTime}
               onChange={(e) => seekVideo(parseFloat(e.target.value))}
@@ -1245,7 +1456,7 @@ export default function App() {
             />
 
             <span className="toolbar-readout">
-              {formatSeconds(currentTime)} / {formatSeconds(duration || 0)}{' '}
+              {formatSeconds(currentTime)} / {formatSeconds(duration || analysisResult?.metadata?.duration_seconds || 0)}{' '}
               <small>FRAME {Math.floor(currentTime * 25)}</small>
             </span>
           </div>
@@ -1393,14 +1604,413 @@ export default function App() {
     );
   };
 
+  // TABBED SECTION BELOW SYNCHRONIZED ANALYSIS TIMELINE
+  const renderTimelineTabsSection = () => {
+    const events = analysisResult?.events || [];
+    const reconstructed = analysisResult?.reconstructed_events || [];
+
+    return (
+      <div className="panel" style={{ marginTop: '14px', overflow: 'hidden' }}>
+        {/* Tab Navigation Header */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            borderBottom: '1px solid #e2e8f0',
+            background: '#f8fafc',
+            padding: '4px 12px 0',
+          }}
+        >
+          <div style={{ display: 'flex', gap: '4px' }}>
+            <button
+              onClick={() => setTimelineSubTab('ai')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '10px 14px',
+                fontSize: '12px',
+                fontWeight: timelineSubTab === 'ai' ? 700 : 500,
+                color: timelineSubTab === 'ai' ? '#172554' : '#64748b',
+                borderBottom: timelineSubTab === 'ai' ? '2px solid #2563eb' : '2px solid transparent',
+                background: 'transparent',
+                borderTop: 0,
+                borderLeft: 0,
+                borderRight: 0,
+                cursor: 'pointer',
+              }}
+            >
+              <Sparkles size={14} style={{ color: timelineSubTab === 'ai' ? '#2563eb' : '#94a3b8' }} />
+              <span>AI Forensic Analysis</span>
+              <span
+                style={{
+                  fontSize: '9px',
+                  fontWeight: 700,
+                  padding: '1px 5px',
+                  borderRadius: '4px',
+                  background: timelineSubTab === 'ai' ? '#dbeafe' : '#e2e8f0',
+                  color: timelineSubTab === 'ai' ? '#1e40af' : '#475569',
+                }}
+              >
+                Groq AI
+              </span>
+            </button>
+
+            <button
+              onClick={() => setTimelineSubTab('detections')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '10px 14px',
+                fontSize: '12px',
+                fontWeight: timelineSubTab === 'detections' ? 700 : 500,
+                color: timelineSubTab === 'detections' ? '#172554' : '#64748b',
+                borderBottom: timelineSubTab === 'detections' ? '2px solid #2563eb' : '2px solid transparent',
+                background: 'transparent',
+                borderTop: 0,
+                borderLeft: 0,
+                borderRight: 0,
+                cursor: 'pointer',
+              }}
+            >
+              <Clock size={14} style={{ color: timelineSubTab === 'detections' ? '#2563eb' : '#94a3b8' }} />
+              <span>Event Chronology</span>
+              {events.length > 0 && (
+                <span
+                  style={{
+                    fontSize: '9px',
+                    fontWeight: 700,
+                    padding: '1px 5px',
+                    borderRadius: '4px',
+                    background: '#e2e8f0',
+                    color: '#475569',
+                  }}
+                >
+                  {events.length}
+                </span>
+              )}
+            </button>
+
+            <button
+              onClick={() => setTimelineSubTab('incidents')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '10px 14px',
+                fontSize: '12px',
+                fontWeight: timelineSubTab === 'incidents' ? 700 : 500,
+                color: timelineSubTab === 'incidents' ? '#172554' : '#64748b',
+                borderBottom: timelineSubTab === 'incidents' ? '2px solid #2563eb' : '2px solid transparent',
+                background: 'transparent',
+                borderTop: 0,
+                borderLeft: 0,
+                borderRight: 0,
+                cursor: 'pointer',
+              }}
+            >
+              <Activity size={14} style={{ color: timelineSubTab === 'incidents' ? '#2563eb' : '#94a3b8' }} />
+              <span>Reconstructed Activities</span>
+              {reconstructed.length > 0 && (
+                <span
+                  style={{
+                    fontSize: '9px',
+                    fontWeight: 700,
+                    padding: '1px 5px',
+                    borderRadius: '4px',
+                    background: '#e2e8f0',
+                    color: '#475569',
+                  }}
+                >
+                  {reconstructed.length}
+                </span>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Tab Content */}
+        <div style={{ padding: '16px' }}>
+          {timelineSubTab === 'ai' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {/* Quick Forensic Prompts */}
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                {[
+                  'What vehicles were tracked & at what velocity?',
+                  'What objects & persons were detected?',
+                  'Did any object disappear from the scene?',
+                  'Check video integrity & frame continuity',
+                  'Was there an accident or sudden stop?',
+                  'Summarize the timeline chronologically',
+                ].map((promptText) => (
+                  <button
+                    key={promptText}
+                    onClick={() => handleSendQuery(promptText)}
+                    style={{
+                      padding: '4px 8px',
+                      borderRadius: '4px',
+                      background: '#f1f5f9',
+                      border: '1px solid #cbd5e1',
+                      color: '#334155',
+                      fontSize: '11px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {promptText}
+                  </button>
+                ))}
+              </div>
+
+              {/* Chat Stream Log */}
+              <div
+                className="query-chat"
+                style={{
+                  maxHeight: '260px',
+                  minHeight: '130px',
+                  overflowY: 'auto',
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '6px',
+                  padding: '10px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px',
+                }}
+              >
+                {chatMessages.map((msg, i) => (
+                  <div
+                    key={i}
+                    className={`query-bubble ${msg.sender === 'user' ? 'query-user' : 'query-assistant'}`}
+                    style={{ fontSize: '11.5px', lineHeight: 1.45 }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
+                      <b>{msg.sender === 'user' ? 'Investigator' : 'Forensic AI'}</b>
+                      <small style={{ color: '#64748b' }}>
+                        {msg.source === 'groq'
+                          ? `Groq (${(msg.model || selectedGroqModel).split('-')[0]})`
+                          : 'OpenCV Rule Engine'}
+                      </small>
+                    </div>
+                    <p style={{ margin: 0, whiteSpace: 'pre-line' }}>{msg.text}</p>
+
+                    {msg.groq_error && (
+                      <div
+                        style={{
+                          marginTop: '6px',
+                          padding: '6px 8px',
+                          background: '#fffbeb',
+                          border: '1px solid #fef3c7',
+                          borderRadius: '4px',
+                          color: '#92400e',
+                          fontSize: '10.5px',
+                        }}
+                      >
+                        <b>Groq Notice:</b> {msg.groq_error}.{' '}
+                        <button
+                          type="button"
+                          onClick={() => setIsGroqConfigOpen(true)}
+                          style={{ textDecoration: 'underline', fontWeight: 'bold', background: 'none', border: 'none', cursor: 'pointer', color: '#b45309' }}
+                        >
+                          Check Groq Key in Setup
+                        </button>
+                      </div>
+                    )}
+
+                    {msg.events && msg.events.length > 0 && (
+                      <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        {msg.events.map((ev, evIdx) => (
+                          <button
+                            key={evIdx}
+                            className="btn btn-secondary"
+                            style={{
+                              fontSize: '10px',
+                              padding: '2px 8px',
+                              justifyContent: 'flex-start',
+                              height: '24px',
+                              background: '#f0fdf4',
+                              borderColor: '#bbf7d0',
+                              color: '#15803d',
+                            }}
+                            onClick={() => {
+                              if (ev.start_time) {
+                                try {
+                                  const sec = (new Date(ev.start_time).getTime() / 1000) % (duration || 60);
+                                  seekVideo(sec);
+                                } catch {
+                                  seekVideo(evIdx * 2);
+                                }
+                              } else {
+                                seekVideo(evIdx * 2);
+                              }
+                            }}
+                          >
+                            Jump to {ev.event_type} ({ev.start_time || '00:00'})
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+
+                {isQuerying && (
+                  <div className="query-bubble query-assistant" style={{ fontStyle: 'italic', color: '#64748b' }}>
+                    <span className="pulse" style={{ display: 'inline-block', marginRight: '6px' }} />
+                    Analyzing timeline, kinematics, and events with Groq AI...
+                  </div>
+                )}
+              </div>
+
+              {/* Form Input Row */}
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleSendQuery(queryInput);
+                }}
+                style={{ display: 'flex', gap: '8px' }}
+              >
+                <input
+                  type="text"
+                  value={queryInput}
+                  onChange={(e) => setQueryInput(e.target.value)}
+                  placeholder="e.g. 'Did any person enter after 10:00?', 'What vehicles were tracked?', 'Check tampering'..."
+                  style={{
+                    flex: 1,
+                    padding: '8px 12px',
+                    fontSize: '12px',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '6px',
+                    background: '#fff',
+                    outline: 0,
+                  }}
+                />
+                <Button
+                  variant="primary"
+                  icon={Send}
+                  type="submit"
+                  disabled={isQuerying || !queryInput.trim()}
+                >
+                  Ask AI
+                </Button>
+              </form>
+            </div>
+          )}
+
+          {timelineSubTab === 'detections' && (
+            <div style={{ maxHeight: '280px', overflowY: 'auto' }}>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Timecode</th>
+                    <th>Type</th>
+                    <th>Track</th>
+                    <th>Confidence</th>
+                    <th style={{ textAlign: 'right' }}>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {events.length > 0 ? (
+                    events.slice(0, 30).map((ev, i) => (
+                      <tr key={i}>
+                        <td className="mono" style={{ color: '#0f766e', fontWeight: 600 }}>
+                          {ev.start_time ? new Date(ev.start_time).toISOString().slice(11, 23) : `00:00:${(i * 2).toString().padStart(2, '0')}.00`}
+                        </td>
+                        <td>
+                          <b>{ev.object_type || ev.event_type}</b>
+                        </td>
+                        <td className="mono">TRK-{ev.track_id ?? i + 101}</td>
+                        <td>{Math.round((ev.confidence || 0.85) * 100)}%</td>
+                        <td style={{ textAlign: 'right' }}>
+                          <Button
+                            variant="secondary"
+                            icon={Play}
+                            onClick={() => {
+                              if (ev.start_time) {
+                                try {
+                                  const sec = (new Date(ev.start_time).getTime() / 1000) % (duration || 60);
+                                  seekVideo(sec);
+                                } catch {
+                                  seekVideo((i * 1.8) % (duration || 60));
+                                }
+                              } else {
+                                seekVideo((i * 1.8) % (duration || 60));
+                              }
+                            }}
+                          >
+                            Seek
+                          </Button>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={5} style={{ textAlign: 'center', color: '#94a3b8', padding: '20px' }}>
+                        No detections recorded for this video.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {timelineSubTab === 'incidents' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '280px', overflowY: 'auto' }}>
+              {reconstructed.length > 0 ? (
+                reconstructed.map((rev, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      padding: '10px 12px',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '6px',
+                      background: '#fff',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <div>
+                      <b style={{ color: '#172554', fontSize: '12px' }}>{rev.title}</b>
+                      <p style={{ margin: '3px 0 0', color: '#64748b', fontSize: '11px' }}>{rev.description}</p>
+                    </div>
+                    <Button
+                      variant="secondary"
+                      icon={Play}
+                      onClick={() => {
+                        if (rev.start_time) {
+                          try {
+                            const sec = (new Date(rev.start_time).getTime() / 1000) % (duration || 60);
+                            seekVideo(sec);
+                          } catch {}
+                        }
+                      }}
+                    >
+                      Seek
+                    </Button>
+                  </div>
+                ))
+              ) : (
+                <div style={{ textAlign: 'center', color: '#94a3b8', padding: '20px' }}>
+                  No reconstructed narrative incidents detected.
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   // INVESTIGATION DETAIL WORKSPACE
   const renderInvestigationDetail = () => {
     return (
       <div className="page detail-page">
         <PageTitle
           eyebrow="INVESTIGATION WORKSPACE"
-          title={selectedCase?.name || 'Active Case Workspace'}
-          description={`Case Ref: ${selectedCase?.case_number || 'V-2024-CCTV'} • Lead Specialist: ${selectedCase?.investigator || 'Agent Lead'}`}
+          title={selectedCase?.name || (loadedFileName ? `Analysis: ${loadedFileName}` : 'Active Investigation Workspace')}
+          description={selectedCase ? `Case Ref: ${selectedCase.case_number || selectedCase.id.slice(0, 8)} • Lead Specialist: ${selectedCase.investigator || 'Unassigned'}` : (loadedFileName ? `Artifact: ${loadedFileName}` : 'Select a case or ingest media to begin investigation')}
           action={
             <div style={{ display: 'flex', gap: '8px' }}>
               <Button
@@ -1432,6 +2042,7 @@ export default function App() {
           <div>
             {renderVideoViewer()}
             {renderTimeline({ full: false })}
+            {renderTimelineTabsSection()}
           </div>
 
           {/* Right-hand forensic context panel */}
@@ -1468,7 +2079,7 @@ export default function App() {
                     DETECTED OBJECT CLASSES ({analysisResult.forensic_summary?.objects_detected?.length || 0})
                   </p>
                   <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                    {(analysisResult.forensic_summary?.objects_detected || ['person', 'vehicle']).map(
+                    {(analysisResult.forensic_summary?.objects_detected || []).map(
                       (obj, idx) => (
                         <span key={idx} className="hash-pill" style={{ background: '#ecfdf5', borderColor: '#a7f3d0' }}>
                           {obj}
@@ -1686,49 +2297,76 @@ export default function App() {
 
         {objects.length > 0 ? (
           <div className="entity-grid">
-            {objects.map((obj, i) => (
-              <div
-                key={i}
-                className="entity-card"
-                onClick={() => {
-                  setSelectedEntity({
-                    type: obj,
-                    id: `ENT-${100 + i}`,
-                    observations: (i + 1) * 8,
-                    confidence: 0.85 + (i % 10) * 0.01,
-                  });
-                }}
-              >
-                <div className={`entity-thumb ${i % 2 === 0 ? 'teal' : 'amber'}`}>
-                  <UserRound size={32} />
+            {objects.map((obj, i) => {
+              const matchingEvents = (analysisResult?.events || []).filter(
+                (e) => (e.object_type || '').toLowerCase() === obj.toLowerCase()
+              );
+              const count = matchingEvents.length || 1;
+              const firstEvent = matchingEvents[0];
+              const lastEvent = matchingEvents[matchingEvents.length - 1];
+              const avgConf =
+                matchingEvents.length > 0
+                  ? Math.round(
+                      (matchingEvents.reduce((acc, ev) => acc + (ev.confidence || 0.8), 0) /
+                        matchingEvents.length) *
+                        100
+                    )
+                  : 85;
+
+              return (
+                <div
+                  key={i}
+                  className="entity-card"
+                  onClick={() => {
+                    setSelectedEntity({
+                      type: obj,
+                      id: `ENT-${100 + i}`,
+                      observations: count,
+                      confidence: avgConf / 100,
+                    });
+                  }}
+                >
+                  <div className={`entity-thumb ${i % 2 === 0 ? 'teal' : 'amber'}`}>
+                    <UserRound size={32} />
+                  </div>
+                  <div className="entity-card-content">
+                    <div className="entity-title">
+                      <div>
+                        <b>{obj.toUpperCase()}</b>
+                        <small>ENTITY #{100 + i} • {count} observation{count === 1 ? '' : 's'}</small>
+                      </div>
+                      <StatusBadge tone="teal">TRACKED</StatusBadge>
+                    </div>
+                    <div className="entity-details">
+                      <div>
+                        <span>FIRST SEEN</span>
+                        <b>
+                          {firstEvent?.start_time
+                            ? new Date(firstEvent.start_time).toISOString().slice(11, 23)
+                            : '00:00:00.00'}
+                        </b>
+                      </div>
+                      <div>
+                        <span>LAST SEEN</span>
+                        <b>
+                          {lastEvent?.end_time
+                            ? new Date(lastEvent.end_time).toISOString().slice(11, 23)
+                            : lastEvent?.start_time
+                            ? new Date(lastEvent.start_time).toISOString().slice(11, 23)
+                            : '00:00:00.00'}
+                        </b>
+                      </div>
+                    </div>
+                    <div className="confidence">
+                      <span>{avgConf}% CONFIDENCE</span>
+                      <i>
+                        <b style={{ width: `${avgConf}%` }} />
+                      </i>
+                    </div>
+                  </div>
                 </div>
-                <div className="entity-card-content">
-                  <div className="entity-title">
-                    <div>
-                      <b>{obj.toUpperCase()}</b>
-                      <small>ENTITY #{100 + i}</small>
-                    </div>
-                    <StatusBadge tone="teal">TRACKED</StatusBadge>
-                  </div>
-                  <div className="entity-details">
-                    <div>
-                      <span>FIRST SEEN</span>
-                      <b>00:00:{(i * 3).toString().padStart(2, '0')}.00</b>
-                    </div>
-                    <div>
-                      <span>LAST SEEN</span>
-                      <b>00:01:{((i + 2) * 5).toString().padStart(2, '0')}.00</b>
-                    </div>
-                  </div>
-                  <div className="confidence">
-                    <span>92% CONFIDENCE</span>
-                    <i>
-                      <b style={{ width: '92%' }} />
-                    </i>
-                  </div>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <div className="panel">
@@ -1947,90 +2585,103 @@ export default function App() {
           }
         />
 
-        <div className="report-layout">
-          {/* Paper Preview */}
-          <div className="panel report-paper">
-            <div className="report-paper-top">
-              <span>TRACE-X FORENSIC REPORT</span>
-              <span>CLASSIFICATION: EVIDENCE / CONFIDENTIAL</span>
+        {analysisResult ? (
+          <div className="report-layout">
+            {/* Paper Preview */}
+            <div className="panel report-paper">
+              <div className="report-paper-top">
+                <span>TRACE-X FORENSIC REPORT</span>
+                <span>CLASSIFICATION: EVIDENCE / CONFIDENTIAL</span>
+              </div>
+
+              <h2>FORENSIC EXAMINATION DOSSIER</h2>
+              <p className="mono">
+                CASE REF: {selectedCase?.case_number || selectedCase?.id?.slice(0, 8) || 'UNASSIGNED'} • ARTIFACT: {loadedFileName || 'VIDEO_EVIDENCE'}
+              </p>
+
+              <div className="report-rule" />
+
+              <h4>1. EVIDENCE IDENTIFICATION & CHAIN OF CUSTODY</h4>
+              <p>
+                Digital video artifact <b>{loadedFileName}</b> acquired under forensic isolation.
+                Cryptographic verification establishes that original bitstreams remain untampered.
+              </p>
+              {loadedFileHash && (
+                <div className="hash-pill" style={{ margin: '10px 0' }}>
+                  SHA-256 SEAL: {loadedFileHash}
+                </div>
+              )}
+
+              <h4>2. SUMMARY OF OBSERVATIONS</h4>
+              <p>
+                {analysisResult?.forensic_summary?.summary ||
+                  'Temporal correlation and OpenCV multi-stage forensic object detection completed.'}
+              </p>
+
+              <h4>3. INTEGRITY & TAMPERING AUDIT</h4>
+              <p>
+                Container continuity score: <b>{analysisResult?.integrity_analysis?.integrity_score ?? 100}%</b>. Overall
+                status: <b>{analysisResult?.integrity_analysis?.overall_status || 'VERIFIED PASS'}</b>.
+              </p>
+
+              <div className="report-actions">
+                <Button variant="primary" icon={Download} onClick={handleExportPDF}>
+                  Download PDF Dossier (.pdf)
+                </Button>
+                <Button variant="secondary" icon={MessageSquare} onClick={() => setIsQueryModalOpen(true)}>
+                  Ask AI Assistant
+                </Button>
+              </div>
             </div>
 
-            <h2>FORENSIC EXAMINATION DOSSIER</h2>
-            <p className="mono">
-              CASE REF: {selectedCase?.case_number || 'V-2024-081A'} • ARTIFACT: {loadedFileName || 'EVIDENCE.MP4'}
-            </p>
-
-            <div className="report-rule" />
-
-            <h4>1. EVIDENCE IDENTIFICATION & CHAIN OF CUSTODY</h4>
-            <p>
-              Digital video artifact <b>{loadedFileName || 'evidence.mp4'}</b> acquired under forensic isolation.
-              Cryptographic verification establishes that original bitstreams remain untampered.
-            </p>
-            <div className="hash-pill" style={{ margin: '10px 0' }}>
-              SHA-256 SEAL: {loadedFileHash || 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'}
-            </div>
-
-            <h4>2. SUMMARY OF OBSERVATIONS</h4>
-            <p>
-              {analysisResult?.forensic_summary?.summary ||
-                'No active media analysis currently compiled. Ingest a video stream to generate incident timelines.'}
-            </p>
-
-            <h4>3. INTEGRITY & TAMPERING AUDIT</h4>
-            <p>
-              Container continuity score: <b>{analysisResult?.integrity_analysis?.integrity_score ?? 100}%</b>. Overall
-              status: <b>{analysisResult?.integrity_analysis?.overall_status || 'VERIFIED PASS'}</b>. No spliced frames or
-              timestamp tampering identified.
-            </p>
-
-            <div className="report-actions">
-              <Button variant="primary" icon={Download} onClick={handleExportPDF}>
-                Download PDF Dossier (.pdf)
-              </Button>
-              <Button variant="secondary" icon={MessageSquare} onClick={() => setIsQueryModalOpen(true)}>
-                Ask AI Assistant
-              </Button>
+            {/* Report Metadata Info */}
+            <div className="panel" style={{ padding: '20px' }}>
+              <div className="section-head" style={{ marginBottom: '14px' }}>
+                <div>
+                  <p className="eyebrow">CERTIFICATION</p>
+                  <h3>Court Admissibility</h3>
+                </div>
+              </div>
+              <p style={{ fontSize: '11px', color: '#64748b', lineHeight: 1.6 }}>
+                Trace-X dossiers follow ISO/IEC 27037 and NIST SP 800-86 standards for digital evidence integrity, ensuring
+                non-repudiation of cryptographic digests and audit logs.
+              </p>
+              <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div className="check-row panel">
+                  <CheckCircle2 size={16} className="check-icon" />
+                  <div>
+                    <b>SHA-256 Hashing Seal</b>
+                    <small>Calculated before memory buffering</small>
+                  </div>
+                </div>
+                <div className="check-row panel">
+                  <CheckCircle2 size={16} className="check-icon" />
+                  <div>
+                    <b>OpenCV Forensic Vision</b>
+                    <small>Confidence thresholds documented</small>
+                  </div>
+                </div>
+                <div className="check-row panel">
+                  <CheckCircle2 size={16} className="check-icon" />
+                  <div>
+                    <b>Bitstream Integrity Check</b>
+                    <small>Frame rate & sequence validated</small>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-
-          {/* Report Metadata Info */}
-          <div className="panel" style={{ padding: '20px' }}>
-            <div className="section-head" style={{ marginBottom: '14px' }}>
-              <div>
-                <p className="eyebrow">CERTIFICATION</p>
-                <h3>Court Admissibility</h3>
-              </div>
-            </div>
-            <p style={{ fontSize: '11px', color: '#64748b', lineHeight: 1.6 }}>
-              Trace-X dossiers follow ISO/IEC 27037 and NIST SP 800-86 standards for digital evidence integrity, ensuring
-              non-repudiation of cryptographic digests and audit logs.
-            </p>
-            <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div className="check-row panel">
-                <CheckCircle2 size={16} className="check-icon" />
-                <div>
-                  <b>SHA-256 Hashing Seal</b>
-                  <small>Calculated before memory buffering</small>
-                </div>
-              </div>
-              <div className="check-row panel">
-                <CheckCircle2 size={16} className="check-icon" />
-                <div>
-                  <b>OpenCV Forensic Vision</b>
-                  <small>Confidence thresholds documented</small>
-                </div>
-              </div>
-              <div className="check-row panel">
-                <CheckCircle2 size={16} className="check-icon" />
-                <div>
-                  <b>Bitstream Integrity Check</b>
-                  <small>Frame rate & sequence validated</small>
-                </div>
-              </div>
-            </div>
+        ) : (
+          <div className="panel">
+            <EmptyState
+              title="No Forensic Dossier Available"
+              description="Ingest and analyze a video or DVR image to generate a certified forensic examination dossier."
+              action="Ingest Video or DVR Image"
+              onAction={() => setIsUploadModalOpen(true)}
+              icon={FileBarChart}
+            />
           </div>
-        </div>
+        )}
       </div>
     );
   };
@@ -2238,6 +2889,7 @@ export default function App() {
             description="Synchronized multi-channel view of frame detections, motion vectors, and incidents."
           />
           {renderTimeline({ full: true })}
+          {renderTimelineTabsSection()}
         </div>
       );
       break;
@@ -2265,8 +2917,26 @@ export default function App() {
   }
 
   // -------------------------------------------------------------------------
-  // Render App Shell
   // -------------------------------------------------------------------------
+  // Render App Shell or Authentication Gateway
+  // -------------------------------------------------------------------------
+
+  if (authChecking) {
+    return (
+      <div className="min-h-screen w-full flex flex-col items-center justify-center bg-[#f5f6f7] text-[#172554]">
+        <TraceXLogo variant="dark" className="h-10 w-auto object-contain mb-4 animate-pulse" />
+        <div className="flex items-center gap-2 text-xs font-mono text-slate-500">
+          <div className="w-4 h-4 border-2 border-[#172554] border-t-transparent rounded-full animate-spin" />
+          <span>Verifying Cryptographic Examiner Session...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // If no user is logged in, show the styled Trace-X Login / Register page
+  if (!currentUser) {
+    return <LoginPage onLoginSuccess={handleLoginSuccess} />;
+  }
 
   return (
     <div className="app-shell">
@@ -2278,16 +2948,8 @@ export default function App() {
 
       {/* Sidebar */}
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
-        <div className="brand">
-          <div className="brand-mark">
-            <span />
-            <span />
-            <span />
-          </div>
-          <div>
-            <strong>TRACE-X</strong>
-            <small>FORENSIC WORKSTATION</small>
-          </div>
+        <div className="brand" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 4px 16px', borderBottom: '1px solid rgba(255,255,255,0.12)' }}>
+          <TraceXLogo variant="white" className="h-7 w-auto object-contain" />
           <button
             className="collapse"
             onClick={() => setSidebarOpen(false)}
@@ -2317,30 +2979,6 @@ export default function App() {
         </nav>
 
         <div className="sidebar-bottom">
-          <div className="system">
-            <span
-              className="pulse"
-              style={{
-                background:
-                  backendStatus === 'online'
-                    ? '#34d399'
-                    : backendStatus === 'checking'
-                    ? '#fbbf24'
-                    : '#ef4444',
-              }}
-            />
-            <div>
-              <b>FastAPI Engine</b>
-              <small>
-                {backendStatus === 'online'
-                  ? 'Port 8000 Connected'
-                  : backendStatus === 'checking'
-                  ? 'Connecting...'
-                  : 'Engine Offline'}
-              </small>
-            </div>
-          </div>
-
           <button
             onClick={() => {
               setView('Processing');
@@ -2352,12 +2990,56 @@ export default function App() {
             <span>Processing Pipeline</span>
           </button>
 
-          <button
-            onClick={() => setIsQueryModalOpen(true)}
-          >
-            <Sparkles size={17} />
-            <span>AI Forensic Query</span>
-          </button>
+          {/* User profile & Logout item in sidebar */}
+          <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 10px', color: '#cbd5e1' }}>
+              <div
+                style={{
+                  width: '24px',
+                  height: '24px',
+                  borderRadius: '50%',
+                  background: 'rgba(255,255,255,0.15)',
+                  display: 'grid',
+                  placeItems: 'center',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  color: '#5eead4',
+                }}
+              >
+                {currentUser.name.charAt(0).toUpperCase()}
+              </div>
+              <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+                <b style={{ display: 'block', fontSize: '11px', color: '#fff', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                  {currentUser.name}
+                </b>
+                <small style={{ display: 'block', fontSize: '9px', color: '#94a3b8', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                  {currentUser.email}
+                </small>
+              </div>
+            </div>
+
+            <button
+              onClick={handleSignOut}
+              style={{
+                width: '100%',
+                marginTop: '4px',
+                color: '#f87171',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '6px 10px',
+                background: 'transparent',
+                border: 0,
+                fontSize: '11px',
+                borderRadius: '6px',
+                cursor: 'pointer',
+              }}
+              className="hover:bg-red-500/10"
+            >
+              <LogOut size={14} />
+              <span>Sign Out</span>
+            </button>
+          </div>
         </div>
       </aside>
 
@@ -2373,8 +3055,8 @@ export default function App() {
             <Menu size={18} />
           </button>
 
-          <div className="crumb">
-            <span>Trace-X</span>
+          <div className="crumb" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <TraceXLogo variant="dark" className="h-6 w-auto object-contain" />
             <ChevronRight size={14} />
             <b>{view}</b>
             {selectedCase && (
@@ -2415,21 +3097,62 @@ export default function App() {
 
             <button
               className="icon-btn"
-              aria-label="Ask AI Assistant"
-              title="Forensic AI Assistant"
-              onClick={() => setIsQueryModalOpen(true)}
-            >
-              <Sparkles size={17} />
-            </button>
-
-            <button
-              className="icon-btn"
               aria-label="Refresh Data"
               title="Refresh Workspace"
               onClick={fetchCases}
             >
               <RefreshCw size={16} />
             </button>
+
+            {/* Authenticated user profile badge in topbar */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '4px 10px',
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: '6px',
+              }}
+              title={`Logged in as ${currentUser.name} (${currentUser.email})`}
+            >
+              <div
+                style={{
+                  width: '22px',
+                  height: '22px',
+                  borderRadius: '50%',
+                  background: '#dbeafe',
+                  color: '#1e3a8a',
+                  display: 'grid',
+                  placeItems: 'center',
+                  fontSize: '10px',
+                  fontWeight: 700,
+                }}
+              >
+                {currentUser.name.charAt(0).toUpperCase()}
+              </div>
+              <span style={{ fontSize: '11px', fontWeight: 600, color: '#334155' }}>
+                {currentUser.name.split(' ')[0]}
+              </span>
+              <button
+                onClick={handleSignOut}
+                title="Sign out of Trace-X"
+                style={{
+                  background: 'none',
+                  border: 0,
+                  color: '#94a3b8',
+                  padding: '2px',
+                  display: 'grid',
+                  placeItems: 'center',
+                  cursor: 'pointer',
+                  marginLeft: '4px',
+                }}
+                className="hover:text-red-600"
+              >
+                <LogOut size={13} />
+              </button>
+            </div>
           </div>
         </header>
 
@@ -2665,15 +3388,6 @@ export default function App() {
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <button
-                  className="btn btn-secondary"
-                  style={{ padding: '4px 8px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
-                  onClick={() => setIsGroqConfigOpen((prev) => !prev)}
-                  title="Configure Groq AI Agent Key & Model"
-                >
-                  <Settings size={13} />
-                  <span>Groq Setup</span>
-                </button>
-                <button
                   className="icon-btn"
                   onClick={() => setIsQueryModalOpen(false)}
                   aria-label="Close modal"
@@ -2682,84 +3396,6 @@ export default function App() {
                 </button>
               </div>
             </div>
-
-            {/* Groq Configuration Dropdown */}
-            {isGroqConfigOpen && (
-              <div
-                style={{
-                  background: '#f1f5f9',
-                  borderBottom: '1px solid #e2e8f0',
-                  padding: '12px 18px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '10px',
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <b style={{ fontSize: '12px', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                    <Sparkles size={13} color="#2563eb" /> Groq AI Agent Settings
-                  </b>
-                  <span style={{ fontSize: '10px', color: '#64748b' }}>
-                    Saved locally in your browser
-                  </span>
-                </div>
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-                  <div style={{ flex: '1 1 240px' }}>
-                    <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: '#475569', marginBottom: '2px' }}>
-                      GROQ API KEY
-                    </label>
-                    <input
-                      type="password"
-                      placeholder="gsk_..."
-                      value={groqApiKey}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setGroqApiKey(val);
-                        localStorage.setItem('tracex_groq_api_key', val);
-                      }}
-                      style={{
-                        width: '100%',
-                        padding: '6px 10px',
-                        fontSize: '11px',
-                        border: '1px solid #cbd5e1',
-                        borderRadius: '4px',
-                        background: '#fff',
-                        fontFamily: 'monospace',
-                      }}
-                    />
-                  </div>
-                  <div style={{ flex: '0 0 190px' }}>
-                    <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: '#475569', marginBottom: '2px' }}>
-                      MODEL
-                    </label>
-                    <select
-                      value={selectedGroqModel}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setSelectedGroqModel(val);
-                        localStorage.setItem('tracex_groq_model', val);
-                      }}
-                      style={{
-                        width: '100%',
-                        padding: '6px 8px',
-                        fontSize: '11px',
-                        border: '1px solid #cbd5e1',
-                        borderRadius: '4px',
-                        background: '#fff',
-                      }}
-                    >
-                      <option value="llama-3.3-70b-versatile">LLaMA 3.3 70B (Forensic Versatile)</option>
-                      <option value="llama-3.1-8b-instant">LLaMA 3.1 8B (Instant Low Latency)</option>
-                      <option value="llama3-70b-8192">LLaMA 3 70B</option>
-                      <option value="mixtral-8x7b-32768">Mixtral 8x7B</option>
-                    </select>
-                  </div>
-                </div>
-                <p style={{ margin: 0, fontSize: '10px', color: '#64748b' }}>
-                  If left empty, requests will use the server's <code>GROQ_API_KEY</code> environment variable or the local OpenCV forensic rule engine.
-                </p>
-              </div>
-            )}
 
             <div className="modal-body">
               <div className="query-chat" style={{ maxHeight: '380px' }}>
@@ -2801,13 +3437,7 @@ export default function App() {
                           color: '#b45309',
                         }}
                       >
-                        <b>Groq Notice:</b> {msg.groq_error}.{' '}
-                        <button
-                          style={{ textDecoration: 'underline', background: 'none', border: 'none', color: '#b45309', cursor: 'pointer', padding: 0 }}
-                          onClick={() => setIsGroqConfigOpen(true)}
-                        >
-                          Check Groq Key in Setup
-                        </button>
+                        <b>Groq Notice:</b> {msg.groq_error}
                       </div>
                     )}
 

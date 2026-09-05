@@ -1260,99 +1260,165 @@ def query_video(payload: VideoQueryRequest):
 
             groq_client = Groq(api_key=groq_key)
 
-            # Build rich OpenCV forensic context
-            event_lines = []
-            for ev in events[:120]:
-                e_type = ev.get("event_type", "EVENT")
-                obj = ev.get("object_type") or "n/a"
-                start = ev.get("start_time", "")
-                end = ev.get("end_time", "")
-                conf = ev.get("confidence", 0)
-                track_id = ev.get("track_id")
+            # Compress raw OpenCV frame detections into high-signal track & event summaries (TUI pipeline)
+            tracks: dict[str, dict] = {}
+            discrete_events: list[dict] = []
+
+            for ev in events:
+                tid = ev.get("track_id")
+                obj = ev.get("object_type") or "object"
+                etype = ev.get("event_type", "EVENT")
+                start = str(ev.get("start_time", ""))
+                start_short = start.split("T")[-1][:8] if "T" in start else start[:8]
+                conf = ev.get("confidence") or 0.0
                 meta = ev.get("metadata") or {}
-                note = meta.get("note", "")
                 vel = meta.get("avg_speed") or meta.get("velocity")
-                vel_str = f", vel={vel:.1f}px/s" if isinstance(vel, (int, float)) else ""
-                tid_str = f" [Track #{track_id}]" if track_id is not None else ""
-                time_str = f"{start} to {end}" if end and end != start else str(start)
-                event_lines.append(f"- {e_type} ({obj}){tid_str} at {time_str}, conf={conf:.2f}{vel_str} {note}".strip())
 
-            events_context = "\n".join(event_lines) if event_lines else "No specific events logged."
-            headline = summary.get("headline", "")
-            overview = summary.get("summary", "")
-            key_events = summary.get("key_events", [])
-            key_events_str = "; ".join(key_events) if isinstance(key_events, list) else str(key_events)
+                if tid is not None:
+                    key = f"{obj}_{tid}"
+                    if key not in tracks:
+                        tracks[key] = {
+                            "object": obj,
+                            "track_id": tid,
+                            "first_seen": start_short,
+                            "last_seen": start_short,
+                            "count": 1,
+                            "max_conf": conf,
+                            "velocities": [vel] if isinstance(vel, (int, float)) else [],
+                        }
+                    else:
+                        tracks[key]["last_seen"] = start_short
+                        tracks[key]["count"] += 1
+                        tracks[key]["max_conf"] = max(tracks[key]["max_conf"], conf)
+                        if isinstance(vel, (int, float)):
+                            tracks[key]["velocities"].append(vel)
+                else:
+                    discrete_events.append({
+                        "type": etype,
+                        "time": start_short,
+                        "conf": conf,
+                        "note": meta.get("note", ""),
+                    })
 
+            event_lines = []
+            for tr in list(tracks.values())[:8]:
+                avg_v = (sum(tr["velocities"]) / len(tr["velocities"])) if tr["velocities"] else None
+                v_str = f", vel={avg_v:.1f}px/s" if avg_v is not None else ""
+                t_span = f"{tr['first_seen']}->{tr['last_seen']}" if tr["first_seen"] != tr["last_seen"] else tr["first_seen"]
+                event_lines.append(f"- Track #{tr['track_id']} ({tr['object']}): {t_span} ({tr['count']} frames, conf={tr['max_conf']:.2f}{v_str})")
+
+            for dev in discrete_events[:10]:
+                note_str = f" ({dev['note']})" if dev["note"] else ""
+                event_lines.append(f"- {dev['type']} @ {dev['time']} (conf={dev['conf']:.2f}){note_str}")
+
+            events_context = "\n".join(event_lines) if event_lines else "No distinct tracks logged."
+
+            headline = (summary.get("headline") or "")[:150]
+            overview = (summary.get("summary") or "")[:250]
             integrity_status = integrity.get("overall_status", "PASS")
             integrity_score = integrity.get("integrity_score", 100)
-            integrity_anomalies = integrity.get("anomalies", [])
-            integrity_str = (
-                f"Integrity Status: {integrity_status} (Score: {integrity_score}%). "
-                f"Anomalies: {', '.join(integrity_anomalies) if integrity_anomalies else 'None detected (continuous frame stream).'}"
-            )
-
-            disappear_lines = []
-            for d in disappearances[:10]:
-                d_obj = d.get("object_type", "object")
-                d_time = d.get("disappearance_time", "unknown")
-                d_obs = d.get("observation_count", 0)
-                disappear_lines.append(f"- {d_obj} disappeared at {d_time} after {d_obs} observations")
-            disappear_str = "\n".join(disappear_lines) if disappear_lines else "No stationary loss incidents."
 
             system_prompt = (
-                "You are TraceX AI, an elite digital forensics video analysis intelligence agent. "
-                "The surveillance footage has been processed using an advanced OpenCV Multi-Stage Forensic Vision Pipeline "
-                "(HOG Pedestrian SVM, Haar Pose Cascades, MOG2 Background Subtraction, and Centroid Kinematics Tracker).\n\n"
-                "Your objective is to answer the investigator's questions strictly based on the extracted forensic timeline, "
-                "integrity metrics, object trajectories, and behavioral summaries.\n\n"
-                "Guidelines:\n"
-                "1. Mention exact timestamps (ISO8601 or relative seconds) and track IDs whenever available.\n"
-                "2. When discussing persons or vehicles, reference confidence scores, velocities, and observation counts.\n"
-                "3. If asked about tampering, gaps, or video integrity, cite the integrity score and continuity findings.\n"
-                "4. If requested facts are not present in the forensic log, state that candidly without fabricating details.\n"
-                "5. Keep responses concise, investigative, professional, and directly actionable for courtroom and forensic reports."
+                "You are TraceX AI, an expert video forensics intelligence agent. "
+                "Analyze the provided surveillance forensic timeline, tracks, and integrity data. "
+                "Answer the investigator's question directly, accurately, and concisely (2-4 sentences). "
+                "Cite specific timestamps, track IDs, kinematic speeds, and confidence scores when relevant."
             )
 
             messages = [{"role": "system", "content": system_prompt}]
 
-            # Add previous conversational turns (up to last 6)
-            for msg in chat_history[-6:]:
+            # Keep only the last 2 conversational turns (trimmed)
+            for msg in chat_history[-2:]:
                 role = "user" if msg.get("sender") == "user" or msg.get("role") == "user" else "assistant"
-                content = msg.get("text") or msg.get("content") or ""
-                if content.strip():
-                    messages.append({"role": role, "content": content.strip()})
+                txt = (msg.get("text") or msg.get("content") or "").strip()
+                if txt:
+                    messages.append({"role": role, "content": txt[:120]})
 
             user_content = (
-                f"FORENSIC OVERVIEW:\nHeadline: {headline}\nSummary: {overview}\nKey Events: {key_events_str}\n\n"
-                f"VIDEO INTEGRITY & TAMPERING:\n{integrity_str}\n\n"
-                f"STATIONARY LOSS & DISAPPEARANCES:\n{disappear_str}\n\n"
-                f"OPENCV FORENSIC TIMELINE (Sampled Events):\n{events_context}\n\n"
-                f"INVESTIGATOR QUESTION: {user_query}"
+                f"SUMMARY: {headline} | {overview}\n"
+                f"INTEGRITY: {integrity_status} ({integrity_score}%)\n"
+                f"FORENSIC TIMELINE TRACKS:\n{events_context}\n\n"
+                f"QUESTION: {user_query}"
             )
             messages.append({"role": "user", "content": user_content})
 
-            resp = groq_client.chat.completions.create(
-                model=model_name,
-                max_tokens=600,
-                temperature=0.2,
-                messages=messages,
-            )
-            answer = resp.choices[0].message.content.strip()
+            # Dynamically inspect active models available for this API key
+            active_remote_models = []
+            try:
+                models_resp = groq_client.models.list()
+                if models_resp and hasattr(models_resp, 'data'):
+                    active_remote_models = [
+                        m.id for m in models_resp.data
+                        if getattr(m, 'active', True)
+                    ]
+            except Exception as auth_or_list_exc:
+                groq_error = f"Groq Authentication / Model Query failed: {auth_or_list_exc}"
 
-            # Find matching events to highlight in the video timeline
-            q_lower = user_query.lower()
-            matching_events = [
-                ev for ev in events
-                if any(w in str(ev.get("event_type", "")).lower() or w in str(ev.get("object_type", "")).lower()
-                       for w in q_lower.split() if len(w) > 3)
-            ][:10]
+            # Modern production models verified on Groq
+            verified_active = [
+                "llama-3.1-8b-instant",
+                "llama-3.3-70b-versatile",
+                "llama-3.2-3b-preview",
+                "llama-3.2-1b-preview",
+                "deepseek-r1-distill-llama-70b",
+                "llama-3.3-70b-specdec",
+            ]
 
-            return {
-                "answer": answer,
-                "matching_events": matching_events,
-                "source": "groq",
-                "model": model_name,
-            }
+            candidate_models = []
+            if active_remote_models:
+                if model_name in active_remote_models:
+                    candidate_models.append(model_name)
+                for vm in verified_active:
+                    if vm in active_remote_models and vm not in candidate_models:
+                        candidate_models.append(vm)
+                for rm in active_remote_models:
+                    if rm not in candidate_models and not any(d in rm for d in ["whisper", "guard", "embed"]):
+                        candidate_models.append(rm)
+            else:
+                if model_name:
+                    candidate_models.append(model_name)
+                for vm in verified_active:
+                    if vm not in candidate_models:
+                        candidate_models.append(vm)
+
+            resp = None
+            used_model = model_name
+            last_err = None
+
+            for m in candidate_models:
+                try:
+                    resp = groq_client.chat.completions.create(
+                        model=m,
+                        max_tokens=300,
+                        temperature=0.2,
+                        messages=messages,
+                    )
+                    used_model = m
+                    break
+                except Exception as m_exc:
+                    last_err = m_exc
+                    continue
+
+            if resp is not None:
+                answer = resp.choices[0].message.content.strip()
+
+                # Find matching events to highlight in the video timeline
+                q_lower = user_query.lower()
+                matching_events = [
+                    ev for ev in events
+                    if any(w in str(ev.get("event_type", "")).lower() or w in str(ev.get("object_type", "")).lower()
+                           for w in q_lower.split() if len(w) > 3)
+                ][:10]
+
+                return {
+                    "answer": answer,
+                    "matching_events": matching_events,
+                    "source": "groq",
+                    "model": used_model,
+                }
+            else:
+                if not groq_error:
+                    groq_error = str(last_err) if last_err else "Failed to query Groq model"
         except Exception as exc:
             groq_error = str(exc)
 

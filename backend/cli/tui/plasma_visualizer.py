@@ -381,22 +381,16 @@ class LivePlasmaWidget(Static):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.engine = GenerativePatternEngine(width=34, height=11)
-        self._pattern_cycle_counter = 0
 
     def on_mount(self) -> None:
-        """Start 15 FPS animation timer and 8-second pattern cycling."""
+        """Start 15 FPS animation timer for smooth frame rendering."""
         self.set_interval(0.066, self._tick)
 
     def _tick(self) -> None:
-        """Advance mathematical frame and update widget."""
-        self._pattern_cycle_counter += 1
-        # Auto-switch pattern every 120 ticks (~8 seconds)
-        if self._pattern_cycle_counter >= 120:
-            self._pattern_cycle_counter = 0
-            self.engine.next_pattern()
+        """Advance mathematical frame of the current pattern and update widget."""
         self.update(self.engine.render_frame())
 
     def next_pattern(self) -> None:
+        """Switch to next generative pattern when prompted by user."""
         self.engine.next_pattern()
-        self._pattern_cycle_counter = 0
         self.update(self.engine.render_frame())

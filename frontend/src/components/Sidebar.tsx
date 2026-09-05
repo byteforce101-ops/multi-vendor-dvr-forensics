@@ -8,6 +8,8 @@ import {
   ShieldCheck,
   X,
   FileCheck,
+  Sparkles,
+  MessageSquare,
 } from 'lucide-react';
 import { SupabaseUser } from '../types';
 import TraceXLogo from './TraceXLogo';
@@ -22,6 +24,7 @@ interface SidebarProps {
   onLogout: () => void;
   onOpenActivityLog: () => void;
   onOpenCompliance: (tab: 'security' | 'compliance' | 'api') => void;
+  onOpenAIAssistant?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -105,21 +108,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 title="Go to Evidence Ingest"
               >
                 {/* TraceX Logo */}
-                <div className="flex items-center justify-center shrink-0">
+                <div className="flex items-center shrink-0">
                   <TraceXLogo
-                    className="h-11 w-auto max-w-[52px] object-contain transition-opacity group-hover:opacity-85"
+                    variant="dark"
+                    className="h-8 w-auto object-contain transition-opacity group-hover:opacity-85"
                   />
-                </div>
-
-                {/* Brand Text */}
-                <div>
-                  <span className="text-[17px] font-bold tracking-tight text-slate-900 block leading-none">
-                    TraceX
-                  </span>
-
-                  <span className="text-[10px] text-slate-400 font-semibold tracking-wider uppercase mt-1 block">
-                    Forensics Studio
-                  </span>
                 </div>
               </button>
 

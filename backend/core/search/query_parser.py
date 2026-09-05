@@ -29,13 +29,27 @@ def parse_query(nl_query: str, reference_date: datetime | None = None, api_key: 
     key = api_key or os.getenv("GROQ_API_KEY")
     client = Groq(api_key=key) if key else Groq()
     ref = (reference_date or datetime.now(timezone.utc)).isoformat()
-    resp = client.chat.completions.create(
-        model=os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile"),
-        max_tokens=300,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": f"Reference date/time: {ref}\nQuery: {nl_query}"},
-        ],
-        response_format={"type": "json_object"},
-    )
-    return SearchFilter(**json.loads(resp.choices[0].message.content.strip()))
+    
+    preferred_model = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
+    candidate_models = [preferred_model, "llama-3.1-8b-instant", "llama-3.3-70b-versatile", "llama-3.2-3b-preview", "deepseek-r1-distill-llama-70b"]
+    
+    resp = None
+    for model_name in candidate_models:
+        try:
+            resp = client.chat.completions.create(
+                model=model_name,
+                max_tokens=300,
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": f"Reference date/time: {ref}\nQuery: {nl_query}"},
+                ],
+                response_format={"type": "json_object"},
+            )
+            if resp:
+                break
+        except Exception:
+            continue
+
+    if resp is not None:
+        return SearchFilter(**json.loads(resp.choices[0].message.content.strip()))
+    return SearchFilter()

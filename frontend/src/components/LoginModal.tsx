@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Chrome, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck, UserRound, X } from 'lucide-react';
 import { SupabaseUser } from '../types';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
+import TraceXLogo from './TraceXLogo';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -110,8 +111,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onAuthe
         </button>
 
         <div className="border-b border-[#e6ded2] bg-[#f5efe4] px-6 py-5 pr-14">
-          <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-[#eaf1ed] text-[#3b5749]">
-            <ShieldCheck className="h-5 w-5" />
+          <div className="mb-3">
+            <TraceXLogo variant="dark" className="h-7 w-auto object-contain" />
           </div>
           <h2 className="text-xl font-semibold tracking-tight text-[#221e1b]">Sign in to upload</h2>
           <p className="mt-1 text-xs text-[#6e6459]">Protect your evidence before it enters the workspace.</p>

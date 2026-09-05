@@ -47,10 +47,149 @@ main { padding:30px; max-width:1660px; margin:0 auto; }.page-title { display:fle
 .dropzone p{margin:0;font-size:11px;color:#64748b}
 .hash-pill{font-family:ui-monospace,SFMono-Regular,monospace;font-size:10px;padding:6px 10px;background:#f1f5f9;border-radius:4px;border:1px solid #e2e8f0;color:#0f766e;word-break:break-all}
 .real-video{width:100%;height:100%;object-fit:contain;background:#000;display:block}
-.video-overlay-layer{position:absolute;inset:0;pointer-events:none}
-.detection-box{position:absolute;border:2px solid #2dd4bf;background:rgba(45,212,191,.15);border-radius:2px;box-shadow:0 0 8px rgba(45,212,191,.4)}
-.detection-box-label{position:absolute;top:-20px;left:-2px;background:#0f766e;color:#fff;font-size:9px;font-family:ui-monospace;padding:2px 6px;border-radius:2px;white-space:nowrap;font-weight:600}
-.scrub-slider{width:100%;height:6px;cursor:pointer;accent-color:#2dd4bf;-webkit-appearance:auto}
+.video-overlay-layer{position:absolute;inset:0;pointer-events:none;overflow:hidden;}
+.detection-box{
+  position:absolute;
+  border:2.5px solid #ff2222;
+  background:rgba(255,34,34,0.08);
+  border-radius:2px;
+  box-shadow:0 0 10px rgba(255,34,34,0.5), inset 0 0 6px rgba(255,34,34,0.15);
+  pointer-events:auto;
+  cursor:pointer;
+  transition:all 0.08s linear;
+}
+.detection-box:hover{
+  border-color:#ffffff !important;
+  box-shadow:0 0 16px rgba(255,255,255,0.85), inset 0 0 8px rgba(255,255,255,0.3) !important;
+  z-index:25;
+}
+.detection-box.class-vehicle{
+  border-color:#ef4444;
+  background:rgba(239,68,68,0.08);
+  box-shadow:0 0 10px rgba(239,68,68,0.55);
+}
+.detection-box.class-person{
+  border-color:#10b981;
+  background:rgba(16,185,129,0.08);
+  box-shadow:0 0 10px rgba(16,185,129,0.55);
+}
+.detection-box.class-truck{
+  border-color:#f59e0b;
+  background:rgba(245,158,11,0.08);
+  box-shadow:0 0 10px rgba(245,158,11,0.55);
+}
+.detection-box.class-motion{
+  border-color:#f43f5e;
+  background:rgba(244,63,94,0.08);
+  box-shadow:0 0 10px rgba(244,63,94,0.55);
+}
+
+/* Corner targeting brackets */
+.dvr-corner{
+  position:absolute;
+  width:8px;
+  height:8px;
+  border-color:#ffffff;
+  border-style:solid;
+  pointer-events:none;
+}
+.dvr-corner-tl{top:-1.5px;left:-1.5px;border-width:2.5px 0 0 2.5px;}
+.dvr-corner-tr{top:-1.5px;right:-1.5px;border-width:2.5px 2.5px 0 0;}
+.dvr-corner-bl{bottom:-1.5px;left:-1.5px;border-width:0 0 2.5px 2.5px;}
+.dvr-corner-br{bottom:-1.5px;right:-1.5px;border-width:0 2.5px 2.5px 0;}
+
+/* Header Tag Pinned on Box */
+.detection-box-label{
+  position:absolute;
+  top:-24px;
+  left:-2.5px;
+  background:#dc2626;
+  color:#ffffff;
+  font-size:10px;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;
+  padding:2px 7px;
+  border-radius:3px 3px 0 0;
+  white-space:nowrap;
+  font-weight:700;
+  letter-spacing:0.04em;
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  box-shadow:0 2px 5px rgba(0,0,0,0.5);
+  text-transform:uppercase;
+  z-index:10;
+}
+.detection-box-label.flipped{
+  top:auto;
+  bottom:-24px;
+  border-radius:0 0 3px 3px;
+}
+.detection-box.class-person .detection-box-label{background:#059669;}
+.detection-box.class-truck .detection-box-label{background:#d97706;}
+.detection-box.class-motion .detection-box-label{background:#e11d48;}
+
+.detection-box-tooltip{
+  position:absolute;
+  bottom:calc(100% + 28px);
+  left:0;
+  background:rgba(15,23,42,0.95);
+  border:1px solid #475569;
+  color:#f8fafc;
+  padding:7px 11px;
+  border-radius:6px;
+  font-size:10px;
+  line-height:1.45;
+  white-space:nowrap;
+  backdrop-filter:blur(8px);
+  box-shadow:0 4px 14px rgba(0,0,0,0.6);
+  pointer-events:none;
+  z-index:35;
+}
+
+/* ROI Perspective Scan Mask */
+.roi-mask-overlay{
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  z-index:8;
+}
+.roi-handle{
+  position:absolute;
+  width:11px;
+  height:11px;
+  background:#38bdf8;
+  border:2px solid #ffffff;
+  border-radius:2px;
+  transform:translate(-50%,-50%);
+  box-shadow:0 0 6px #0284c7;
+  pointer-events:auto;
+  cursor:crosshair;
+}
+.roi-banner{
+  position:absolute;
+  top:12px;
+  left:14px;
+  background:rgba(15,23,42,0.85);
+  border:1px solid #334155;
+  padding:6px 12px;
+  border-radius:6px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  font-size:11px;
+  color:#e2e8f0;
+  backdrop-filter:blur(6px);
+  z-index:15;
+}
+.roi-banner code{
+  font-family:ui-monospace,monospace;
+  color:#38bdf8;
+  background:rgba(0,0,0,0.4);
+  padding:2px 6px;
+  border-radius:3px;
+  font-size:10px;
+}
+.scrub-slider{width:100%;height:6px;cursor:pointer;accent-color:#ef4444;-webkit-appearance:auto}
 .query-chat{display:flex;flex-direction:column;gap:10px;max-height:300px;overflow-y:auto;padding:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px}
 .query-bubble{padding:10px 12px;border-radius:6px;font-size:11px;line-height:1.5}
 .query-user{background:#e0e7ff;color:#1e293b;align-self:flex-end;max-width:85%}

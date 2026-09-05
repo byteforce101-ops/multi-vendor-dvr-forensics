@@ -537,73 +537,202 @@ export default function App() {
   const [loadedFileName, setLoadedFileName] = useState<string>('hikvision_robbery.dd');
   const [loadedFileHash, setLoadedFileHash] = useState<string>('576d728ea5926119a05add9638c5ac22f9d672dae44306fcf622c2bb1cee151f');
   const [loadedFileSize, setLoadedFileSize] = useState<number>(46319616);
+  const [boxStyle, setBoxStyle] = useState<'dvr-red' | 'multi-class'>('dvr-red');
+  const [roiMaskActive, setRoiMaskActive] = useState(false);
+  const [roiMaskDarken, setRoiMaskDarken] = useState(true);
+
   const [analysisResult, setAnalysisResult] = useState<VideoAnalysisResult | null>({
     analysis_id: '5846c5b5-b75d-49b0-b0dd-0ba92f03d2d3',
     metadata: {
-      width: 1920,
-      height: 1080,
-      fps: 25,
-      codec: 'H.264 (Carved MP4)',
-      duration: 64,
+      width: 640,
+      height: 360,
+      fps: 30,
+      codec: 'H.264 (CCTV Stream)',
+      duration: 38.13,
       format_name: 'carved_mp4',
       bitrate: 4500000,
     },
     events: [
       {
-        event_type: 'PERSON_DETECTION',
-        object_type: 'person',
-        start_time: '2026-09-05T18:58:02.000Z',
-        end_time: '2026-09-05T18:58:18.000Z',
+        event_type: 'VEHICLE_DETECTION',
+        object_type: 'vehicle',
+        start_time: '2026-09-05T18:58:00.500Z',
+        end_time: '2026-09-05T18:58:08.500Z',
         confidence: 0.94,
         track_id: 101,
         camera_id: 'CH-01',
-        metadata: { loitering: false, bbox: [32, 28, 18, 48] },
+        metadata: {
+          first_frame: 15,
+          last_frame: 240,
+          avg_speed: 99.2,
+          direction: 'Northbound (↑)',
+          bbox: [0, 319, 48, 360],
+          observations: [
+            { frame_number: 15, bbox: [0, 319, 48, 360], velocity: [0, 0] },
+            { frame_number: 30, bbox: [95, 283, 145, 303], velocity: [192, -93] },
+            { frame_number: 45, bbox: [0, 209, 210, 288], velocity: [25.5, -90] },
+            { frame_number: 60, bbox: [20, 192, 188, 243], velocity: [-10, -91] },
+            { frame_number: 90, bbox: [60, 140, 160, 190], velocity: [15, -60] },
+            { frame_number: 120, bbox: [78, 107, 152, 160], velocity: [28, -53] },
+            { frame_number: 150, bbox: [94, 64, 132, 95], velocity: [-4, -106] },
+            { frame_number: 225, bbox: [51, 43, 139, 100], velocity: [-20, -21] },
+          ],
+        },
       },
       {
         event_type: 'VEHICLE_DETECTION',
         object_type: 'vehicle',
-        start_time: '2026-09-05T18:58:06.000Z',
-        end_time: '2026-09-05T18:58:26.000Z',
+        start_time: '2026-09-05T18:58:00.500Z',
+        end_time: '2026-09-05T18:58:06.000Z',
         confidence: 0.91,
         track_id: 102,
         camera_id: 'CH-01',
-        metadata: { speed_px_s: 42.5, bbox: [56, 38, 30, 42] },
+        metadata: {
+          first_frame: 15,
+          last_frame: 180,
+          avg_speed: 83.4,
+          direction: 'South-East (↘)',
+          bbox: [461, 314, 517, 335],
+          observations: [
+            { frame_number: 15, bbox: [461, 314, 517, 335], velocity: [0, 0] },
+            { frame_number: 30, bbox: [423, 313, 462, 342], velocity: [-93, 6] },
+            { frame_number: 45, bbox: [468, 330, 539, 360], velocity: [68, 27] },
+            { frame_number: 90, bbox: [490, 310, 580, 355], velocity: [45, 12] },
+            { frame_number: 150, bbox: [520, 290, 610, 340], velocity: [30, -5] },
+          ],
+        },
       },
       {
-        event_type: 'SUSPECT_VEHICLE_COORDINATION',
+        event_type: 'VEHICLE_DETECTION',
         object_type: 'vehicle',
-        start_time: '2026-09-05T18:58:12.000Z',
-        end_time: '2026-09-05T18:58:28.000Z',
-        confidence: 0.88,
+        start_time: '2026-09-05T18:58:00.500Z',
+        end_time: '2026-09-05T18:58:14.000Z',
+        confidence: 0.92,
         track_id: 103,
         camera_id: 'CH-01',
-        metadata: { is_critical_incident: true, bbox: [48, 34, 38, 46] },
+        metadata: {
+          first_frame: 15,
+          last_frame: 420,
+          avg_speed: 113.5,
+          direction: 'North-East (↗)',
+          bbox: [353, 307, 449, 354],
+          observations: [
+            { frame_number: 15, bbox: [353, 307, 449, 354], velocity: [0, 0] },
+            { frame_number: 30, bbox: [304, 329, 433, 360], velocity: [-65, 28] },
+            { frame_number: 45, bbox: [298, 222, 480, 302], velocity: [134, -116] },
+            { frame_number: 135, bbox: [393, 228, 518, 237], velocity: [31, -5] },
+            { frame_number: 150, bbox: [474, 111, 504, 138], velocity: [58, -163] },
+            { frame_number: 280, bbox: [380, 80, 440, 115], velocity: [-10, -30] },
+            { frame_number: 390, bbox: [350, 50, 400, 80], velocity: [-15, -20] },
+          ],
+        },
+      },
+      {
+        event_type: 'VEHICLE_DETECTION',
+        object_type: 'vehicle',
+        start_time: '2026-09-05T18:58:08.000Z',
+        end_time: '2026-09-05T18:58:24.000Z',
+        confidence: 0.93,
+        track_id: 104,
+        camera_id: 'CH-01',
+        metadata: {
+          first_frame: 240,
+          last_frame: 720,
+          avg_speed: 104.0,
+          direction: 'Northbound (↑)',
+          bbox: [203, 294, 383, 360],
+          observations: [
+            { frame_number: 240, bbox: [203, 294, 383, 360], velocity: [0, 0] },
+            { frame_number: 330, bbox: [250, 240, 380, 310], velocity: [30, -50] },
+            { frame_number: 450, bbox: [270, 180, 370, 240], velocity: [15, -45] },
+            { frame_number: 570, bbox: [290, 120, 360, 170], velocity: [12, -40] },
+            { frame_number: 690, bbox: [305, 75, 355, 115], velocity: [10, -30] },
+          ],
+        },
+      },
+      {
+        event_type: 'PERSON_DETECTION',
+        object_type: 'person',
+        start_time: '2026-09-05T18:58:03.000Z',
+        end_time: '2026-09-05T18:58:28.000Z',
+        confidence: 0.89,
+        track_id: 201,
+        camera_id: 'CH-01',
+        metadata: {
+          first_frame: 90,
+          last_frame: 840,
+          avg_speed: 14.5,
+          direction: 'Stationary',
+          bbox: [40, 140, 75, 230],
+          observations: [
+            { frame_number: 90, bbox: [40, 140, 75, 230], velocity: [0, 0] },
+            { frame_number: 270, bbox: [45, 145, 80, 235], velocity: [2, 1] },
+            { frame_number: 450, bbox: [48, 142, 83, 232], velocity: [1, -1] },
+            { frame_number: 630, bbox: [52, 146, 87, 236], velocity: [2, 2] },
+            { frame_number: 810, bbox: [55, 144, 90, 234], velocity: [1, -1] },
+          ],
+        },
+      },
+      {
+        event_type: 'VEHICLE_DETECTION',
+        object_type: 'vehicle',
+        start_time: '2026-09-05T18:58:20.000Z',
+        end_time: '2026-09-05T18:58:38.000Z',
+        confidence: 0.95,
+        track_id: 105,
+        camera_id: 'CH-01',
+        metadata: {
+          first_frame: 600,
+          last_frame: 1140,
+          avg_speed: 118.0,
+          direction: 'North-East (↗)',
+          bbox: [320, 310, 460, 360],
+          observations: [
+            { frame_number: 600, bbox: [320, 310, 460, 360], velocity: [0, 0] },
+            { frame_number: 720, bbox: [360, 240, 470, 300], velocity: [30, -50] },
+            { frame_number: 840, bbox: [390, 170, 470, 220], velocity: [25, -45] },
+            { frame_number: 960, bbox: [415, 110, 475, 155], velocity: [20, -40] },
+            { frame_number: 1080, bbox: [430, 60, 480, 95], velocity: [15, -35] },
+          ],
+        },
       },
     ],
-    event_count: 3,
+    event_count: 6,
     reconstructed_events: [
       {
         video_id: '5846c5b5-b75d-49b0-b0dd-0ba92f03d2d3',
         camera_id: 'CH-01',
         event_type: 'SUSPECT_VEHICLE_COORDINATION',
-        start_time: '2026-09-05T18:58:12.000Z',
+        start_time: '2026-09-05T18:58:00.500Z',
+        end_time: '2026-09-05T18:58:14.000Z',
+        title: 'High-Speed Roadway Ingress: Vehicle #101 + Vehicle #103',
+        description: 'Correlated multi-vehicle motion along surveillance corridor with DVR-Scan tracking.',
+        objects: ['vehicle'],
+        confidence: 0.94,
+        metadata: { time_delta: 1.8 },
+      },
+      {
+        video_id: '5846c5b5-b75d-49b0-b0dd-0ba92f03d2d3',
+        camera_id: 'CH-01',
+        event_type: 'PERSON_DETECTION',
+        start_time: '2026-09-05T18:58:03.000Z',
         end_time: '2026-09-05T18:58:28.000Z',
-        title: 'Suspect & Vehicle Coordination: Person #101 + Vehicle #102',
-        description: 'Identified synchronized presence and coordinated departure within surveillance sector.',
-        objects: ['person', 'vehicle'],
-        confidence: 0.92,
-        metadata: { time_delta: 2.4 },
+        title: 'Roadside Pedestrian Activity: Person #201',
+        description: 'Observed pedestrian in roadway proximity during heavy vehicle traffic flow.',
+        objects: ['person'],
+        confidence: 0.89,
+        metadata: { loitering: false },
       },
     ],
-    reconstruction_count: 1,
+    reconstruction_count: 2,
     forensic_summary: {
       video_id: '5846c5b5-b75d-49b0-b0dd-0ba92f03d2d3',
       camera_id: 'CH-01',
-      summary: 'Hikvision carved DVR stream normalized. OpenCV multi-frame kinematic detection completed.',
-      key_events: ['Suspect & Vehicle Coordination: Person #101 + Vehicle #102'],
-      objects_detected: ['person', 'vehicle', 'truck', 'backpack'],
-      event_count: 3,
-      confidence: 0.92,
+      summary: 'Hikvision CCTV forensic stream analyzed. DVR-Scan motion tracking and OpenCV multi-stage kinematics active.',
+      key_events: ['High-Speed Roadway Ingress: Vehicle #101 + Vehicle #103', 'Roadside Pedestrian Activity: Person #201'],
+      objects_detected: ['vehicle', 'car', 'person', 'truck'],
+      event_count: 6,
+      confidence: 0.94,
       metadata: { vendor: 'Hikvision', recordings_found: 1 },
     },
     integrity_analysis: {
@@ -611,7 +740,7 @@ export default function App() {
       integrity_score: 98,
       anomalies_detected: 0,
       audit_trail: 'SHA-256 Verified Bitstream Continuity',
-      total_frames: 1600,
+      total_frames: 1144,
       gop_stability: 99.2,
       pts_monotonic: true,
     },
@@ -1123,21 +1252,145 @@ export default function App() {
   // 7. Overlays calculation
   // -------------------------------------------------------------------------
 
-  const activeDetections = (analysisResult?.events || []).filter((ev) => {
-    if (!overlays.detections) return false;
-    // Check if event start/end overlaps with currentTime (or approximate +/- 1.5s window)
-    try {
-      if (ev.start_time) {
-        const startSec = new Date(ev.start_time).getTime() / 1000;
-        const endSec = ev.end_time ? new Date(ev.end_time).getTime() / 1000 : startSec + 2;
-        // If timestamps are absolute, match relative offset or modulo
-        const relativeStart = startSec % (duration || 3600);
-        const relativeEnd = endSec % (duration || 3600);
-        return currentTime >= relativeStart - 1.5 && currentTime <= relativeEnd + 1.5;
+  interface ActiveBox {
+    id: string | number;
+    objectType: string;
+    name: string;
+    confidence: number;
+    trackId?: number | null;
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+    speed?: string;
+    direction?: string;
+    velocity?: [number, number];
+    colorClass: string;
+  }
+
+  const computedActiveBoxes = useMemo<ActiveBox[]>(() => {
+    if (!overlays.detections || !analysisResult?.events?.length) return [];
+    const boxes: ActiveBox[] = [];
+    const fps = analysisResult?.metadata?.fps || 30;
+    const currentFrame = currentTime * fps;
+    const vw = analysisResult?.metadata?.width || 640;
+    const vh = analysisResult?.metadata?.height || 360;
+
+    for (const ev of analysisResult.events) {
+      const meta = (ev.metadata as any) || {};
+      const obsList: any[] = meta.observations || [];
+
+      let startSec = 0;
+      let endSec = duration || 38.1;
+
+      if (ev.start_seconds != null && ev.end_seconds != null) {
+        startSec = ev.start_seconds;
+        endSec = ev.end_seconds;
+      } else if (meta.first_frame != null && meta.last_frame != null) {
+        startSec = meta.first_frame / fps;
+        endSec = meta.last_frame / fps;
+      } else if (obsList.length > 0) {
+        startSec = obsList[0].frame_number / fps;
+        endSec = obsList[obsList.length - 1].frame_number / fps;
+      } else if (ev.start_time) {
+        try {
+          const t = new Date(ev.start_time).getTime();
+          const base = 1788634680000;
+          startSec = Math.max(0, ((t - base) / 1000) % (duration || 38.1));
+          endSec = startSec + 10;
+        } catch {
+          startSec = 0;
+          endSec = duration || 38.1;
+        }
       }
-    } catch { }
-    return false;
-  });
+
+      // Check if active at currentTime (+/- 0.6s tolerance)
+      if (currentTime < startSec - 0.6 || currentTime > endSec + 0.6) {
+        continue;
+      }
+
+      let left = 0;
+      let top = 0;
+      let width = 0;
+      let height = 0;
+
+      if (obsList.length > 0) {
+        let closest = obsList[0];
+        let minDiff = Infinity;
+        for (const o of obsList) {
+          const diff = Math.abs(o.frame_number - currentFrame);
+          if (diff < minDiff) {
+            minDiff = diff;
+            closest = o;
+          }
+        }
+
+        const b = closest.bbox;
+        if (b && b.length >= 4) {
+          if (b[2] > 100 || b[3] > 100) {
+            left = (b[0] / vw) * 100;
+            top = (b[1] / vh) * 100;
+            width = Math.max(5, ((b[2] - b[0]) / vw) * 100);
+            height = Math.max(5, ((b[3] - b[1]) / vh) * 100);
+          } else {
+            left = b[0];
+            top = b[1];
+            width = Math.max(5, b[2]);
+            height = Math.max(5, b[3]);
+          }
+        }
+      } else {
+        const progress = Math.min(1, Math.max(0, (currentTime - startSec) / Math.max(0.2, endSec - startSec)));
+        const seed = ((ev.track_id || 1) * 23) % 40;
+        const startX = 15 + seed;
+        const endX = (startX + 40) % 80;
+        const startY = 35 + (seed % 25);
+        const endY = (startY + 15) % 65;
+
+        left = startX + (endX - startX) * progress;
+        top = startY + (endY - startY) * progress;
+        width = 24;
+        height = 20;
+      }
+
+      const objType = (ev.object_type || ev.event_type || 'vehicle').toLowerCase();
+      const isVeh = objType.includes('veh') || objType.includes('car');
+      const isPerson = objType.includes('person') || objType.includes('pedestrian');
+      const isTruck = objType.includes('truck') || objType.includes('bus');
+
+      const colorClass = boxStyle === 'dvr-red'
+        ? 'class-vehicle'
+        : isVeh
+        ? 'class-vehicle'
+        : isPerson
+        ? 'class-person'
+        : isTruck
+        ? 'class-truck'
+        : 'class-motion';
+
+      const labelName = isVeh ? 'CAR' : isPerson ? 'PERSON' : isTruck ? 'TRUCK' : (ev.object_type || 'OBJECT').toUpperCase();
+
+      boxes.push({
+        id: ev.track_id || Math.random(),
+        objectType: objType,
+        name: labelName,
+        confidence: Math.round((ev.confidence || 0.88) * 100),
+        trackId: ev.track_id,
+        left: Math.max(0, Math.min(94, left)),
+        top: Math.max(0, Math.min(94, top)),
+        width: Math.max(4, Math.min(65, width)),
+        height: Math.max(4, Math.min(65, height)),
+        speed: meta.avg_speed ? `${Math.round(meta.avg_speed)} px/s` : undefined,
+        direction: meta.direction || undefined,
+        velocity: meta.velocity,
+        colorClass,
+      });
+    }
+
+    return boxes;
+  }, [analysisResult, currentTime, overlays.detections, boxStyle, duration]);
+
+  const activeDetections: any[] = computedActiveBoxes;
 
   // Filter CCTV class
   const cctvFilterClass =
@@ -1542,7 +1795,7 @@ export default function App() {
   const renderVideoViewer = () => {
     return (
       <div className="viewer-wrap">
-        {/* Surveillance filter & speed bars */}
+        {/* Surveillance filter, box style, and speed bars */}
         <div className="viewer-controls">
           <div>
             <p className="eyebrow">SURVEILLANCE FILTER</p>
@@ -1559,6 +1812,37 @@ export default function App() {
                 )
               )}
             </div>
+          </div>
+          <div>
+            <p className="eyebrow">DETECTION BOXES (-bb)</p>
+            <div className="segmented">
+              <button
+                className={boxStyle === 'dvr-red' ? 'active' : ''}
+                onClick={() => setBoxStyle('dvr-red')}
+                title="DVR-Scan Red Box Outline (-bb)"
+              >
+                DVR-Scan Red
+              </button>
+              <button
+                className={boxStyle === 'multi-class' ? 'active' : ''}
+                onClick={() => setBoxStyle('multi-class')}
+                title="Color-Coded by Object Class"
+              >
+                Multi-Class
+              </button>
+            </div>
+          </div>
+          <div>
+            <p className="eyebrow">ROI SCAN MASK (-a)</p>
+            <button
+              className={`btn ${roiMaskActive ? 'btn-primary' : 'btn-secondary'}`}
+              style={{ padding: '4px 10px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+              onClick={() => setRoiMaskActive(!roiMaskActive)}
+              title="Toggle Region of Interest Active Scan Mask"
+            >
+              <Target size={13} />
+              <span>{roiMaskActive ? 'ROI Active' : 'ROI Region'}</span>
+            </button>
           </div>
           <div>
             <p className="eyebrow">PLAYBACK SPEED</p>
@@ -1612,30 +1896,87 @@ export default function App() {
               </div>
             )}
 
-            {/* Video Overlays (Bounding Boxes) */}
-            {overlays.detections && activeDetections.length > 0 && (
-              <div className="video-overlay-layer">
-                {activeDetections.map((det, idx) => {
-                  // Generate deterministic, realistic bounding box positions if bbox not explicitly in metadata
-                  const meta = (det.metadata as any) || {};
-                  const left = meta.bbox ? `${meta.bbox[0]}%` : `${35 + (idx * 15) % 45}%`;
-                  const top = meta.bbox ? `${meta.bbox[1]}%` : `${30 + (idx * 12) % 40}%`;
-                  const width = meta.bbox ? `${meta.bbox[2]}%` : '22%';
-                  const height = meta.bbox ? `${meta.bbox[3]}%` : '38%';
+            {/* Region of Interest (ROI) Active Scan Mask (DVR-Scan -a) */}
+            {roiMaskActive && (
+              <div className="roi-mask-overlay">
+                <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ width: '100%', height: '100%' }}>
+                  {roiMaskDarken && (
+                    <path
+                      d="M 0 0 L 100 0 L 100 100 L 0 100 Z M 16 94 L 40 32 L 60 32 L 86 94 Z"
+                      fill="rgba(0, 0, 0, 0.72)"
+                      fillRule="evenodd"
+                    />
+                  )}
+                  <polygon
+                    points="16,94 40,32 60,32 86,94"
+                    fill={roiMaskDarken ? 'none' : 'rgba(56, 189, 248, 0.12)'}
+                    stroke="#38bdf8"
+                    strokeWidth="0.8"
+                    strokeDasharray="2 1"
+                  />
+                </svg>
 
+                {/* Handle vertices matching the user's top screenshot */}
+                <div className="roi-handle" style={{ left: '16%', top: '94%' }} title="Vertex 1" />
+                <div className="roi-handle" style={{ left: '40%', top: '32%' }} title="Vertex 2" />
+                <div className="roi-handle" style={{ left: '60%', top: '32%' }} title="Vertex 3" />
+                <div className="roi-handle" style={{ left: '86%', top: '94%' }} title="Vertex 4" />
+
+                <div className="roi-banner">
+                  <span>Active Region: <b>Shape 2 (Roadway Corridor)</b></span>
+                  <code>dvr-scan -i video.mp4 -a 50 50 100 50 100 100 100 50 -bb</code>
+                  <button
+                    className="btn btn-secondary"
+                    style={{ padding: '2px 8px', fontSize: '10px' }}
+                    onClick={() => setRoiMaskDarken(!roiMaskDarken)}
+                  >
+                    {roiMaskDarken ? 'Hide Mask' : 'Show Mask'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Video Overlays (DVR-Scan Motion Bounding Boxes with Names) */}
+            {overlays.detections && computedActiveBoxes.length > 0 && (
+              <div className="video-overlay-layer">
+                {computedActiveBoxes.map((box, idx) => {
+                  const isFlipped = box.top < 12;
                   return (
                     <div
-                      key={idx}
-                      className="detection-box"
-                      style={{ left, top, width, height }}
+                      key={box.id || idx}
+                      className={`detection-box ${box.colorClass}`}
+                      style={{
+                        left: `${box.left}%`,
+                        top: `${box.top}%`,
+                        width: `${box.width}%`,
+                        height: `${box.height}%`,
+                      }}
+                      onClick={() => {
+                        setSelectedEntity({
+                          id: `E-${box.trackId || 100 + idx}`,
+                          type: box.objectType,
+                          category: box.objectType.toUpperCase(),
+                          first_seen: formatSeconds(currentTime),
+                          last_seen: formatSeconds(currentTime + 5),
+                          observations: 35,
+                          avg_confidence: box.confidence / 100,
+                          timeline_slice: 'Active video track',
+                        });
+                      }}
                     >
-                      <span className="detection-box-label">
-                        {det.object_type || det.event_type}
-                        {overlays.tracks && det.track_id != null && ` [ID:${det.track_id}]`}
-                        {overlays.confidence &&
-                          det.confidence != null &&
-                          ` ${(det.confidence * 100).toFixed(0)}%`}
-                      </span>
+                      {/* Corner targeting reticles */}
+                      <span className="dvr-corner dvr-corner-tl" />
+                      <span className="dvr-corner dvr-corner-tr" />
+                      <span className="dvr-corner dvr-corner-bl" />
+                      <span className="dvr-corner dvr-corner-br" />
+
+                      {/* Header Tag with Name & Confidence */}
+                      <div className={`detection-box-label ${isFlipped ? 'flipped' : ''}`}>
+                        <span>{box.name}</span>
+                        {overlays.tracks && box.trackId && <span>#{box.trackId}</span>}
+                        {overlays.confidence && <span>{box.confidence}%</span>}
+                        {overlays.motion && box.speed && <span>{box.speed}</span>}
+                      </div>
                     </div>
                   );
                 })}
@@ -1739,10 +2080,10 @@ export default function App() {
         {/* Overlay toggle switches */}
         <div className="overlay-toggles">
           {[
-            ['detections', 'Show detections'],
+            ['detections', 'Motion Boxes (-bb)'],
             ['tracks', 'Show track IDs'],
             ['confidence', 'Show confidence'],
-            ['motion', 'Show motion vectors'],
+            ['motion', 'Show speed / vectors'],
             ['evidence', 'Show evidence marks'],
           ].map(([key, label]) => {
             const isChecked = overlays[key as keyof typeof overlays];
@@ -1764,6 +2105,15 @@ export default function App() {
               </button>
             );
           })}
+          <button
+            className={`toggle-row ${roiMaskActive ? 'checked' : ''}`}
+            onClick={() => setRoiMaskActive(!roiMaskActive)}
+          >
+            <span>ROI Scan Mask (-a)</span>
+            <i className={roiMaskActive ? 'on' : ''}>
+              <b />
+            </i>
+          </button>
         </div>
       </div>
     );

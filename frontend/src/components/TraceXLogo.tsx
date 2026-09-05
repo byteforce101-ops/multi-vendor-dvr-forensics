@@ -1,5 +1,5 @@
 import React from 'react';
-import logo from '../assets/tracex-logo.png.png';
+import logo from '../assets/tracex-logo.png';
 
 interface TraceXLogoProps {
   className?: string;

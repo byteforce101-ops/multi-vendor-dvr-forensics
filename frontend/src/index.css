@@ -19,7 +19,7 @@ main { padding:30px; max-width:1660px; margin:0 auto; }.page-title { display:fle
 @media(max-width:450px){.metrics{grid-template-columns:1fr}.evidence-grid{grid-template-columns:1fr}.activity-chart{height:130px}.cctv-scene{height:230px}.technical-grid{grid-template-columns:1fr}.entity-card{flex-direction:column}.entity-thumb{width:100%;height:100px;min-height:100px}.entity-detail-head .btn{margin-left:0}.event-confidence{display:none}}
 
 /* API-ready frontend states */
-.overview-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px}.overview-empty{min-height:360px;display:grid;place-items:center}.empty-state{min-height:250px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:32px 20px;color:#64748b}.empty-state h3{margin:12px 0 5px;color:#334155;font-size:15px;font-weight:650}.empty-state p{max-width:430px;margin:0 0 18px;line-height:1.6;color:#8491a2}.empty-icon{width:46px;height:46px;border:1px solid #cbd5e1;border-radius:8px;display:grid;place-items:center;color:#64748b;background:#f8fafc}.right-panel{min-height:420px;padding:16px}.pipeline-empty-list{width:100%;max-width:620px;margin:0 auto 24px;border-top:1px solid var(--border)}.pipeline-step{display:flex;align-items:center;gap:12px;padding:13px 4px;border-bottom:1px solid var(--border);color:#64748b}.pipeline-step>span{width:8px;height:8px;border:1px solid #94a3b8;border-radius:50%}.pipeline-step b{flex:1;font-size:12px;font-weight:550;color:#475569}.viewer-controls{align-items:flex-end}.scene-placeholder{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:#b7c4d7;text-align:center}.scene-placeholder b{font-size:13px;color:#e2e8f0}.scene-placeholder span{font-size:11px;color:#91a4c4}.overlay-placeholder{position:absolute;left:14px;bottom:12px;padding:7px 9px;background:rgba(15,23,42,.78);border:1px solid #53708e;color:#b7c4d7;font:10px ui-monospace,monospace}.overlay-toggles{display:flex;flex-wrap:wrap;gap:5px;padding:10px 0 0}.overlay-toggles .toggle-row{color:#a9b7ca;border-color:#30415e;background:#111c31}.overlay-toggles .toggle-row.checked{color:#d7f9f4;border-color:#2dd4bf}.timeline-empty{min-height:170px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:#94a3b8;border:1px dashed #cbd5e1;margin-top:15px}.timeline-empty svg{color:#94a3b8}.status-slate{background:#f1f5f9;color:#64748b;border-color:#cbd5e1}@media(max-width:760px){.overview-cards{grid-template-columns:1fr 1fr}.viewer-controls{flex-direction:column;align-items:stretch}.overlay-toggles{display:grid;grid-template-columns:1fr 1fr}.right-panel{min-height:300px}}@media(max-width:450px){.overview-cards{grid-template-columns:1fr}.overlay-toggles{grid-template-columns:1fr}}
+.overview-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px}.overview-empty{min-height:360px;display:grid;place-items:center}.empty-state{min-height:250px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:32px 20px;color:#64748b}.empty-state h3{margin:12px 0 5px;color:#334155;font-size:15px;font-weight:650}.empty-state p{max-width:430px;margin:0 0 18px;line-height:1.6;color:#8491a2}.empty-icon{width:46px;height:46px;border:1px solid #cbd5e1;border-radius:8px;display:grid;place-items:center;color:#64748b;background:#f8fafc}.right-panel{min-height:420px;padding:16px}.pipeline-empty-list{width:100%;max-width:620px;margin:0 auto 24px;border-top:1px solid var(--border)}.pipeline-step{display:flex;align-items:center;gap:12px;padding:13px 4px;border-bottom:1px solid var(--border);color:#64748b}.pipeline-step>span.legacy-dot{width:8px;height:8px;border:1px solid #94a3b8;border-radius:50%}.pipeline-step b{flex:1;font-size:12px;font-weight:550;color:#475569}.viewer-controls{align-items:flex-end}.scene-placeholder{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:#b7c4d7;text-align:center}.scene-placeholder b{font-size:13px;color:#e2e8f0}.scene-placeholder span{font-size:11px;color:#91a4c4}.overlay-placeholder{position:absolute;left:14px;bottom:12px;padding:7px 9px;background:rgba(15,23,42,.78);border:1px solid #53708e;color:#b7c4d7;font:10px ui-monospace,monospace}.overlay-toggles{display:flex;flex-wrap:wrap;gap:5px;padding:10px 0 0}.overlay-toggles .toggle-row{color:#a9b7ca;border-color:#30415e;background:#111c31}.overlay-toggles .toggle-row.checked{color:#d7f9f4;border-color:#2dd4bf}.timeline-empty{min-height:170px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:#94a3b8;border:1px dashed #cbd5e1;margin-top:15px}.timeline-empty svg{color:#94a3b8}.status-slate{background:#f1f5f9;color:#64748b;border-color:#cbd5e1}@media(max-width:760px){.overview-cards{grid-template-columns:1fr 1fr}.viewer-controls{flex-direction:column;align-items:stretch}.overlay-toggles{display:grid;grid-template-columns:1fr 1fr}.right-panel{min-height:300px}}@media(max-width:450px){.overview-cards{grid-template-columns:1fr}.overlay-toggles{grid-template-columns:1fr}}
 .scan-icon{display:inline-block;border:1.5px solid currentColor;border-radius:3px;position:relative}.scan-icon:before,.scan-icon:after{content:'';position:absolute;background:currentColor}.scan-icon:before{width:5px;height:1.5px;left:3px;top:5px;box-shadow:0 4px currentColor}.scan-icon:after{width:1.5px;height:5px;right:4px;bottom:3px;box-shadow:-4px 0 currentColor}
 /* Sidebar collapse behavior */
 .sidebar .brand{padding-right:30px}.sidebar.collapsed .brand{justify-content:center;padding-left:0;padding-right:0}.sidebar.collapsed .workspace-label{visibility:hidden;height:35px;padding-top:26px;padding-bottom:9px}.sidebar.collapsed nav button,.sidebar.collapsed .sidebar-bottom button{justify-content:center;padding-left:0;padding-right:0}.sidebar.collapsed nav button span,.sidebar.collapsed .sidebar-bottom button span,.sidebar.collapsed .system div{display:none}.sidebar.collapsed nav button em{position:absolute;top:3px;right:7px;padding:0 4px;font-size:9px}.sidebar.collapsed .system{justify-content:center}.sidebar.collapsed .collapse{right:50%;transform:translateX(50%)}.collapse{transition:color .2s ease,background .2s ease}.collapse:hover{color:#fff;background:rgba(255,255,255,.08)}
@@ -57,3 +57,206 @@ main { padding:30px; max-width:1660px; margin:0 auto; }.page-title { display:fle
 .query-assistant{background:#fff;border:1px solid #e2e8f0;color:#334155;align-self:flex-start;max-width:90%}
 .query-input-row{display:flex;gap:8px;margin-top:10px}
 .query-input-row input{flex:1;border:1px solid #cbd5e1;border-radius:5px;padding:8px 10px;font-size:11px}
+
+/* ==========================================================================
+   PIPELINE STAGE & PENDING ROTATION REFINEMENTS
+   ========================================================================== */
+.pipeline-step {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+}
+.pipeline-step:hover {
+  background: #f8fafc;
+}
+.pipeline-step.active {
+  background: #f0fdfa;
+  border-color: #ccfbf1;
+}
+.pipeline-step.complete {
+  background: #f0fdf4;
+  border-color: #dcfce7;
+}
+
+/* Ensure status badges render as clean, readable pills */
+.pipeline-step > .status,
+.pipeline-step span.status,
+.status {
+  width: auto !important;
+  height: auto !important;
+  border-radius: 20px !important;
+  padding: 4px 10px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  box-sizing: border-box !important;
+}
+
+.pipeline-step > .status.status-success {
+  color: #047857 !important;
+  background: #ecfdf5 !important;
+  border: 1px solid #a7f3d0 !important;
+}
+.pipeline-step > .status.status-teal {
+  color: #0f766e !important;
+  background: #ecfeff !important;
+  border: 1px solid #99f6e4 !important;
+}
+.pipeline-step > .status.status-slate {
+  color: #475569 !important;
+  background: #f1f5f9 !important;
+  border: 1px solid #cbd5e1 !important;
+}
+
+/* Step marker refinements */
+.step-marker {
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 50% !important;
+  display: grid !important;
+  place-items: center !important;
+  border: 1.5px solid #cbd5e1 !important;
+  color: #64748b !important;
+  background: #fff !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  position: relative !important;
+  flex-shrink: 0 !important;
+  transition: all 0.2s ease !important;
+}
+.pipeline-step.complete .step-marker {
+  border-color: #10b981 !important;
+  color: #059669 !important;
+  background: #ecfdf5 !important;
+}
+.pipeline-step.active .step-marker {
+  border-color: #0d9488 !important;
+  color: #0f766e !important;
+  background: #f0fdfa !important;
+  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.18) !important;
+}
+
+/* Active spinner inside marker */
+.step-spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid #99f6e4;
+  border-top-color: #0f766e;
+  border-radius: 50%;
+  animation: spin 0.85s linear infinite;
+}
+
+/* Pending rotating ring and marker animation */
+.step-pending-box {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.step-pending-spinner {
+  position: absolute;
+  inset: -3px;
+  border: 1.5px dashed #0d9488;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 3.2s linear infinite;
+}
+.pipeline-step.pending .step-marker {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+.spin-slow {
+  animation: spin 3s linear infinite;
+}
+.spin-fast {
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Back button */
+.pipeline-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 13px;
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 550;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.pipeline-back-btn:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  color: #0f172a;
+  transform: translateX(-2px);
+}
+
+/* Entity Cards & Thumbnails Refinements */
+.entity-thumb {
+  width: 140px;
+  min-height: 155px;
+  display: grid;
+  place-items: center;
+  border-right: 1px solid var(--border);
+  transition: all 0.2s ease;
+}
+.entity-card:hover .entity-thumb svg {
+  transform: scale(1.1);
+  transition: transform 0.2s ease;
+}
+
+/* TRACEX Brand Logo Styling */
+.brand-logo-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  user-select: none;
+}
+.sidebar-tracex-logo {
+  height: 28px;
+  max-width: 155px;
+  object-fit: contain;
+  filter: brightness(0) invert(1);
+  display: block;
+  transition: all 0.2s ease;
+}
+.sidebar.collapsed .sidebar-tracex-logo {
+  width: 26px;
+  height: 26px;
+  max-width: 26px;
+  object-fit: cover;
+  object-position: left;
+}
+.topbar-tracex-logo {
+  height: 24px;
+  max-width: 135px;
+  object-fit: contain;
+  display: block;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+  margin-right: 6px;
+}
+.topbar-tracex-logo:hover {
+  opacity: 0.8;
+}

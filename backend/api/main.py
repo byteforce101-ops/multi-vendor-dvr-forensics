@@ -9,6 +9,7 @@ import subprocess
 import uuid
 
 from fastapi import Depends, FastAPI, HTTPException, UploadFile, File
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -60,6 +61,15 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.get("/health")
+def health_check():
+    return {
+        "status": "ok",
+        "service": "DVR Forensic Platform",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
 
 parser_manager = ParserManager()
 
@@ -1318,3 +1328,31 @@ def query_video(payload: VideoQueryRequest):
         "matching_events": matched[:10],
         "source": "heuristic",
     }
+
+
+@app.get("/video/{analysis_id}/stream")
+def stream_analysis_video(analysis_id: str):
+    """Stream normalized or extracted MP4 video for frontend preview and playback."""
+    base_dir = Path("backend") / "storage" / "video_analysis" / analysis_id
+    if not base_dir.is_dir():
+        raise HTTPException(status_code=404, detail="Analysis session not found")
+
+    normalized = base_dir / "normalized.mp4"
+    if normalized.is_file() and normalized.stat().st_size > 0:
+        return FileResponse(str(normalized), media_type="video/mp4")
+
+    # Check extracted directory
+    extracted_dir = base_dir / "extracted"
+    if extracted_dir.is_dir():
+        for ext in ("*.mp4", "*.h264", "*.avi", "*.mov", "*.mkv"):
+            matches = list(extracted_dir.glob(ext))
+            if matches and matches[0].is_file():
+                return FileResponse(str(matches[0]), media_type="video/mp4")
+
+    # Check original if it's a standard web-compatible format
+    for ext in ("original.mp4", "original.mov", "original.m4v"):
+        orig = base_dir / ext
+        if orig.is_file() and orig.stat().st_size > 0:
+            return FileResponse(str(orig), media_type="video/mp4")
+
+    raise HTTPException(status_code=404, detail="No streamable video found for this analysis")

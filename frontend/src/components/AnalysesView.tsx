@@ -396,10 +396,10 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({
     y += 7;
 
     const integrityMetrics: [string, unknown][] = [
-      ['Integrity score', `${safe(integrity?.integrity_score, 100)}%`],
-      ['Frames inspected', safe(integrity?.frames_checked, analysis.frames_analyzed ?? 0)],
-      ['Timestamp gaps', safe(integrity?.timestamp_gaps, 0)],
-      ['Duplicate sequences', safe(integrity?.duplicate_sequences, 0)],
+      ['Integrity score', `${safe(integrity?.integrity_score, '100')}%`],
+      ['Frames inspected', safe(integrity?.frames_checked, String(analysis.frames_analyzed ?? 0))],
+      ['Timestamp gaps', safe(integrity?.timestamp_gaps, '0')],
+      ['Duplicate sequences', safe(integrity?.duplicate_sequences, '0')],
     ];
     integrityMetrics.forEach(([label, value], index) => drawMetric(margin + index * (metricWidth + metricGap), metricWidth, label, value));
     y += 24;

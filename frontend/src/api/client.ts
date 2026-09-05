@@ -105,11 +105,15 @@ export interface SearchResponse {
 // API
 // ---------------------------------------------------------------------------
 
+import type { VideoAnalysisResult } from '../types';
+
 export const api = {
+  checkHealth: () => request<{ status: string; service: string; timestamp: string }>('/health'),
+
   listCases: () => request<CaseSummary[]>('/cases'),
 
-  createCase: (name: string, investigator = 'Enterprise User') =>
-    request<CaseSummary>('/cases', jsonInit('POST', { name, investigator })),
+  createCase: (name: string, investigator = 'Enterprise User', description = '', case_number = '') =>
+    request<CaseSummary>('/cases', jsonInit('POST', { name, investigator, description, case_number })),
 
   getCase: (caseId: string) => request<CaseSummary>(`/cases/${caseId}`),
 
@@ -138,4 +142,18 @@ export const api = {
 
   searchCase: (caseId: string, query: string) =>
     request<SearchResponse>(`/cases/${caseId}/search`, jsonInit('POST', { query })),
+
+  analyzeVideo: (file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    return request<VideoAnalysisResult>('/video/analyze', { method: 'POST', body: form });
+  },
+
+  queryVideo: (query: string, events: unknown[] = [], summary: unknown = null) =>
+    request<{ answer: string; matching_events: unknown[]; source: string }>(
+      '/video/query',
+      jsonInit('POST', { query, events, summary })
+    ),
+
+  getVideoStreamUrl: (analysisId: string) => `${API_BASE}/video/${analysisId}/stream`,
 };

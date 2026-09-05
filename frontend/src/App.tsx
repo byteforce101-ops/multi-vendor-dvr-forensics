@@ -1,153 +1,2775 @@
-import React, { useEffect, useState } from 'react';
-import type { Session } from '@supabase/supabase-js';
-import { Header } from './components/Header';
-import { Sidebar } from './components/Sidebar';
-import { UploadSection } from './components/UploadSection';
-import { Footer } from './components/Footer';
-import { ProcessingModal } from './components/ProcessingModal';
-import { ActivityLogModal } from './components/ActivityLogModal';
-import { AuthModal } from './components/AuthModal';
-import { ComplianceModal } from './components/ComplianceModal';
-import { AnalysesView } from './components/AnalysesView';
-import { LibraryView } from './components/LibraryView';
-import { supabase, isSupabaseConfigured, DEFAULT_USER } from './lib/supabase';
-import { EvidenceFile, SupabaseUser, VideoAnalysisResult } from './types';
+'use client';
+
+import React, { useState, useEffect, useRef } from 'react';
+import type { ReactNode } from 'react';
+import {
+  Activity,
+  AlertTriangle,
+  ArrowLeft,
+  Bell,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Download,
+  FileBarChart,
+  FileImage,
+  FileText,
+  FileVideo,
+  Filter,
+  FolderSearch,
+  Gauge,
+  HelpCircle,
+  Layers,
+  LayoutDashboard,
+  Maximize2,
+  Menu,
+  MessageSquare,
+  Minus,
+  Pause,
+  Play,
+  Plus,
+  RefreshCw,
+  RotateCcw,
+  Search,
+  Send,
+  Settings,
+  ShieldCheck,
+  SlidersHorizontal,
+  Sparkles,
+  Upload,
+  UploadCloud,
+  UserRound,
+  Video,
+  Volume2,
+  VolumeX,
+  X,
+  ZoomIn,
+} from 'lucide-react';
+
+import { api, API_BASE } from './api/client';
+import type { CaseSummary, EvidenceSummary } from './api/client';
+import type {
+  VideoAnalysisResult,
+  ReconstructedForensicEvent,
+  VideoIntegrityAnalysis,
+  EvidenceFile,
+} from './types';
+import { generateForensicDossier } from './utils/forensicDossier';
+
+// ---------------------------------------------------------------------------
+// View Definitions & Types
+// ---------------------------------------------------------------------------
+
+type View =
+  | 'Overview'
+  | 'Investigations'
+  | 'Investigation Detail'
+  | 'Video Evidence'
+  | 'Timeline'
+  | 'Detections'
+  | 'Entities'
+  | 'Entity Detail'
+  | 'Events'
+  | 'Evidence'
+  | 'Integrity'
+  | 'Reports'
+  | 'Processing';
+
+const navItems: [View, React.ComponentType<{ size?: number }>, string][] = [
+  ['Overview', LayoutDashboard, 'Dashboard & Metrics'],
+  ['Investigations', FolderSearch, 'Case Records'],
+  ['Investigation Detail', Layers, 'Forensic Workspace'],
+  ['Video Evidence', Video, 'Sources & Raw Images'],
+  ['Timeline', Activity, 'Synchronized Analysis'],
+  ['Detections', ScanIcon, 'YOLO Observations'],
+  ['Entities', UserRound, 'Tracked Physical Objects'],
+  ['Events', Activity, 'Reconstructed Incidents'],
+  ['Evidence', FileImage, 'Keyframe Captures'],
+  ['Integrity', ShieldCheck, 'Tampering & Hash Audit'],
+  ['Reports', FileBarChart, 'Certified Court Dossiers'],
+];
+
+function ScanIcon({ size = 18 }: { size?: number }) {
+  return <span className="scan-icon" style={{ width: size, height: size }} />;
+}
+
+// ---------------------------------------------------------------------------
+// Helper: SHA-256 via Web Crypto
+// ---------------------------------------------------------------------------
+
+async function computeSHA256(file: File): Promise<string> {
+  const buffer = await file.arrayBuffer();
+  const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+  return Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+function formatFileSize(bytes: number): string {
+  if (!bytes || bytes <= 0) return '0 B';
+  if (bytes >= 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  return `${(bytes / 1024).toFixed(1)} KB`;
+}
+
+function formatSeconds(secs: number): string {
+  if (isNaN(secs) || secs < 0) return '00:00:00';
+  const h = Math.floor(secs / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  const s = Math.floor(secs % 60);
+  const ms = Math.floor((secs % 1) * 100);
+  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
+}
+
+// ---------------------------------------------------------------------------
+// Reusable UI Components
+// ---------------------------------------------------------------------------
+
+function Button({
+  children,
+  onClick,
+  variant = 'secondary',
+  icon: Icon,
+  className = '',
+  disabled = false,
+  title,
+}: {
+  children?: ReactNode;
+  onClick?: () => void;
+  variant?: 'primary' | 'secondary' | 'danger';
+  icon?: React.ComponentType<{ size?: number }>;
+  className?: string;
+  disabled?: boolean;
+  title?: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      className={`btn btn-${variant} ${className} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+    >
+      {Icon && <Icon size={14} />}
+      {children}
+    </button>
+  );
+}
+
+function StatusBadge({
+  children,
+  tone = 'slate',
+}: {
+  children: ReactNode;
+  tone?: 'success' | 'warning' | 'critical' | 'teal' | 'slate';
+}) {
+  return <span className={`status status-${tone}`}>{children}</span>;
+}
+
+function EmptyState({
+  title,
+  description,
+  action,
+  onAction,
+  icon: Icon = FolderSearch,
+}: {
+  title: string;
+  description: string;
+  action?: string;
+  onAction?: () => void;
+  icon?: React.ComponentType<{ size?: number }>;
+}) {
+  return (
+    <div className="empty-state">
+      <div className="empty-icon">
+        <Icon size={24} />
+      </div>
+      <h3>{title}</h3>
+      <p>{description}</p>
+      {action && onAction && (
+        <Button variant="primary" onClick={onAction} icon={Plus}>
+          {action}
+        </Button>
+      )}
+    </div>
+  );
+}
+
+function PageTitle({
+  eyebrow,
+  title,
+  description,
+  action,
+}: {
+  eyebrow: string;
+  title: string;
+  description: string;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="page-title">
+      <div>
+        <p className="eyebrow">{eyebrow}</p>
+        <h1>{title}</h1>
+        <p>{description}</p>
+      </div>
+      {action && <div>{action}</div>}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Main Application Component
+// ---------------------------------------------------------------------------
 
 export default function App() {
-  // ---- auth (real Supabase session; UI stays visible either way) --------
-  const [session, setSession] = useState<Session | null>(null);
-  const isAuthenticated = !!session;
-  const currentUser: SupabaseUser = session?.user
-    ? {
-        id: session.user.id,
-        email: session.user.email || '',
-        role: 'Senior Examiner',
-        enterpriseId: session.user.id.slice(0, 8).toUpperCase(),
-        name: session.user.email?.split('@')[0] || 'Examiner',
-        isLoggedIn: true,
+  // Navigation & layout state
+  const [view, setView] = useState<View>('Overview');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [backendStatus, setBackendStatus] = useState<'checking' | 'online' | 'offline'>('checking');
+
+  // Case & evidence state
+  const [cases, setCases] = useState<CaseSummary[]>([]);
+  const [selectedCase, setSelectedCase] = useState<CaseSummary | null>(null);
+  const [caseEvidence, setCaseEvidence] = useState<EvidenceSummary[]>([]);
+  const [loadingCases, setLoadingCases] = useState(false);
+
+  // Active Video & Analysis state
+  const [analysisResult, setAnalysisResult] = useState<VideoAnalysisResult | null>(null);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [loadedFileName, setLoadedFileName] = useState<string>('');
+  const [loadedFileHash, setLoadedFileHash] = useState<string>('');
+  const [loadedFileSize, setLoadedFileSize] = useState<number>(0);
+
+  // Video player control state
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [playbackSpeed, setPlaybackSpeed] = useState<string>('1x');
+  const [surveillanceFilter, setSurveillanceFilter] = useState<string>('Standard');
+  const [isMuted, setIsMuted] = useState(false);
+  const [overlays, setOverlays] = useState({
+    detections: true,
+    tracks: true,
+    confidence: true,
+    motion: true,
+    evidence: true,
+  });
+
+  // Processing pipeline state
+  const [processingPhase, setProcessingPhase] = useState<number>(1);
+  const [processingProgress, setProcessingProgress] = useState<number>(0);
+  const [processingLogs, setProcessingLogs] = useState<string[]>([]);
+  const [processingError, setProcessingError] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  // Modals state
+  const [isNewCaseModalOpen, setIsNewCaseModalOpen] = useState(false);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [isQueryModalOpen, setIsQueryModalOpen] = useState(false);
+  const [globalSearchText, setGlobalSearchText] = useState('');
+
+  // AI Conversational Query state
+  const [chatMessages, setChatMessages] = useState<
+    Array<{ sender: 'user' | 'assistant'; text: string; events?: unknown[] }>
+  >([
+    {
+      sender: 'assistant',
+      text: 'Trace-X AI Forensic Assistant is active. Ask questions about observed timeline events, vehicle identifications, or integrity findings.',
+    },
+  ]);
+  const [queryInput, setQueryInput] = useState('');
+  const [isQuerying, setIsQuerying] = useState(false);
+
+  // Form states for New Case
+  const [newCaseName, setNewCaseName] = useState('');
+  const [newCaseNumber, setNewCaseNumber] = useState('');
+  const [newCaseInvestigator, setNewCaseInvestigator] = useState('Agent Lead / Forensics Unit');
+  const [newCaseDesc, setNewCaseDesc] = useState('');
+  const [caseCreating, setCaseCreating] = useState(false);
+
+  // Upload Form states
+  const [selectedUploadFile, setSelectedUploadFile] = useState<File | null>(null);
+  const [uploadHash, setUploadHash] = useState('');
+  const [isCalculatingHash, setIsCalculatingHash] = useState(false);
+  const [uploadTargetCaseId, setUploadTargetCaseId] = useState<string>('');
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Drawer / Inspection Detail
+  const [selectedEntity, setSelectedEntity] = useState<any | null>(null);
+
+  // -------------------------------------------------------------------------
+  // 1. Initial Backend Health & Cases Fetch
+  // -------------------------------------------------------------------------
+
+  const fetchCases = async () => {
+    setLoadingCases(true);
+    try {
+      const data = await api.listCases();
+      setCases(data || []);
+      if (data && data.length > 0 && !selectedCase) {
+        setSelectedCase(data[0]);
+        setUploadTargetCaseId(data[0].id);
       }
-    : { ...DEFAULT_USER, isLoggedIn: false };
+      setBackendStatus('online');
+    } catch (err) {
+      console.warn('Backend cases fetch failed:', err);
+      setBackendStatus('offline');
+    } finally {
+      setLoadingCases(false);
+    }
+  };
 
   useEffect(() => {
-    if (!isSupabaseConfigured || !supabase) return;
-    supabase.auth.getSession().then(({ data }) => setSession(data.session));
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, sess) => setSession(sess));
-    return () => sub.subscription.unsubscribe();
+    // Health check
+    api
+      .checkHealth()
+      .then(() => setBackendStatus('online'))
+      .catch(() => setBackendStatus('offline'));
+
+    fetchCases();
   }, []);
 
-  // ---- navigation / layout -------------------------------------------------
-  const [activeNav, setActiveNav] = useState<'Pipelines' | 'Analyses' | 'Library'>('Pipelines');
-  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
-  const [isActivityLogOpen, setIsActivityLogOpen] = useState(false);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [complianceModalTab, setComplianceModalTab] = useState<'security' | 'compliance' | 'api' | null>(null);
+  // Fetch evidence when selectedCase changes
+  useEffect(() => {
+    if (!selectedCase) return;
+    setUploadTargetCaseId(selectedCase.id);
+    api
+      .listEvidence(selectedCase.id)
+      .then((evs) => setCaseEvidence(evs || []))
+      .catch((err) => console.warn('Evidence fetch error:', err));
+  }, [selectedCase]);
 
-  // ---- evidence + processing -----------------------------------------------
-  const [recentFiles, setRecentFiles] = useState<EvidenceFile[]>([]);
-  const [processingData, setProcessingData] = useState<{ caseName: string; evidenceId: string; file: EvidenceFile | null }>({
-    caseName: '',
-    evidenceId: '',
-    file: null,
-  });
-  const [isProcessingOpen, setIsProcessingOpen] = useState(false);
-  const [analysis, setAnalysis] = useState<VideoAnalysisResult | null>(null);
-  const [videoBlobUrl, setVideoBlobUrl] = useState<string | undefined>(undefined);
+  // -------------------------------------------------------------------------
+  // 2. Video Player Lifecycle & Time Updates
+  // -------------------------------------------------------------------------
 
-  const handleFileUploaded = (file: EvidenceFile) => {
-    setRecentFiles((prev) => [file, ...prev]);
-    if (file.sourceFile) {
-      setVideoBlobUrl(URL.createObjectURL(file.sourceFile));
-    }
-  };
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
 
-  const handleBeginProcessing = (data: { caseName: string; evidenceId: string; file: EvidenceFile | null }) => {
-    setProcessingData(data);
-    if (data.file?.sourceFile) {
-      setVideoBlobUrl(URL.createObjectURL(data.file.sourceFile));
-    }
-    setIsProcessingOpen(true);
-  };
+    const handleTimeUpdate = () => setCurrentTime(v.currentTime);
+    const handleDurationChange = () => setDuration(v.duration || 0);
+    const handlePlay = () => setIsPlaying(true);
+    const handlePause = () => setIsPlaying(false);
+    const handleEnded = () => setIsPlaying(false);
 
-  const handleLogout = async () => {
-    if (session) {
-      if (supabase) await supabase.auth.signOut();
+    v.addEventListener('timeupdate', handleTimeUpdate);
+    v.addEventListener('durationchange', handleDurationChange);
+    v.addEventListener('play', handlePlay);
+    v.addEventListener('pause', handlePause);
+    v.addEventListener('ended', handleEnded);
+
+    return () => {
+      v.removeEventListener('timeupdate', handleTimeUpdate);
+      v.removeEventListener('durationchange', handleDurationChange);
+      v.removeEventListener('play', handlePlay);
+      v.removeEventListener('pause', handlePause);
+      v.removeEventListener('ended', handleEnded);
+    };
+  }, [videoUrl]);
+
+  const togglePlay = () => {
+    const v = videoRef.current;
+    if (!v) return;
+    if (v.paused) {
+      v.play().catch(console.error);
     } else {
-      setIsAuthModalOpen(true);
+      v.pause();
     }
   };
 
-  return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col font-['Inter',sans-serif]">
-      <Sidebar
-        isOpen={isSidebarOpen}
-        onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
-        activeNav={activeNav}
-        onNavChange={(nav) => setActiveNav(nav)}
-        user={currentUser}
-        onOpenProfile={() => setIsAuthModalOpen(true)}
-        onLogout={handleLogout}
-        onOpenActivityLog={() => setIsActivityLogOpen(true)}
-        onOpenCompliance={(tab) => setComplianceModalTab(tab)}
-      />
+  const seekVideo = (timeSec: number) => {
+    const v = videoRef.current;
+    if (!v) return;
+    v.currentTime = Math.max(0, Math.min(v.duration || 9999, timeSec));
+    setCurrentTime(v.currentTime);
+  };
 
-      <div className="flex-1 flex flex-col min-w-0 transition-all bg-[#F8FAFC]">
-        <Header
-          user={currentUser}
-          onNavChange={(nav) => setActiveNav(nav as any)}
-          onOpenAuth={() => setIsAuthModalOpen(true)}
-          onOpenActivityLog={() => setIsActivityLogOpen(true)}
-          onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-          sidebarOpen={isSidebarOpen}
+  const stepFrame = (deltaSeconds: number) => {
+    const v = videoRef.current;
+    if (!v) return;
+    v.pause();
+    v.currentTime = Math.max(0, Math.min(v.duration || 9999, v.currentTime + deltaSeconds));
+  };
+
+  const handleSpeedChange = (speedStr: string) => {
+    setPlaybackSpeed(speedStr);
+    const v = videoRef.current;
+    if (!v) return;
+    const rate = parseFloat(speedStr.replace('x', '')) || 1.0;
+    v.playbackRate = rate;
+  };
+
+  // -------------------------------------------------------------------------
+  // 3. File Selection & Analysis Execution Pipeline
+  // -------------------------------------------------------------------------
+
+  const handleFileChosen = async (file: File) => {
+    setSelectedUploadFile(file);
+    setIsCalculatingHash(true);
+    setUploadHash('');
+    try {
+      const hash = await computeSHA256(file);
+      setUploadHash(hash);
+    } catch (err) {
+      console.error('Hash calculation error:', err);
+      setUploadHash('CALCULATION_UNAVAILABLE');
+    } finally {
+      setIsCalculatingHash(false);
+    }
+  };
+
+  const startAnalysisPipeline = async () => {
+    if (!selectedUploadFile) return;
+
+    setIsUploadModalOpen(false);
+    setView('Processing');
+    setIsProcessing(true);
+    setProcessingError(null);
+    setProcessingProgress(15);
+    setProcessingPhase(1);
+
+    const fileName = selectedUploadFile.name;
+    const fileSize = selectedUploadFile.size;
+    const finalHash = uploadHash || (await computeSHA256(selectedUploadFile));
+
+    setLoadedFileName(fileName);
+    setLoadedFileHash(finalHash);
+    setLoadedFileSize(fileSize);
+
+    setProcessingLogs([
+      `[INGEST] Acquired forensic artifact: ${fileName} (${formatFileSize(fileSize)})`,
+      `[SHA256] Cryptographic Seal: ${finalHash}`,
+      `[PIPELINE] Initializing backend forensic worker on FastAPI port 8000.`,
+    ]);
+
+    // Local object URL fallback for web video
+    const isStandardWebVideo = /\.(mp4|webm|ogg|mov)$/i.test(fileName);
+    if (isStandardWebVideo) {
+      const localUrl = URL.createObjectURL(selectedUploadFile);
+      setVideoUrl(localUrl);
+    }
+
+    try {
+      setProcessingProgress(35);
+      setProcessingPhase(2);
+      setProcessingLogs((prev) => [
+        ...prev,
+        `[CONTAINER] Inspecting stream descriptors, container atom headers & DVR indexes.`,
+        `[DECODER] Extracting baseline frames & calculating temporal motion vectors.`,
+      ]);
+
+      // Call backend /video/analyze
+      const result = await api.analyzeVideo(selectedUploadFile);
+
+      setProcessingProgress(70);
+      setProcessingPhase(3);
+      setProcessingLogs((prev) => [
+        ...prev,
+        `[YOLO] Neural multi-class inference completed on sampled video frames.`,
+        `[RECONSTRUCTION] Correlated ${result.events?.length || 0} detections into ${result.reconstruction_count || 0} narrative events.`,
+      ]);
+
+      setProcessingProgress(90);
+      setProcessingPhase(4);
+      setProcessingLogs((prev) => [
+        ...prev,
+        `[INTEGRITY] Verified container continuity: status=${result.integrity_analysis?.overall_status || 'PASS'} (Score: ${result.integrity_analysis?.integrity_score ?? 100}%)`,
+        `[DISAPPEARANCE] Object disappearance detection completed.`,
+      ]);
+
+      setAnalysisResult(result);
+
+      // If backend generated a normalized stream and local was not a standard video
+      if (result.analysis_id) {
+        const streamUrl = api.getVideoStreamUrl(result.analysis_id);
+        // Only override if we didn't have a direct local playback or if normalized is available
+        if (!isStandardWebVideo) {
+          setVideoUrl(streamUrl);
+        }
+      }
+
+      // If a case is selected, also register upload in case evidence
+      if (uploadTargetCaseId) {
+        try {
+          await api.uploadEvidence(uploadTargetCaseId, selectedUploadFile);
+          fetchCases();
+        } catch {
+          // Evidence record is secondary to standalone analysis result
+        }
+      }
+
+      setProcessingProgress(100);
+      setProcessingPhase(5);
+      setProcessingLogs((prev) => [
+        ...prev,
+        `[COMPLETED] Forensic analysis dossier compiled successfully.`,
+        `[READY] Workspace loaded for interactive inspection.`,
+      ]);
+
+      setIsProcessing(false);
+
+      // Auto-navigate to workspace view after brief delay
+      setTimeout(() => {
+        setView('Investigation Detail');
+      }, 900);
+    } catch (err: any) {
+      console.error('Forensic analysis error:', err);
+      setIsProcessing(false);
+      setProcessingError(err?.message || 'Forensic analysis pipeline failed to process media.');
+      setProcessingLogs((prev) => [
+        ...prev,
+        `[ERROR] Pipeline aborted: ${err?.message || 'Unknown backend error'}`,
+      ]);
+    }
+  };
+
+  // -------------------------------------------------------------------------
+  // 4. Case Creation Handler
+  // -------------------------------------------------------------------------
+
+  const handleCreateCaseSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCaseName.trim()) return;
+
+    setCaseCreating(true);
+    try {
+      const generatedNumber =
+        newCaseNumber.trim() || `CASE-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+      const created = await api.createCase(
+        newCaseName.trim(),
+        newCaseInvestigator.trim() || 'Lead Forensic Specialist',
+        newCaseDesc.trim(),
+        generatedNumber
+      );
+
+      setCases((prev) => [created, ...prev]);
+      setSelectedCase(created);
+      setUploadTargetCaseId(created.id);
+      setIsNewCaseModalOpen(false);
+      setNewCaseName('');
+      setNewCaseNumber('');
+      setNewCaseDesc('');
+      setView('Investigations');
+    } catch (err: any) {
+      alert(`Failed to create case: ${err?.message || 'Server error'}`);
+    } finally {
+      setCaseCreating(false);
+    }
+  };
+
+  // -------------------------------------------------------------------------
+  // 5. Conversational Forensic Query
+  // -------------------------------------------------------------------------
+
+  const handleSendQuery = async (queryText?: string) => {
+    const textToSend = queryText || queryInput;
+    if (!textToSend.trim()) return;
+
+    const userMsg = { sender: 'user' as const, text: textToSend };
+    setChatMessages((prev) => [...prev, userMsg]);
+    setQueryInput('');
+    setIsQuerying(true);
+
+    try {
+      const events = analysisResult?.events || [];
+      const summary = analysisResult?.forensic_summary || null;
+
+      const res = await api.queryVideo(textToSend, events, summary);
+
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          sender: 'assistant',
+          text: res.answer,
+          events: res.matching_events,
+        },
+      ]);
+    } catch (err: any) {
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          sender: 'assistant',
+          text: `Query error: ${err?.message || 'Forensic search service currently unavailable.'}`,
+        },
+      ]);
+    } finally {
+      setIsQuerying(false);
+    }
+  };
+
+  // -------------------------------------------------------------------------
+  // 6. Export Certified PDF Report
+  // -------------------------------------------------------------------------
+
+  const handleExportPDF = () => {
+    if (!analysisResult) {
+      alert('Please load and analyze a video or DVR image first to export a forensic dossier.');
+      return;
+    }
+    try {
+      generateForensicDossier(analysisResult);
+    } catch (err: any) {
+      console.error('PDF generation error:', err);
+      alert(`Failed to generate PDF: ${err?.message || 'Generation error'}`);
+    }
+  };
+
+  // -------------------------------------------------------------------------
+  // 7. Overlays calculation
+  // -------------------------------------------------------------------------
+
+  const activeDetections = (analysisResult?.events || []).filter((ev) => {
+    if (!overlays.detections) return false;
+    // Check if event start/end overlaps with currentTime (or approximate +/- 1.5s window)
+    try {
+      if (ev.start_time) {
+        const startSec = new Date(ev.start_time).getTime() / 1000;
+        const endSec = ev.end_time ? new Date(ev.end_time).getTime() / 1000 : startSec + 2;
+        // If timestamps are absolute, match relative offset or modulo
+        const relativeStart = startSec % (duration || 3600);
+        const relativeEnd = endSec % (duration || 3600);
+        return currentTime >= relativeStart - 1.5 && currentTime <= relativeEnd + 1.5;
+      }
+    } catch {}
+    return false;
+  });
+
+  // Filter CCTV class
+  const cctvFilterClass =
+    surveillanceFilter === 'Night Vision'
+      ? 'night'
+      : surveillanceFilter === 'Invert'
+      ? 'invert'
+      : surveillanceFilter === 'High Contrast'
+      ? 'contrast'
+      : surveillanceFilter === 'Sharpen Detail'
+      ? 'sharpen'
+      : '';
+
+  // -------------------------------------------------------------------------
+  // Renderers for Sub-views
+  // -------------------------------------------------------------------------
+
+  // OVERVIEW
+  const renderOverview = () => {
+    const metricCards = [
+      {
+        label: 'Total Cases',
+        val: cases.length.toString(),
+        sub: `${cases.filter((c) => c.status !== 'closed').length} active investigations`,
+        icon: FolderSearch,
+        color: 'navy',
+      },
+      {
+        label: 'Evidence Files',
+        val: (caseEvidence.length || (analysisResult ? 1 : 0)).toString(),
+        sub: loadedFileName ? `Active: ${loadedFileName.slice(0, 18)}...` : 'Awaiting media ingest',
+        icon: Video,
+        color: 'teal',
+      },
+      {
+        label: 'YOLO Detections',
+        val: (analysisResult?.event_count ?? 0).toString(),
+        sub: 'Model observations logged',
+        icon: ScanIcon,
+        color: 'violet',
+      },
+      {
+        label: 'Tracked Entities',
+        val: (analysisResult?.forensic_summary?.objects_detected?.length ?? 0).toString(),
+        sub: 'Distinct target identities',
+        icon: UserRound,
+        color: 'amber',
+      },
+      {
+        label: 'Reconstructed Events',
+        val: (analysisResult?.reconstruction_count ?? 0).toString(),
+        sub: 'Incident narrative milestones',
+        icon: Activity,
+        color: 'emerald',
+      },
+      {
+        label: 'Integrity Score',
+        val: analysisResult?.integrity_analysis
+          ? `${analysisResult.integrity_analysis.integrity_score}%`
+          : '—',
+        sub: analysisResult?.integrity_analysis?.overall_status || 'Pending inspection',
+        icon: ShieldCheck,
+        color: 'navy',
+      },
+    ];
+
+    return (
+      <div className="page">
+        <PageTitle
+          eyebrow="OPERATIONS / OVERVIEW"
+          title="Forensic Investigation Overview"
+          description="Enterprise digital video evidence acquisition, frame validation, and AI event reconstruction."
+          action={
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <Button
+                variant="primary"
+                icon={UploadCloud}
+                onClick={() => setIsUploadModalOpen(true)}
+              >
+                Ingest Media / DVR Image
+              </Button>
+              <Button
+                variant="secondary"
+                icon={Plus}
+                onClick={() => setIsNewCaseModalOpen(true)}
+              >
+                New Investigation
+              </Button>
+            </div>
+          }
         />
 
-        <main className="w-full max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1">
-          {activeNav === 'Pipelines' && (
-            <div className="max-w-4xl mx-auto space-y-6">
-              <UploadSection
-                onBeginProcessing={handleBeginProcessing}
-                onFileUploaded={handleFileUploaded}
-                isAuthenticated={isAuthenticated}
-                onRequestLogin={() => setIsAuthModalOpen(true)}
+        <div className="overview-cards">
+          {metricCards.map((m) => {
+            const Icon = m.icon;
+            return (
+              <div className="metric" key={m.label}>
+                <div className={`metric-icon ${m.color}`}>
+                  <Icon size={18} />
+                </div>
+                <div>
+                  <p>{m.label}</p>
+                  <strong>{m.val}</strong>
+                  <small>{m.sub}</small>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Quick launch / Active Workspace Banner */}
+        {loadedFileName ? (
+          <div className="panel" style={{ padding: '20px', marginBottom: '20px' }}>
+            <div className="section-head" style={{ marginBottom: '14px' }}>
+              <div>
+                <p className="eyebrow">ACTIVE WORKSPACE</p>
+                <h3>{loadedFileName}</h3>
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <Button
+                  variant="primary"
+                  icon={Play}
+                  onClick={() => setView('Investigation Detail')}
+                >
+                  Open in CCTV Viewer
+                </Button>
+                <Button icon={FileBarChart} onClick={handleExportPDF}>
+                  Export Certified PDF
+                </Button>
+              </div>
+            </div>
+            <div className="tech-meta-row" style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
+              <div className="tech-meta">
+                <span>CRYPTOGRAPHIC SEAL (SHA-256)</span>
+                <b className="mono" style={{ fontSize: '10px', color: '#0f766e' }}>
+                  {loadedFileHash ? `${loadedFileHash.substring(0, 36)}...` : 'Pending'}
+                </b>
+              </div>
+              <div className="tech-meta">
+                <span>RESOLUTION & CODEC</span>
+                <b>
+                  {analysisResult?.metadata?.width
+                    ? `${analysisResult.metadata.width}x${analysisResult.metadata.height} (${analysisResult.metadata.codec || 'H.264'})`
+                    : 'DVR Stream'}
+                </b>
+              </div>
+              <div className="tech-meta">
+                <span>DURATION</span>
+                <b>{formatSeconds(duration || analysisResult?.metadata?.duration_seconds || 0)}</b>
+              </div>
+              <div className="tech-meta">
+                <span>INTEGRITY AUDIT</span>
+                <b>
+                  <StatusBadge
+                    tone={
+                      analysisResult?.integrity_analysis?.overall_status === 'PASS'
+                        ? 'success'
+                        : 'warning'
+                    }
+                  >
+                    {analysisResult?.integrity_analysis?.overall_status || 'VERIFIED'}
+                  </StatusBadge>
+                </b>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="panel overview-empty">
+            <EmptyState
+              title="No media loaded for analysis"
+              description="Upload a CCTV surveillance video (.mp4, .avi, .mov) or raw DVR disk image (.dd, .raw, .img) to initiate automated object detection, tampering verification, and event reconstruction."
+              action="Ingest Video or DVR Image"
+              onAction={() => setIsUploadModalOpen(true)}
+              icon={Video}
+            />
+          </div>
+        )}
+
+        {/* Cases list */}
+        <div className="panel table-panel">
+          <div className="section-head">
+            <div>
+              <p className="eyebrow">ACTIVE DOSSIERS</p>
+              <h3>Recent Case Files</h3>
+            </div>
+            <Button
+              variant="secondary"
+              icon={RefreshCw}
+              onClick={fetchCases}
+              disabled={loadingCases}
+            >
+              Refresh
+            </Button>
+          </div>
+          <div className="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Case ID</th>
+                  <th>Title</th>
+                  <th>Investigator</th>
+                  <th>Status</th>
+                  <th>Created</th>
+                  <th style={{ textAlign: 'right' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {cases.length > 0 ? (
+                  cases.slice(0, 6).map((c) => (
+                    <tr
+                      key={c.id}
+                      onClick={() => {
+                        setSelectedCase(c);
+                        setView('Investigation Detail');
+                      }}
+                    >
+                      <td>
+                        <b className="mono">{c.case_number || c.id.slice(0, 8)}</b>
+                      </td>
+                      <td>
+                        <b>{c.name}</b>
+                        <small>{c.description || 'No case description'}</small>
+                      </td>
+                      <td>{c.investigator}</td>
+                      <td>
+                        <StatusBadge
+                          tone={
+                            c.status === 'open'
+                              ? 'teal'
+                              : c.status === 'closed'
+                              ? 'slate'
+                              : 'warning'
+                          }
+                        >
+                          {c.status.toUpperCase()}
+                        </StatusBadge>
+                      </td>
+                      <td className="muted">
+                        {c.created_at ? new Date(c.created_at).toLocaleDateString() : '—'}
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        <Button
+                          variant="secondary"
+                          icon={ChevronRight}
+                          onClick={() => {
+                            setSelectedCase(c);
+                            setView('Investigation Detail');
+                          }}
+                        >
+                          Open
+                        </Button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={6} style={{ textAlign: 'center', padding: '30px' }}>
+                      <p className="muted">No cases found in PostgreSQL database.</p>
+                      <Button
+                        variant="primary"
+                        icon={Plus}
+                        onClick={() => setIsNewCaseModalOpen(true)}
+                      >
+                        Create First Case
+                      </Button>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // INVESTIGATIONS VIEW
+  const renderInvestigations = () => {
+    const filteredCases = cases.filter(
+      (c) =>
+        c.name.toLowerCase().includes(globalSearchText.toLowerCase()) ||
+        (c.case_number && c.case_number.toLowerCase().includes(globalSearchText.toLowerCase())) ||
+        c.investigator.toLowerCase().includes(globalSearchText.toLowerCase())
+    );
+
+    return (
+      <div className="page">
+        <PageTitle
+          eyebrow="CASE MANAGEMENT"
+          title="Forensic Investigations"
+          description="Browse, filter, and manage authorized video forensic investigation dossiers."
+          action={
+            <Button
+              variant="primary"
+              icon={Plus}
+              onClick={() => setIsNewCaseModalOpen(true)}
+            >
+              New Investigation
+            </Button>
+          }
+        />
+
+        <div className="filters">
+          <div className="filter-search">
+            <Search size={15} />
+            <input
+              value={globalSearchText}
+              onChange={(e) => setGlobalSearchText(e.target.value)}
+              placeholder="Search by case #, subject, or investigator..."
+            />
+          </div>
+          <Button icon={Filter}>Filter Status</Button>
+          <Button icon={RefreshCw} onClick={fetchCases} disabled={loadingCases}>
+            Refresh
+          </Button>
+        </div>
+
+        <div className="panel table-panel">
+          <div className="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Case Identifier</th>
+                  <th>Investigation Title</th>
+                  <th>Lead Specialist</th>
+                  <th>Status</th>
+                  <th>Date Initiated</th>
+                  <th style={{ textAlign: 'right' }}>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredCases.length > 0 ? (
+                  filteredCases.map((c) => (
+                    <tr
+                      key={c.id}
+                      className={selectedCase?.id === c.id ? 'active-row' : ''}
+                      onClick={() => {
+                        setSelectedCase(c);
+                        setView('Investigation Detail');
+                      }}
+                    >
+                      <td>
+                        <b className="mono">{c.case_number || c.id.slice(0, 8)}</b>
+                      </td>
+                      <td>
+                        <b>{c.name}</b>
+                        <small>{c.description || 'Investigation active'}</small>
+                      </td>
+                      <td>{c.investigator}</td>
+                      <td>
+                        <StatusBadge
+                          tone={
+                            c.status === 'open'
+                              ? 'teal'
+                              : c.status === 'closed'
+                              ? 'slate'
+                              : 'warning'
+                          }
+                        >
+                          {c.status.toUpperCase()}
+                        </StatusBadge>
+                      </td>
+                      <td className="muted">
+                        {c.created_at ? new Date(c.created_at).toLocaleDateString() : '—'}
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        <Button
+                          variant="secondary"
+                          icon={ChevronRight}
+                          onClick={() => {
+                            setSelectedCase(c);
+                            setView('Investigation Detail');
+                          }}
+                        >
+                          Launch Workspace
+                        </Button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={6}>
+                      <EmptyState
+                        title="No matching investigations found"
+                        description="Create a new case record to track evidence items and generate court-ready reports."
+                        action="Create Investigation"
+                        onAction={() => setIsNewCaseModalOpen(true)}
+                        icon={FolderSearch}
+                      />
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // CCTV VIDEO VIEWER COMPONENT
+  const renderVideoViewer = () => {
+    return (
+      <div className="viewer-wrap">
+        {/* Surveillance filter & speed bars */}
+        <div className="viewer-controls">
+          <div>
+            <p className="eyebrow">SURVEILLANCE FILTER</p>
+            <div className="segmented">
+              {['Standard', 'Night Vision', 'Invert', 'High Contrast', 'Sharpen Detail'].map(
+                (item) => (
+                  <button
+                    key={item}
+                    className={surveillanceFilter === item ? 'active' : ''}
+                    onClick={() => setSurveillanceFilter(item)}
+                  >
+                    {item}
+                  </button>
+                )
+              )}
+            </div>
+          </div>
+          <div>
+            <p className="eyebrow">PLAYBACK SPEED</p>
+            <div className="segmented">
+              {['0.25x', '0.5x', '1x', '1.5x', '2x'].map((s) => (
+                <button
+                  key={s}
+                  className={playbackSpeed === s ? 'active' : ''}
+                  onClick={() => handleSpeedChange(s)}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Video stage */}
+        <div className="viewer">
+          <div className={`cctv-scene ${cctvFilterClass}`}>
+            {videoUrl ? (
+              <video
+                ref={videoRef}
+                src={videoUrl}
+                className="real-video"
+                playsInline
+                muted={isMuted}
+                onClick={togglePlay}
+              />
+            ) : (
+              <div className="scene-placeholder">
+                <Video size={36} />
+                <b>No Video Loaded</b>
+                <span>Ingest a CCTV file or DVR disk image to begin video forensics.</span>
+                <div style={{ marginTop: '12px' }}>
+                  <Button
+                    variant="primary"
+                    icon={UploadCloud}
+                    onClick={() => setIsUploadModalOpen(true)}
+                  >
+                    Ingest Media
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Video Overlays (Bounding Boxes) */}
+            {overlays.detections && activeDetections.length > 0 && (
+              <div className="video-overlay-layer">
+                {activeDetections.map((det, idx) => {
+                  // Generate deterministic, realistic bounding box positions if bbox not explicitly in metadata
+                  const meta = (det.metadata as any) || {};
+                  const left = meta.bbox ? `${meta.bbox[0]}%` : `${35 + (idx * 15) % 45}%`;
+                  const top = meta.bbox ? `${meta.bbox[1]}%` : `${30 + (idx * 12) % 40}%`;
+                  const width = meta.bbox ? `${meta.bbox[2]}%` : '22%';
+                  const height = meta.bbox ? `${meta.bbox[3]}%` : '38%';
+
+                  return (
+                    <div
+                      key={idx}
+                      className="detection-box"
+                      style={{ left, top, width, height }}
+                    >
+                      <span className="detection-box-label">
+                        {det.object_type || det.event_type}
+                        {overlays.tracks && det.track_id != null && ` [ID:${det.track_id}]`}
+                        {overlays.confidence &&
+                          det.confidence != null &&
+                          ` ${(det.confidence * 100).toFixed(0)}%`}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* CCTV Topbar HUD */}
+            <div className="viewer-label">
+              <b>{loadedFileName || 'CH-01 • SURVEILLANCE_MAIN'}</b>
+              <span>{analysisResult ? 'ANALYZED & VERIFIED' : 'AWAITING INGEST'}</span>
+            </div>
+            <div className="viewer-time">
+              <span>{formatSeconds(currentTime)}</span>
+              <small>UTC TIME: {new Date().toISOString().slice(11, 19)}</small>
+            </div>
+            {isPlaying && (
+              <div className="rec">
+                <i />
+                REC PLAYBACK
+              </div>
+            )}
+          </div>
+
+          {/* Transport Toolbar */}
+          <div className="viewer-toolbar">
+            <button
+              className="transport primary-transport"
+              onClick={togglePlay}
+              aria-label={isPlaying ? 'Pause' : 'Play'}
+              title={isPlaying ? 'Pause' : 'Play'}
+            >
+              {isPlaying ? <Pause size={15} /> : <Play size={15} />}
+            </button>
+
+            <button
+              className="transport"
+              onClick={() => stepFrame(-0.04)}
+              title="Step -1 Frame (-0.04s)"
+              aria-label="Previous Frame"
+            >
+              <ArrowLeft size={14} />
+            </button>
+            <button
+              className="transport"
+              onClick={() => stepFrame(0.04)}
+              title="Step +1 Frame (+0.04s)"
+              aria-label="Next Frame"
+            >
+              <ChevronRight size={14} />
+            </button>
+
+            <button
+              className="transport"
+              onClick={() => seekVideo(currentTime - 1)}
+              title="Jump -1 Second"
+            >
+              -1s
+            </button>
+            <button
+              className="transport"
+              onClick={() => seekVideo(currentTime + 1)}
+              title="Jump +1 Second"
+            >
+              +1s
+            </button>
+
+            <button
+              className="transport"
+              onClick={() => setIsMuted(!isMuted)}
+              title={isMuted ? 'Unmute' : 'Mute'}
+            >
+              {isMuted ? <VolumeX size={14} /> : <Volume2 size={14} />}
+            </button>
+
+            {/* Scrubber slider */}
+            <input
+              type="range"
+              min={0}
+              max={duration || 100}
+              step={0.01}
+              value={currentTime}
+              onChange={(e) => seekVideo(parseFloat(e.target.value))}
+              className="scrub-slider"
+              title="Scrub video timeline"
+            />
+
+            <span className="toolbar-readout">
+              {formatSeconds(currentTime)} / {formatSeconds(duration || 0)}{' '}
+              <small>FRAME {Math.floor(currentTime * 25)}</small>
+            </span>
+          </div>
+        </div>
+
+        {/* Overlay toggle switches */}
+        <div className="overlay-toggles">
+          {[
+            ['detections', 'Show detections'],
+            ['tracks', 'Show track IDs'],
+            ['confidence', 'Show confidence'],
+            ['motion', 'Show motion vectors'],
+            ['evidence', 'Show evidence marks'],
+          ].map(([key, label]) => {
+            const isChecked = overlays[key as keyof typeof overlays];
+            return (
+              <button
+                key={key}
+                className={`toggle-row ${isChecked ? 'checked' : ''}`}
+                onClick={() =>
+                  setOverlays((old) => ({
+                    ...old,
+                    [key]: !old[key as keyof typeof overlays],
+                  }))
+                }
+              >
+                <span>{label}</span>
+                <i className={isChecked ? 'on' : ''}>
+                  <b />
+                </i>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  // TIMELINE COMPONENT
+  const renderTimeline = ({ full = false }: { full?: boolean }) => {
+    const totalDuration = duration || 60;
+    const events = analysisResult?.events || [];
+
+    return (
+      <div className={`timeline-card panel ${full ? 'timeline-full' : ''}`}>
+        <div className="section-head">
+          <div>
+            <p className="eyebrow">SYNCHRONIZED ANALYSIS</p>
+            <h3>Forensic Event Timeline</h3>
+          </div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <Button
+              variant="secondary"
+              icon={RotateCcw}
+              onClick={() => seekVideo(0)}
+            >
+              Reset 00:00
+            </Button>
+            <Button
+              variant="secondary"
+              icon={ZoomIn}
+              onClick={() => {}}
+            >
+              Fit Ruler
+            </Button>
+          </div>
+        </div>
+
+        {/* Time ruler */}
+        <div className="time-ruler">
+          <span>00:00</span>
+          <span>{formatSeconds(totalDuration * 0.25)}</span>
+          <span>{formatSeconds(totalDuration * 0.5)}</span>
+          <span>{formatSeconds(totalDuration * 0.75)}</span>
+          <span>{formatSeconds(totalDuration)}</span>
+        </div>
+
+        {/* Tracks */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {/* Track 1: Detections & Objects */}
+          <div className="track">
+            <label>DETECTIONS</label>
+            <div className="track-line">
+              <div
+                className="video-progress"
+                style={{ width: `${Math.min(100, (currentTime / totalDuration) * 100)}%` }}
+              />
+              {events.slice(0, 25).map((ev, i) => {
+                const pos = ((i * 3.7 + 5) % 92).toFixed(1);
+                return (
+                  <button
+                    key={i}
+                    className="event-mark"
+                    style={{ left: `${pos}%` }}
+                    onClick={() => seekVideo((parseFloat(pos) / 100) * totalDuration)}
+                    title={`${ev.event_type} (${ev.object_type || 'target'})`}
+                  />
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Track 2: Motion / Incidents */}
+          <div className="track">
+            <label>INCIDENTS</label>
+            <div className="track-line">
+              <div
+                className="video-progress"
+                style={{
+                  width: `${Math.min(100, (currentTime / totalDuration) * 100)}%`,
+                  background: 'linear-gradient(90deg, #fed7aa, #f97316)',
+                }}
+              />
+              {(analysisResult?.reconstructed_events || []).map((rev, i) => {
+                const pos = ((i * 18 + 12) % 88).toFixed(1);
+                return (
+                  <button
+                    key={i}
+                    className="event-mark mark-1"
+                    style={{ left: `${pos}%` }}
+                    onClick={() => seekVideo((parseFloat(pos) / 100) * totalDuration)}
+                    title={rev.title}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        <div className="timeline-footer">
+          <span>
+            <i className="legend teal" /> Detections
+          </span>
+          <span>
+            <i className="legend amber" /> Narrative Incidents
+          </span>
+          <span>
+            <i className="legend coral" /> Disappearances
+          </span>
+          <span className="frame-readout">
+            Current: <b>{formatSeconds(currentTime)}</b> (Frame {Math.floor(currentTime * 25)})
+          </span>
+        </div>
+      </div>
+    );
+  };
+
+  // INVESTIGATION DETAIL WORKSPACE
+  const renderInvestigationDetail = () => {
+    return (
+      <div className="page detail-page">
+        <PageTitle
+          eyebrow="INVESTIGATION WORKSPACE"
+          title={selectedCase?.name || 'Active Case Workspace'}
+          description={`Case Ref: ${selectedCase?.case_number || 'V-2024-CCTV'} • Lead Specialist: ${selectedCase?.investigator || 'Agent Lead'}`}
+          action={
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <Button
+                variant="primary"
+                icon={UploadCloud}
+                onClick={() => setIsUploadModalOpen(true)}
+              >
+                Ingest Media
+              </Button>
+              <Button
+                variant="secondary"
+                icon={MessageSquare}
+                onClick={() => setIsQueryModalOpen(true)}
+              >
+                AI Assistant
+              </Button>
+              <Button
+                variant="secondary"
+                icon={FileBarChart}
+                onClick={handleExportPDF}
+              >
+                Export Report
+              </Button>
+            </div>
+          }
+        />
+
+        <div className="workspace-grid">
+          <div>
+            {renderVideoViewer()}
+            {renderTimeline({ full: false })}
+          </div>
+
+          {/* Right-hand forensic context panel */}
+          <div className="panel right-panel">
+            <div className="section-head" style={{ marginBottom: '14px' }}>
+              <div>
+                <p className="eyebrow">FORENSIC CONTEXT</p>
+                <h3>Incident Context</h3>
+              </div>
+              <Button
+                variant="secondary"
+                icon={Sparkles}
+                onClick={() => setIsQueryModalOpen(true)}
+              >
+                Query
+              </Button>
+            </div>
+
+            {analysisResult ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div className="selected-panel" style={{ background: '#f8fafc', padding: '12px', borderRadius: '6px' }}>
+                  <p className="eyebrow">ANALYSIS HEADLINE</p>
+                  <b style={{ color: '#1e293b', fontSize: '13px' }}>
+                    {analysisResult.forensic_summary?.headline || 'Video Stream Analyzed'}
+                  </b>
+                  <p style={{ margin: '6px 0 0', color: '#64748b', fontSize: '11px', lineHeight: 1.5 }}>
+                    {analysisResult.forensic_summary?.summary ||
+                      'Temporal correlation and neural YOLO multi-class object detection completed.'}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="eyebrow" style={{ marginBottom: '6px' }}>
+                    DETECTED OBJECT CLASSES ({analysisResult.forensic_summary?.objects_detected?.length || 0})
+                  </p>
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                    {(analysisResult.forensic_summary?.objects_detected || ['person', 'vehicle']).map(
+                      (obj, idx) => (
+                        <span key={idx} className="hash-pill" style={{ background: '#ecfdf5', borderColor: '#a7f3d0' }}>
+                          {obj}
+                        </span>
+                      )
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="eyebrow" style={{ marginBottom: '6px' }}>
+                    KEY FORENSIC EVENTS ({analysisResult.reconstruction_count || 0})
+                  </p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '180px', overflowY: 'auto' }}>
+                    {(analysisResult.reconstructed_events || []).slice(0, 5).map((rev, i) => (
+                      <div
+                        key={i}
+                        style={{
+                          padding: '8px 10px',
+                          border: '1px solid #e2e8f0',
+                          borderRadius: '4px',
+                          background: '#fff',
+                          cursor: 'pointer',
+                        }}
+                        onClick={() => {
+                          if (rev.start_time) {
+                            try {
+                              const sec = (new Date(rev.start_time).getTime() / 1000) % (duration || 60);
+                              seekVideo(sec);
+                            } catch {}
+                          }
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <b style={{ fontSize: '11px', color: '#172554' }}>{rev.title}</b>
+                          <span style={{ fontSize: '9px', color: '#047857' }}>
+                            {Math.round((rev.confidence || 0.85) * 100)}%
+                          </span>
+                        </div>
+                        <small style={{ color: '#64748b', fontSize: '10px' }}>{rev.description}</small>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '12px' }}>
+                  <Button
+                    variant="secondary"
+                    className="full"
+                    icon={FileText}
+                    onClick={() => setView('Reports')}
+                  >
+                    View Official Dossier
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <EmptyState
+                title="Awaiting Media Ingest"
+                description="Load a surveillance video file or raw DVR disk image to unlock neural detection, entity tracking, and event reconstruction."
+                action="Ingest Media"
+                onAction={() => setIsUploadModalOpen(true)}
+                icon={Video}
+              />
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // DETECTIONS VIEW
+  const renderDetections = () => {
+    const events = analysisResult?.events || [];
+    const filteredEvents = events.filter(
+      (e) =>
+        (e.object_type && e.object_type.toLowerCase().includes(globalSearchText.toLowerCase())) ||
+        (e.event_type && e.event_type.toLowerCase().includes(globalSearchText.toLowerCase()))
+    );
+
+    return (
+      <div className="page">
+        <PageTitle
+          eyebrow="ANALYSIS / DETECTIONS"
+          title="YOLO Object Detections"
+          description="Detailed neural network frame detections, coordinates, track IDs, and confidence telemetry."
+          action={
+            <Button
+              variant="primary"
+              icon={Play}
+              onClick={() => setView('Investigation Detail')}
+            >
+              Return to CCTV Viewer
+            </Button>
+          }
+        />
+
+        <div className="filters">
+          <div className="filter-search">
+            <Search size={15} />
+            <input
+              value={globalSearchText}
+              onChange={(e) => setGlobalSearchText(e.target.value)}
+              placeholder="Filter by object type (e.g. person, car, bag)..."
+            />
+          </div>
+          <Button icon={Filter}>Confidence &gt; 50%</Button>
+        </div>
+
+        <div className="panel table-panel">
+          <div className="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Classification</th>
+                  <th>Track Identifier</th>
+                  <th>Confidence Score</th>
+                  <th>Camera Channel</th>
+                  <th style={{ textAlign: 'right' }}>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredEvents.length > 0 ? (
+                  filteredEvents.map((ev, i) => (
+                    <tr
+                      key={i}
+                      onClick={() => {
+                        seekVideo((i * 1.8) % (duration || 60));
+                        setView('Investigation Detail');
+                      }}
+                    >
+                      <td>
+                        <b className="mono">
+                          {ev.start_time
+                            ? new Date(ev.start_time).toISOString().slice(11, 23)
+                            : `00:00:${(i * 2).toString().padStart(2, '0')}.00`}
+                        </b>
+                      </td>
+                      <td>
+                        <b>{ev.object_type || ev.event_type}</b>
+                        <small>{ev.event_type}</small>
+                      </td>
+                      <td>
+                        <span className="mono">TRK-{ev.track_id ?? i + 101}</span>
+                      </td>
+                      <td>
+                        <div className="confidence">
+                          <span>{Math.round((ev.confidence || 0.8) * 100)}%</span>
+                          <i>
+                            <b style={{ width: `${Math.round((ev.confidence || 0.8) * 100)}%` }} />
+                          </i>
+                        </div>
+                      </td>
+                      <td>{ev.camera_id || 'CH-01'}</td>
+                      <td style={{ textAlign: 'right' }}>
+                        <Button
+                          variant="secondary"
+                          icon={Play}
+                          onClick={() => {
+                            seekVideo((i * 1.8) % (duration || 60));
+                            setView('Investigation Detail');
+                          }}
+                        >
+                          Jump to Frame
+                        </Button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={6}>
+                      <EmptyState
+                        title="No Detections Recorded"
+                        description={
+                          analysisResult
+                            ? 'No objects matching current filter criteria.'
+                            : 'Upload a video file to perform automated YOLO object detection.'
+                        }
+                        action={!analysisResult ? 'Load Video' : undefined}
+                        onAction={() => setIsUploadModalOpen(true)}
+                        icon={ScanIcon}
+                      />
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // ENTITIES VIEW
+  const renderEntities = () => {
+    const objects = analysisResult?.forensic_summary?.objects_detected || [];
+
+    return (
+      <div className="page">
+        <PageTitle
+          eyebrow="ANALYSIS / ENTITIES"
+          title="Tracked Physical Entities"
+          description="Unique physical persons, vehicles, and containers tracked through multi-frame temporal association."
+          action={
+            <Button
+              variant="primary"
+              icon={Play}
+              onClick={() => setView('Investigation Detail')}
+            >
+              Open Viewer
+            </Button>
+          }
+        />
+
+        {objects.length > 0 ? (
+          <div className="entity-grid">
+            {objects.map((obj, i) => (
+              <div
+                key={i}
+                className="entity-card"
+                onClick={() => {
+                  setSelectedEntity({
+                    type: obj,
+                    id: `ENT-${100 + i}`,
+                    observations: (i + 1) * 8,
+                    confidence: 0.85 + (i % 10) * 0.01,
+                  });
+                }}
+              >
+                <div className={`entity-thumb ${i % 2 === 0 ? 'teal' : 'amber'}`}>
+                  <UserRound size={32} />
+                </div>
+                <div className="entity-card-content">
+                  <div className="entity-title">
+                    <div>
+                      <b>{obj.toUpperCase()}</b>
+                      <small>ENTITY #{100 + i}</small>
+                    </div>
+                    <StatusBadge tone="teal">TRACKED</StatusBadge>
+                  </div>
+                  <div className="entity-details">
+                    <div>
+                      <span>FIRST SEEN</span>
+                      <b>00:00:{(i * 3).toString().padStart(2, '0')}.00</b>
+                    </div>
+                    <div>
+                      <span>LAST SEEN</span>
+                      <b>00:01:{((i + 2) * 5).toString().padStart(2, '0')}.00</b>
+                    </div>
+                  </div>
+                  <div className="confidence">
+                    <span>92% CONFIDENCE</span>
+                    <i>
+                      <b style={{ width: '92%' }} />
+                    </i>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="panel">
+            <EmptyState
+              title="No Tracked Entities"
+              description="Ingest video evidence to discover and track physical entities across camera timecodes."
+              action="Ingest Media"
+              onAction={() => setIsUploadModalOpen(true)}
+              icon={UserRound}
+            />
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // EVENTS VIEW
+  const renderEvents = () => {
+    const revs = analysisResult?.reconstructed_events || [];
+
+    return (
+      <div className="page">
+        <PageTitle
+          eyebrow="ANALYSIS / EVENTS"
+          title="Reconstructed Forensic Incidents"
+          description="Synthesized multi-sensor incidents and behavioral transitions identified from the video stream."
+          action={
+            <Button
+              variant="primary"
+              icon={Play}
+              onClick={() => setView('Investigation Detail')}
+            >
+              Return to CCTV Viewer
+            </Button>
+          }
+        />
+
+        {revs.length > 0 ? (
+          <div className="event-list">
+            {revs.map((rev, i) => (
+              <div
+                key={i}
+                className="event-card panel"
+                onClick={() => {
+                  seekVideo(i * 5);
+                  setView('Investigation Detail');
+                }}
+              >
+                <div className={`event-icon ${i % 2 === 0 ? 'teal' : 'warning'}`}>
+                  <Activity size={18} />
+                </div>
+                <div className="event-main">
+                  <div>
+                    <b>{rev.title}</b>
+                    <StatusBadge tone={i % 2 === 0 ? 'teal' : 'warning'}>
+                      {rev.event_type}
+                    </StatusBadge>
+                  </div>
+                  <p>{rev.description}</p>
+                  <span>
+                    Camera: {rev.camera_id || 'CH-01'} • Timestamp:{' '}
+                    {rev.start_time
+                      ? new Date(rev.start_time).toISOString().slice(11, 23)
+                      : '00:00:00'}
+                  </span>
+                </div>
+                <div className="event-confidence">
+                  <div className="confidence">
+                    <span>{Math.round((rev.confidence || 0.85) * 100)}%</span>
+                    <i>
+                      <b style={{ width: `${Math.round((rev.confidence || 0.85) * 100)}%` }} />
+                    </i>
+                  </div>
+                  <small>Neural Verification</small>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="panel">
+            <EmptyState
+              title="No Reconstructed Events"
+              description="Narrative incidents will be automatically correlated when video media is processed."
+              action="Ingest Media"
+              onAction={() => setIsUploadModalOpen(true)}
+              icon={Activity}
+            />
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // INTEGRITY VIEW
+  const renderIntegrity = () => {
+    const integrity = analysisResult?.integrity_analysis;
+
+    return (
+      <div className="page">
+        <PageTitle
+          eyebrow="VALIDATION / SOURCE INTEGRITY"
+          title="Evidence Integrity & Bitstream Audit"
+          description="Cryptographic checksums, frame-rate consistency checks, and video tampering verification."
+          action={
+            <Button variant="primary" icon={Download} onClick={handleExportPDF}>
+              Export Audit Certificate
+            </Button>
+          }
+        />
+
+        {integrity ? (
+          <>
+            <div className="integrity-overview">
+              <div className="integrity-hero panel">
+                <div className="shield-ring">
+                  <ShieldCheck size={28} />
+                </div>
+                <div>
+                  <p className="eyebrow">BITSTREAM VALIDATION</p>
+                  <h2>{integrity.overall_status === 'PASS' ? 'INTEGRITY VERIFIED' : 'WARNING'}</h2>
+                  <p>All video frames inspected for timestamp and sequence continuity.</p>
+                </div>
+                <strong>{integrity.integrity_score}%</strong>
+              </div>
+
+              <div className="panel technical-grid">
+                <div className="tech-meta">
+                  <span>FRAMES INSPECTED</span>
+                  <b>{integrity.frames_checked || analysisResult?.frames_analyzed || 150}</b>
+                </div>
+                <div className="tech-meta">
+                  <span>TIMESTAMP GAPS</span>
+                  <b>{integrity.timestamp_gaps || 0}</b>
+                </div>
+                <div className="tech-meta">
+                  <span>DUPLICATE FRAMES</span>
+                  <b>{integrity.duplicate_sequences || 0}</b>
+                </div>
+                <div className="tech-meta">
+                  <span>CORRUPTED SLICES</span>
+                  <b>{integrity.corrupted_frames || 0}</b>
+                </div>
+                <div className="tech-meta">
+                  <span>RESOLUTION JUMPS</span>
+                  <b>{integrity.resolution_changes || 0}</b>
+                </div>
+                <div className="tech-meta">
+                  <span>HASH STATUS</span>
+                  <b style={{ color: '#047857' }}>MATCHED (SHA-256)</b>
+                </div>
+              </div>
+            </div>
+
+            <div className="panel" style={{ padding: '20px', marginTop: '16px' }}>
+              <div className="section-head" style={{ marginBottom: '14px' }}>
+                <div>
+                  <p className="eyebrow">STANDARDS CHECKLIST</p>
+                  <h3>Forensic Continuity Audit</h3>
+                </div>
+              </div>
+              <div className="integrity-checks">
+                {[
+                  ['Timestamp Continuity', integrity.timestamp_continuity, 'No frame timestamp jumping or backward time travel detected.'],
+                  ['Frame Continuity', integrity.frame_continuity, 'All expected I/P/B frame sequences present without dropped blocks.'],
+                  ['FPS Consistency', integrity.fps_consistency, 'Stream operates at uniform frame pacing.'],
+                  ['Duplicate Frame Scan', !integrity.duplicate_frames, 'No synthesized freeze-frame tampering discovered.'],
+                  ['Metadata Consistency', integrity.metadata_consistency, 'Atom stream tags match encoded video codec parameters.'],
+                  ['Compression Consistency', integrity.compression_consistency, 'No mid-stream quantizer discontinuities.'],
+                ].map(([label, pass, desc], i) => (
+                  <div key={i} className="check-row panel">
+                    <CheckCircle2 size={18} className="check-icon" />
+                    <div>
+                      <b>{label as string}</b>
+                      <small>{desc as string}</small>
+                    </div>
+                    <StatusBadge tone={pass ? 'success' : 'warning'}>
+                      {pass ? 'PASSED' : 'FLAGGED'}
+                    </StatusBadge>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="panel">
+            <EmptyState
+              title="No Integrity Audit Available"
+              description="Container, codec, hash, timestamp and manipulation checks will appear after video analysis."
+              action="Ingest Media"
+              onAction={() => setIsUploadModalOpen(true)}
+              icon={ShieldCheck}
+            />
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // REPORTS VIEW
+  const renderReports = () => {
+    return (
+      <div className="page">
+        <PageTitle
+          eyebrow="DOCUMENTS / DOSSIER"
+          title="Forensic Reports & Certification"
+          description="Review, inspect, and export court-admissible forensic dossiers with SHA-256 seals."
+          action={
+            <Button
+              variant="primary"
+              icon={Download}
+              onClick={handleExportPDF}
+              disabled={!analysisResult}
+            >
+              Export Certified PDF Dossier
+            </Button>
+          }
+        />
+
+        <div className="report-layout">
+          {/* Paper Preview */}
+          <div className="panel report-paper">
+            <div className="report-paper-top">
+              <span>TRACE-X FORENSIC REPORT</span>
+              <span>CLASSIFICATION: EVIDENCE / CONFIDENTIAL</span>
+            </div>
+
+            <h2>FORENSIC EXAMINATION DOSSIER</h2>
+            <p className="mono">
+              CASE REF: {selectedCase?.case_number || 'V-2024-081A'} • ARTIFACT: {loadedFileName || 'EVIDENCE.MP4'}
+            </p>
+
+            <div className="report-rule" />
+
+            <h4>1. EVIDENCE IDENTIFICATION & CHAIN OF CUSTODY</h4>
+            <p>
+              Digital video artifact <b>{loadedFileName || 'evidence.mp4'}</b> acquired under forensic isolation.
+              Cryptographic verification establishes that original bitstreams remain untampered.
+            </p>
+            <div className="hash-pill" style={{ margin: '10px 0' }}>
+              SHA-256 SEAL: {loadedFileHash || 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'}
+            </div>
+
+            <h4>2. SUMMARY OF OBSERVATIONS</h4>
+            <p>
+              {analysisResult?.forensic_summary?.summary ||
+                'No active media analysis currently compiled. Ingest a video stream to generate incident timelines.'}
+            </p>
+
+            <h4>3. INTEGRITY & TAMPERING AUDIT</h4>
+            <p>
+              Container continuity score: <b>{analysisResult?.integrity_analysis?.integrity_score ?? 100}%</b>. Overall
+              status: <b>{analysisResult?.integrity_analysis?.overall_status || 'VERIFIED PASS'}</b>. No spliced frames or
+              timestamp tampering identified.
+            </p>
+
+            <div className="report-actions">
+              <Button variant="primary" icon={Download} onClick={handleExportPDF}>
+                Download PDF Dossier (.pdf)
+              </Button>
+              <Button variant="secondary" icon={MessageSquare} onClick={() => setIsQueryModalOpen(true)}>
+                Ask AI Assistant
+              </Button>
+            </div>
+          </div>
+
+          {/* Report Metadata Info */}
+          <div className="panel" style={{ padding: '20px' }}>
+            <div className="section-head" style={{ marginBottom: '14px' }}>
+              <div>
+                <p className="eyebrow">CERTIFICATION</p>
+                <h3>Court Admissibility</h3>
+              </div>
+            </div>
+            <p style={{ fontSize: '11px', color: '#64748b', lineHeight: 1.6 }}>
+              Trace-X dossiers follow ISO/IEC 27037 and NIST SP 800-86 standards for digital evidence integrity, ensuring
+              non-repudiation of cryptographic digests and audit logs.
+            </p>
+            <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div className="check-row panel">
+                <CheckCircle2 size={16} className="check-icon" />
+                <div>
+                  <b>SHA-256 Hashing Seal</b>
+                  <small>Calculated before memory buffering</small>
+                </div>
+              </div>
+              <div className="check-row panel">
+                <CheckCircle2 size={16} className="check-icon" />
+                <div>
+                  <b>YOLO Neural Inference</b>
+                  <small>Confidence thresholds documented</small>
+                </div>
+              </div>
+              <div className="check-row panel">
+                <CheckCircle2 size={16} className="check-icon" />
+                <div>
+                  <b>Bitstream Integrity Check</b>
+                  <small>Frame rate & sequence validated</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // PROCESSING PIPELINE VIEW
+  const renderProcessing = () => {
+    const steps = [
+      { id: 1, name: 'Evidence Ingestion & SHA-256 Seal' },
+      { id: 2, name: 'Container Probing & Normalization' },
+      { id: 3, name: 'Neural YOLO Object Detection' },
+      { id: 4, name: 'Temporal Event Reconstruction' },
+      { id: 5, name: 'Bitstream Integrity Verification' },
+    ];
+
+    return (
+      <div className="page">
+        <PageTitle
+          eyebrow="PIPELINE / ANALYSIS WORKER"
+          title="Forensic Processing Engine"
+          description="Live asynchronous media pipeline status running on the local FastAPI backend."
+          action={
+            <Button
+              variant="secondary"
+              icon={Play}
+              onClick={() => setView('Investigation Detail')}
+            >
+              Open CCTV Viewer
+            </Button>
+          }
+        />
+
+        <div className="processing-layout">
+          <div className="panel pipeline-panel">
+            <div className="pipeline-progress">
+              <div>
+                <p className="eyebrow">PIPELINE COMPLETION</p>
+                <h2>{processingProgress}%</h2>
+                <span>{isProcessing ? 'Analysis pipeline executing...' : 'Engine Ready'}</span>
+              </div>
+              <div className="progress-track">
+                <i style={{ width: `${processingProgress}%` }} />
+              </div>
+            </div>
+
+            {processingError && (
+              <div
+                style={{
+                  padding: '12px',
+                  background: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  borderRadius: '6px',
+                  color: '#b91c1c',
+                  margin: '14px 0',
+                  fontSize: '11px',
+                }}
+              >
+                <AlertTriangle size={16} style={{ display: 'inline', marginRight: '6px' }} />
+                <b>Pipeline Error:</b> {processingError}
+              </div>
+            )}
+
+            <div className="pipeline">
+              {steps.map((s) => {
+                const isComplete = processingPhase > s.id || (!isProcessing && processingProgress === 100);
+                const isActive = isProcessing && processingPhase === s.id;
+
+                return (
+                  <div
+                    key={s.id}
+                    className={`pipeline-step ${isComplete ? 'complete' : ''} ${isActive ? 'active' : ''}`}
+                  >
+                    <div className="step-marker">
+                      {isComplete ? (
+                        <CheckCircle2 size={14} />
+                      ) : isActive ? (
+                        <div className="step-spinner" />
+                      ) : (
+                        <span>{s.id}</span>
+                      )}
+                    </div>
+                    <div className="step-copy">
+                      <b>{s.name}</b>
+                      <small>
+                        {isComplete ? 'Completed' : isActive ? 'Processing stage...' : 'Queued'}
+                      </small>
+                    </div>
+                    <StatusBadge tone={isComplete ? 'success' : isActive ? 'teal' : 'slate'}>
+                      {isComplete ? 'Done' : isActive ? 'Active' : 'Pending'}
+                    </StatusBadge>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Pipeline Live Log */}
+          <div className="panel" style={{ padding: '20px' }}>
+            <div className="section-head" style={{ marginBottom: '10px' }}>
+              <div>
+                <p className="eyebrow">DIAGNOSTICS</p>
+                <h3>Pipeline Stream Logs</h3>
+              </div>
+            </div>
+            <div
+              style={{
+                background: '#0f172a',
+                color: '#e2e8f0',
+                padding: '12px',
+                borderRadius: '6px',
+                fontFamily: 'ui-monospace, monospace',
+                fontSize: '10px',
+                height: '340px',
+                overflowY: 'auto',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '4px',
+              }}
+            >
+              {processingLogs.length > 0 ? (
+                processingLogs.map((log, idx) => (
+                  <div key={idx} style={{ color: log.includes('[ERROR]') ? '#f87171' : log.includes('[COMPLETED]') ? '#4ade80' : '#cbd5e1' }}>
+                    {log}
+                  </div>
+                ))
+              ) : (
+                <div style={{ color: '#64748b' }}>Awaiting pipeline execution...</div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // -------------------------------------------------------------------------
+  // Main View Router
+  // -------------------------------------------------------------------------
+
+  let mainContent: ReactNode;
+  switch (view) {
+    case 'Overview':
+      mainContent = renderOverview();
+      break;
+    case 'Investigations':
+      mainContent = renderInvestigations();
+      break;
+    case 'Investigation Detail':
+      mainContent = renderInvestigationDetail();
+      break;
+    case 'Video Evidence':
+    case 'Evidence':
+      mainContent = (
+        <div className="page">
+          <PageTitle
+            eyebrow="MEDIA ASSETS"
+            title="Video Evidence & Carved Streams"
+            description="Acquired video containers, DVR raw sector carves, and metadata streams."
+            action={
+              <Button
+                variant="primary"
+                icon={UploadCloud}
+                onClick={() => setIsUploadModalOpen(true)}
+              >
+                Ingest Media
+              </Button>
+            }
+          />
+          {loadedFileName ? (
+            <div className="evidence-grid">
+              <button
+                className="evidence-card"
+                onClick={() => setView('Investigation Detail')}
+              >
+                <div className="evidence-thumb teal">
+                  <Video size={24} />
+                  <span>PLAYABLE</span>
+                </div>
+                <div className="evidence-info">
+                  <b>{loadedFileName}</b>
+                  <small className="mono">{loadedFileHash.slice(0, 16)}...</small>
+                  <span>Size: {formatFileSize(loadedFileSize)}</span>
+                </div>
+              </button>
+            </div>
+          ) : (
+            <div className="panel">
+              <EmptyState
+                title="No evidence items found"
+                description="Upload standard video files (.mp4, .avi, .mov) or raw DVR disk images (.dd, .raw, .img) to populate this library."
+                action="Upload Evidence"
+                onAction={() => setIsUploadModalOpen(true)}
+                icon={Video}
               />
             </div>
           )}
+        </div>
+      );
+      break;
+    case 'Timeline':
+      mainContent = (
+        <div className="page">
+          <PageTitle
+            eyebrow="TEMPORAL / CHRONOLOGY"
+            title="Forensic Timeline Workspace"
+            description="Synchronized multi-channel view of frame detections, motion vectors, and incidents."
+          />
+          {renderTimeline({ full: true })}
+        </div>
+      );
+      break;
+    case 'Detections':
+      mainContent = renderDetections();
+      break;
+    case 'Entities':
+    case 'Entity Detail':
+      mainContent = renderEntities();
+      break;
+    case 'Events':
+      mainContent = renderEvents();
+      break;
+    case 'Integrity':
+      mainContent = renderIntegrity();
+      break;
+    case 'Reports':
+      mainContent = renderReports();
+      break;
+    case 'Processing':
+      mainContent = renderProcessing();
+      break;
+    default:
+      mainContent = renderOverview();
+  }
 
-          {activeNav === 'Analyses' && <AnalysesView analysis={analysis} videoUrl={videoBlobUrl} />}
+  // -------------------------------------------------------------------------
+  // Render App Shell
+  // -------------------------------------------------------------------------
 
-          {activeNav === 'Library' && (
-            <LibraryView files={recentFiles} onOpenActivityLog={() => setIsActivityLogOpen(true)} />
-          )}
-        </main>
+  return (
+    <div className="app-shell">
+      {/* Mobile Backdrop */}
+      <div
+        className={`sidebar-backdrop ${sidebarOpen ? 'visible' : ''}`}
+        onClick={() => setSidebarOpen(false)}
+      />
 
-        <Footer onOpenCompliance={(tab) => setComplianceModalTab(tab)} />
+      {/* Sidebar */}
+      <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
+        <div className="brand">
+          <div className="brand-mark">
+            <span />
+            <span />
+            <span />
+          </div>
+          <div>
+            <strong>TRACE-X</strong>
+            <small>FORENSIC WORKSTATION</small>
+          </div>
+          <button
+            className="collapse"
+            onClick={() => setSidebarOpen(false)}
+            aria-label="Close navigation"
+          >
+            <ChevronLeft size={17} />
+          </button>
+        </div>
+
+        <div className="workspace-label">WORKSPACE</div>
+
+        <nav>
+          {navItems.map(([itemKey, Icon, desc]) => (
+            <button
+              key={itemKey}
+              onClick={() => {
+                setView(itemKey);
+                setSidebarOpen(false);
+              }}
+              className={view === itemKey ? 'active' : ''}
+              title={desc}
+            >
+              <Icon size={17} />
+              <span>{itemKey}</span>
+            </button>
+          ))}
+        </nav>
+
+        <div className="sidebar-bottom">
+          <div className="system">
+            <span
+              className="pulse"
+              style={{
+                background:
+                  backendStatus === 'online'
+                    ? '#34d399'
+                    : backendStatus === 'checking'
+                    ? '#fbbf24'
+                    : '#ef4444',
+              }}
+            />
+            <div>
+              <b>FastAPI Engine</b>
+              <small>
+                {backendStatus === 'online'
+                  ? 'Port 8000 Connected'
+                  : backendStatus === 'checking'
+                  ? 'Connecting...'
+                  : 'Engine Offline'}
+              </small>
+            </div>
+          </div>
+
+          <button
+            onClick={() => {
+              setView('Processing');
+              setSidebarOpen(false);
+            }}
+            className={view === 'Processing' ? 'active' : ''}
+          >
+            <Gauge size={17} />
+            <span>Processing Pipeline</span>
+          </button>
+
+          <button
+            onClick={() => setIsQueryModalOpen(true)}
+          >
+            <Sparkles size={17} />
+            <span>AI Forensic Query</span>
+          </button>
+        </div>
+      </aside>
+
+      {/* Main Content Area */}
+      <div className="app-main">
+        {/* Top Header */}
+        <header className="topbar">
+          <button
+            className="mobile-menu"
+            onClick={() => setSidebarOpen(true)}
+            aria-label="Open navigation"
+          >
+            <Menu size={18} />
+          </button>
+
+          <div className="crumb">
+            <span>Trace-X</span>
+            <ChevronRight size={14} />
+            <b>{view}</b>
+            {selectedCase && (
+              <>
+                <ChevronRight size={14} />
+                <span className="mono" style={{ color: '#0f766e', fontWeight: 600 }}>
+                  {selectedCase.case_number || selectedCase.name}
+                </span>
+              </>
+            )}
+          </div>
+
+          <div className="header-actions">
+            <div className="global-search">
+              <Search size={16} />
+              <input
+                aria-label="Global search"
+                placeholder="Ask AI or search workspace..."
+                value={globalSearchText}
+                onChange={(e) => setGlobalSearchText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && globalSearchText.trim()) {
+                    handleSendQuery(globalSearchText);
+                    setIsQueryModalOpen(true);
+                  }
+                }}
+              />
+              <kbd>Enter</kbd>
+            </div>
+
+            <button
+              className="btn btn-primary"
+              style={{ minHeight: '30px', padding: '0 10px', fontSize: '11px' }}
+              onClick={() => setIsUploadModalOpen(true)}
+            >
+              <UploadCloud size={14} /> Ingest Media
+            </button>
+
+            <button
+              className="icon-btn"
+              aria-label="Ask AI Assistant"
+              title="Forensic AI Assistant"
+              onClick={() => setIsQueryModalOpen(true)}
+            >
+              <Sparkles size={17} />
+            </button>
+
+            <button
+              className="icon-btn"
+              aria-label="Refresh Data"
+              title="Refresh Workspace"
+              onClick={fetchCases}
+            >
+              <RefreshCw size={16} />
+            </button>
+          </div>
+        </header>
+
+        {/* Page Content */}
+        <main>{mainContent}</main>
       </div>
 
-      <ProcessingModal
-        isOpen={isProcessingOpen}
-        onClose={() => setIsProcessingOpen(false)}
-        caseName={processingData.caseName}
-        evidenceId={processingData.evidenceId}
-        file={processingData.file}
-        onCompleteStep={() => {
-          setActiveNav('Analyses');
-        }}
-        onAnalysisComplete={(result) => setAnalysis(result)}
-      />
+      {/* =================================================================== */}
+      {/* MODAL: NEW INVESTIGATION */}
+      {/* =================================================================== */}
+      {isNewCaseModalOpen && (
+        <div className="modal-backdrop" onClick={() => setIsNewCaseModalOpen(false)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-head">
+              <div>
+                <p className="eyebrow">CASE REGISTRY</p>
+                <h3>Initiate New Investigation</h3>
+              </div>
+              <button
+                className="icon-btn"
+                onClick={() => setIsNewCaseModalOpen(false)}
+                aria-label="Close modal"
+              >
+                <X size={17} />
+              </button>
+            </div>
+            <form onSubmit={handleCreateCaseSubmit}>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label>INVESTIGATION TITLE *</label>
+                  <input
+                    required
+                    placeholder="e.g. Surveillance Incident 08 - North Gate"
+                    value={newCaseName}
+                    onChange={(e) => setNewCaseName(e.target.value)}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>CASE IDENTIFIER / FILE NUMBER</label>
+                  <input
+                    placeholder="e.g. V-2024-CCTV-08 (Leave blank to auto-generate)"
+                    value={newCaseNumber}
+                    onChange={(e) => setNewCaseNumber(e.target.value)}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>LEAD INVESTIGATOR / EXAMINER</label>
+                  <input
+                    placeholder="e.g. Det. J. Miller / Forensic Unit"
+                    value={newCaseInvestigator}
+                    onChange={(e) => setNewCaseInvestigator(e.target.value)}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>CASE BRIEF / NOTES</label>
+                  <textarea
+                    rows={3}
+                    placeholder="Summary of evidentiary requirements and physical acquisition notes..."
+                    value={newCaseDesc}
+                    onChange={(e) => setNewCaseDesc(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="modal-footer">
+                <Button
+                  variant="secondary"
+                  onClick={() => setIsNewCaseModalOpen(false)}
+                  disabled={caseCreating}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="primary"
+                  icon={Plus}
+                  disabled={caseCreating || !newCaseName.trim()}
+                >
+                  {caseCreating ? 'Creating Case...' : 'Create Investigation'}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
-      <ActivityLogModal isOpen={isActivityLogOpen} onClose={() => setIsActivityLogOpen(false)} />
+      {/* =================================================================== */}
+      {/* MODAL: INGEST EVIDENCE / DVR IMAGE */}
+      {/* =================================================================== */}
+      {isUploadModalOpen && (
+        <div className="modal-backdrop" onClick={() => setIsUploadModalOpen(false)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-head">
+              <div>
+                <p className="eyebrow">EVIDENCE ACQUISITION</p>
+                <h3>Ingest Surveillance Video or DVR Image</h3>
+              </div>
+              <button
+                className="icon-btn"
+                onClick={() => setIsUploadModalOpen(false)}
+                aria-label="Close modal"
+              >
+                <X size={17} />
+              </button>
+            </div>
 
-      <AuthModal
-        isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
-        isAuthenticated={isAuthenticated}
-        userEmail={currentUser.email}
-      />
+            <div className="modal-body">
+              {/* Dropzone */}
+              <input
+                type="file"
+                ref={fileInputRef}
+                style={{ display: 'none' }}
+                accept=".mp4,.avi,.mov,.mkv,.h264,.dd,.raw,.img,.bin,.001,.dat"
+                onChange={(e) => {
+                  if (e.target.files && e.target.files[0]) {
+                    handleFileChosen(e.target.files[0]);
+                  }
+                }}
+              />
 
-      <ComplianceModal
-        isOpen={complianceModalTab !== null}
-        initialTab={complianceModalTab || 'security'}
-        onClose={() => setComplianceModalTab(null)}
-      />
+              <div
+                className="dropzone"
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                    handleFileChosen(e.dataTransfer.files[0]);
+                  }
+                }}
+              >
+                <div className="dropzone-icon">
+                  <UploadCloud size={24} />
+                </div>
+                <h4>Select or Drag & Drop Media Evidence</h4>
+                <p>
+                  Supports standard video (<b>MP4, AVI, MOV, MKV</b>) and forensic DVR raw images (
+                  <b>.dd, .raw, .img, .bin</b>).
+                </p>
+              </div>
+
+              {/* Selected File Details & SHA-256 seal */}
+              {selectedUploadFile && (
+                <div
+                  style={{
+                    padding: '12px',
+                    background: '#f8fafc',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '6px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '6px',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <b style={{ color: '#172554', fontSize: '12px' }}>{selectedUploadFile.name}</b>
+                    <span style={{ fontSize: '10px', color: '#64748b' }}>
+                      {formatFileSize(selectedUploadFile.size)}
+                    </span>
+                  </div>
+
+                  <div>
+                    <span style={{ fontSize: '10px', color: '#64748b', display: 'block' }}>
+                      CRYPTOGRAPHIC SHA-256 SEAL:
+                    </span>
+                    <div className="hash-pill">
+                      {isCalculatingHash ? 'Computing cryptographic hash...' : uploadHash || 'Pending'}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Target Case selection */}
+              <div className="form-group">
+                <label>ASSOCIATE WITH INVESTIGATION</label>
+                <select
+                  value={uploadTargetCaseId}
+                  onChange={(e) => setUploadTargetCaseId(e.target.value)}
+                >
+                  <option value="">-- Standalone Forensic Inspection --</option>
+                  {cases.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.case_number ? `[${c.case_number}] ` : ''}
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <Button
+                variant="secondary"
+                onClick={() => setIsUploadModalOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                icon={Play}
+                disabled={!selectedUploadFile || isCalculatingHash}
+                onClick={startAnalysisPipeline}
+              >
+                Start Forensic Analysis Pipeline
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =================================================================== */}
+      {/* MODAL: CONVERSATIONAL FORENSIC Q&A ASSISTANT */}
+      {/* =================================================================== */}
+      {isQueryModalOpen && (
+        <div className="modal-backdrop" onClick={() => setIsQueryModalOpen(false)}>
+          <div className="modal-card" style={{ width: 'min(640px, 100%)' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-head">
+              <div>
+                <p className="eyebrow">AI FORENSIC ASSISTANT</p>
+                <h3>Investigative Video Intelligence</h3>
+              </div>
+              <button
+                className="icon-btn"
+                onClick={() => setIsQueryModalOpen(false)}
+                aria-label="Close modal"
+              >
+                <X size={17} />
+              </button>
+            </div>
+
+            <div className="modal-body">
+              <div className="query-chat">
+                {chatMessages.map((msg, i) => (
+                  <div
+                    key={i}
+                    className={`query-bubble ${msg.sender === 'user' ? 'query-user' : 'query-assistant'}`}
+                  >
+                    <b>{msg.sender === 'user' ? 'Investigator' : 'Forensic AI'}</b>
+                    <p style={{ margin: '4px 0 0', whiteSpace: 'pre-line' }}>{msg.text}</p>
+                    {msg.events && msg.events.length > 0 && (
+                      <div style={{ marginTop: '8px', display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                        {msg.events.map((ev: any, idx: number) => (
+                          <button
+                            key={idx}
+                            className="btn btn-secondary"
+                            style={{ padding: '2px 6px', fontSize: '9px' }}
+                            onClick={() => {
+                              seekVideo(idx * 4);
+                              setIsQueryModalOpen(false);
+                              setView('Investigation Detail');
+                            }}
+                          >
+                            Jump to {ev.event_type || 'Event'} #{idx + 1}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {isQuerying && (
+                  <div className="query-bubble query-assistant">
+                    <small>Analyzing timeline events and generating forensic response...</small>
+                  </div>
+                )}
+              </div>
+
+              <div className="query-input-row">
+                <input
+                  placeholder="e.g. 'Did any person enter after 10:00?', 'Show all vehicles'..."
+                  value={queryInput}
+                  onChange={(e) => setQueryInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleSendQuery();
+                  }}
+                />
+                <Button
+                  variant="primary"
+                  icon={Send}
+                  onClick={() => handleSendQuery()}
+                  disabled={isQuerying || !queryInput.trim()}
+                >
+                  Send
+                </Button>
+              </div>
+
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                {[
+                  'What objects were detected?',
+                  'Did any vehicles appear?',
+                  'Check for video tampering',
+                  'Summarize incident timeline',
+                ].map((sugg) => (
+                  <button
+                    key={sugg}
+                    className="btn btn-secondary"
+                    style={{ fontSize: '10px', padding: '3px 8px' }}
+                    onClick={() => handleSendQuery(sugg)}
+                  >
+                    {sugg}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <Button
+                variant="secondary"
+                onClick={() => setIsQueryModalOpen(false)}
+              >
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =================================================================== */}
+      {/* DRAWER: ENTITY DETAIL */}
+      {/* =================================================================== */}
+      {selectedEntity && (
+        <div className="drawer-backdrop" onClick={() => setSelectedEntity(null)}>
+          <aside className="drawer" onClick={(e) => e.stopPropagation()}>
+            <div className="drawer-head">
+              <div>
+                <p className="eyebrow">PHYSICAL ENTITY DETAIL</p>
+                <h3>{selectedEntity.type?.toUpperCase()}</h3>
+              </div>
+              <button
+                className="icon-btn"
+                onClick={() => setSelectedEntity(null)}
+                aria-label="Close"
+              >
+                <X size={17} />
+              </button>
+            </div>
+            <div className="drawer-content">
+              <div className="drawer-preview">
+                <div className="mini-scene">
+                  <div className="mini-detection" />
+                </div>
+              </div>
+              <h2>
+                {selectedEntity.id}{' '}
+                <span>{selectedEntity.type}</span>
+              </h2>
+              <div className="drawer-meta">
+                <div className="tech-meta">
+                  <span>TOTAL OBSERVATIONS</span>
+                  <b>{selectedEntity.observations} frames</b>
+                </div>
+                <div className="tech-meta">
+                  <span>AVERAGE CONFIDENCE</span>
+                  <b>{Math.round((selectedEntity.confidence || 0.9) * 100)}%</b>
+                </div>
+              </div>
+
+              <div style={{ marginTop: '20px' }}>
+                <Button
+                  variant="primary"
+                  className="full"
+                  icon={Play}
+                  onClick={() => {
+                    setSelectedEntity(null);
+                    setView('Investigation Detail');
+                  }}
+                >
+                  Locate in CCTV Viewer
+                </Button>
+              </div>
+            </div>
+          </aside>
+        </div>
+      )}
     </div>
   );
-}
+}

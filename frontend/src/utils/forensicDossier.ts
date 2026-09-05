@@ -1374,8 +1374,8 @@ export const generateForensicDossier =
 
 
     const integrity =
-      analysis
-        .integrity_analysis as
+      (analysis
+        .integrity_analysis as unknown) as
         | AnyRecord
         | undefined;
 
@@ -1586,8 +1586,8 @@ export const generateForensicDossier =
 
 
     const disappearance =
-      analysis
-        .object_disappearance_analysis as
+      (analysis
+        .object_disappearance_analysis as unknown) as
         | AnyRecord
         | undefined;
 

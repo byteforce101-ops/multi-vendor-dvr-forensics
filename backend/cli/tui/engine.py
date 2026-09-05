@@ -4,7 +4,7 @@ Implements the exact pipeline from backend/cli/interactive.py with ZERO dummy da
 - Step 1: Detect (ParserManager.detect)
 - Step 2: Parse (ParserManager.parse)
 - Step 3: Extract (ParserManager.extract / direct video extraction)
-- Step 4: AI Analysis (VideoAnalysisService: YOLOv8 + Motion + AI Reconstruction + Forensic Summary)
+- Step 4: AI Analysis (VideoAnalysisService: Vision + Motion + AI Reconstruction + Forensic Summary)
 - Step 5: Integrity Checks (_run_video_integrity_analysis)
 - Step 6: Object Disappearance Detection (_detect_object_disappearances)
 - Step 7: Video Q&A Query Analysis (_ask_about_video using Groq LLM)
@@ -200,10 +200,10 @@ class TraceXPipelineEngine:
             return res
 
         # =====================================================
-        # STEP 4 — AI ANALYSIS (YOLO + Motion + Reconstruction)
+        # STEP 4 — AI ANALYSIS (Vision + Motion + Reconstruction)
         # =====================================================
         if progress_cb:
-            progress_cb("Step 4 / 4 — Running AI video analysis (YOLOv8 + Motion)...")
+            progress_cb("Step 4 / 4 — Running AI video analysis (Vision & Motion)...")
 
         try:
             from backend.video.analysis.service import VideoAnalysisService

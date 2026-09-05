@@ -1,9 +1,10 @@
-﻿import json
+import json
+import os
 from datetime import datetime, timezone
 from pydantic import BaseModel
-from groq import Groq
+from dotenv import load_dotenv
 
-client = Groq()  # reads GROQ_API_KEY from env
+load_dotenv()
 
 class SearchFilter(BaseModel):
     event_types: list[str] | None = None
@@ -23,10 +24,13 @@ If the query implies spatial/directional logic (e.g. "enters through the gate"),
 as your best guess but do not fabricate a filter field for direction - that isn't supported yet.
 """
 
-def parse_query(nl_query: str, reference_date: datetime | None = None) -> SearchFilter:
+def parse_query(nl_query: str, reference_date: datetime | None = None, api_key: str | None = None) -> SearchFilter:
+    from groq import Groq
+    key = api_key or os.getenv("GROQ_API_KEY")
+    client = Groq(api_key=key) if key else Groq()
     ref = (reference_date or datetime.now(timezone.utc)).isoformat()
     resp = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
+        model=os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile"),
         max_tokens=300,
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},

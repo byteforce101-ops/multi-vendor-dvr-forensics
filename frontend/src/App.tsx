@@ -82,7 +82,7 @@ const navItems: [View, React.ComponentType<{ size?: number }>, string][] = [
   ['Investigation Detail', Layers, 'Forensic Workspace'],
   ['Video Evidence', Video, 'Sources & Raw Images'],
   ['Timeline', Activity, 'Synchronized Analysis'],
-  ['Detections', ScanIcon, 'YOLO Observations'],
+  ['Detections', ScanIcon, 'Forensic Observations'],
   ['Entities', UserRound, 'Tracked Physical Objects'],
   ['Events', Activity, 'Reconstructed Incidents'],
   ['Evidence', FileImage, 'Keyframe Captures'],
@@ -271,12 +271,28 @@ export default function App() {
   const [globalSearchText, setGlobalSearchText] = useState('');
 
   // AI Conversational Query state
+  const [groqApiKey, setGroqApiKey] = useState<string>(() => {
+    return localStorage.getItem('tracex_groq_api_key') || '';
+  });
+  const [selectedGroqModel, setSelectedGroqModel] = useState<string>(() => {
+    return localStorage.getItem('tracex_groq_model') || 'llama-3.3-70b-versatile';
+  });
+  const [isGroqConfigOpen, setIsGroqConfigOpen] = useState(false);
   const [chatMessages, setChatMessages] = useState<
-    Array<{ sender: 'user' | 'assistant'; text: string; events?: unknown[] }>
+    Array<{
+      sender: 'user' | 'assistant';
+      text: string;
+      events?: any[];
+      source?: string;
+      model?: string;
+      groq_error?: string;
+    }>
   >([
     {
       sender: 'assistant',
-      text: 'Trace-X AI Forensic Assistant is active. Ask questions about observed timeline events, vehicle identifications, or integrity findings.',
+      text: 'Trace-X Forensic AI Agent is active (Groq LLaMA + OpenCV Forensic Vision). Ask questions about observed timeline events, vehicle identifications, kinematic velocities, or video integrity findings.',
+      source: 'groq',
+      model: 'llama-3.3-70b-versatile',
     },
   ]);
   const [queryInput, setQueryInput] = useState('');
@@ -468,7 +484,7 @@ export default function App() {
       setProcessingPhase(3);
       setProcessingLogs((prev) => [
         ...prev,
-        `[YOLO] Neural multi-class inference completed on sampled video frames.`,
+        `[OPENCV] Multi-stage forensic detection completed (HOG + Haar + MOG2 Kinematics).`,
         `[RECONSTRUCTION] Correlated ${result.events?.length || 0} detections into ${result.reconstruction_count || 0} narrative events.`,
       ]);
 
@@ -566,7 +582,7 @@ export default function App() {
 
   const handleSendQuery = async (queryText?: string) => {
     const textToSend = queryText || queryInput;
-    if (!textToSend.trim()) return;
+    if (!textToSend.trim() || isQuerying) return;
 
     const userMsg = { sender: 'user' as const, text: textToSend };
     setChatMessages((prev) => [...prev, userMsg]);
@@ -576,8 +592,19 @@ export default function App() {
     try {
       const events = analysisResult?.events || [];
       const summary = analysisResult?.forensic_summary || null;
+      const integrity = analysisResult?.integrity_analysis || (analysisResult as any)?.video_integrity || null;
+      const disappearances =
+        analysisResult?.object_disappearance_analysis?.disappearances ||
+        (analysisResult as any)?.object_disappearance?.disappearances ||
+        [];
 
-      const res = await api.queryVideo(textToSend, events, summary);
+      const res = await api.queryVideo(textToSend, events, summary, {
+        integrity,
+        disappearances,
+        groqApiKey: groqApiKey.trim() || undefined,
+        model: selectedGroqModel,
+        chatHistory: chatMessages.slice(-6).map((m) => ({ sender: m.sender, text: m.text })),
+      });
 
       setChatMessages((prev) => [
         ...prev,
@@ -585,6 +612,9 @@ export default function App() {
           sender: 'assistant',
           text: res.answer,
           events: res.matching_events,
+          source: res.source,
+          model: res.model,
+          groq_error: res.groq_error,
         },
       ]);
     } catch (err: any) {
@@ -593,6 +623,7 @@ export default function App() {
         {
           sender: 'assistant',
           text: `Query error: ${err?.message || 'Forensic search service currently unavailable.'}`,
+          source: 'error',
         },
       ]);
     } finally {
@@ -671,9 +702,9 @@ export default function App() {
         color: 'teal',
       },
       {
-        label: 'YOLO Detections',
+        label: 'OpenCV Detections',
         val: (analysisResult?.event_count ?? 0).toString(),
-        sub: 'Model observations logged',
+        sub: 'Forensic vision observations',
         icon: ScanIcon,
         color: 'violet',
       },
@@ -1428,7 +1459,7 @@ export default function App() {
                   </b>
                   <p style={{ margin: '6px 0 0', color: '#64748b', fontSize: '11px', lineHeight: 1.5 }}>
                     {analysisResult.forensic_summary?.summary ||
-                      'Temporal correlation and neural YOLO multi-class object detection completed.'}
+                      'Temporal correlation and OpenCV multi-stage forensic object detection completed.'}
                   </p>
                 </div>
 
@@ -1522,8 +1553,8 @@ export default function App() {
       <div className="page">
         <PageTitle
           eyebrow="ANALYSIS / DETECTIONS"
-          title="YOLO Object Detections"
-          description="Detailed neural network frame detections, coordinates, track IDs, and confidence telemetry."
+          title="OpenCV Forensic Detections"
+          description="Detailed multi-stage frame detections (HOG + Haar + MOG2), bounding coordinates, track IDs, and confidence telemetry."
           action={
             <Button
               variant="primary"
@@ -1615,7 +1646,7 @@ export default function App() {
                         description={
                           analysisResult
                             ? 'No objects matching current filter criteria.'
-                            : 'Upload a video file to perform automated YOLO object detection.'
+                            : 'Upload a video file to perform automated OpenCV forensic detection.'
                         }
                         action={!analysisResult ? 'Load Video' : undefined}
                         onAction={() => setIsUploadModalOpen(true)}
@@ -1986,7 +2017,7 @@ export default function App() {
               <div className="check-row panel">
                 <CheckCircle2 size={16} className="check-icon" />
                 <div>
-                  <b>YOLO Neural Inference</b>
+                  <b>OpenCV Forensic Vision</b>
                   <small>Confidence thresholds documented</small>
                 </div>
               </div>
@@ -2009,7 +2040,7 @@ export default function App() {
     const steps = [
       { id: 1, name: 'Evidence Ingestion & SHA-256 Seal' },
       { id: 2, name: 'Container Probing & Normalization' },
-      { id: 3, name: 'Neural YOLO Object Detection' },
+      { id: 3, name: 'OpenCV Multi-Stage Object Detection' },
       { id: 4, name: 'Temporal Event Reconstruction' },
       { id: 5, name: 'Bitstream Integrity Verification' },
     ];
@@ -2612,60 +2643,207 @@ export default function App() {
       {/* =================================================================== */}
       {isQueryModalOpen && (
         <div className="modal-backdrop" onClick={() => setIsQueryModalOpen(false)}>
-          <div className="modal-card" style={{ width: 'min(640px, 100%)' }} onClick={(e) => e.stopPropagation()}>
-            <div className="modal-head">
+          <div className="modal-card" style={{ width: 'min(720px, 100%)' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-head" style={{ alignItems: 'flex-start' }}>
               <div>
-                <p className="eyebrow">AI FORENSIC ASSISTANT</p>
-                <h3>Investigative Video Intelligence</h3>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <p className="eyebrow" style={{ margin: 0 }}>AI FORENSIC AGENT</p>
+                  <span
+                    className="status-pill"
+                    style={{
+                      background: groqApiKey ? '#ecfdf5' : '#f8fafc',
+                      color: groqApiKey ? '#059669' : '#64748b',
+                      borderColor: groqApiKey ? '#a7f3d0' : '#e2e8f0',
+                      fontSize: '10px',
+                      padding: '1px 7px',
+                    }}
+                  >
+                    {groqApiKey ? `● Groq AI (${selectedGroqModel.split('-')[0].toUpperCase()})` : '○ Groq / Local Heuristic'}
+                  </span>
+                </div>
+                <h3 style={{ marginTop: '2px' }}>Investigative Video Intelligence</h3>
               </div>
-              <button
-                className="icon-btn"
-                onClick={() => setIsQueryModalOpen(false)}
-                aria-label="Close modal"
-              >
-                <X size={17} />
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <button
+                  className="btn btn-secondary"
+                  style={{ padding: '4px 8px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                  onClick={() => setIsGroqConfigOpen((prev) => !prev)}
+                  title="Configure Groq AI Agent Key & Model"
+                >
+                  <Settings size={13} />
+                  <span>Groq Setup</span>
+                </button>
+                <button
+                  className="icon-btn"
+                  onClick={() => setIsQueryModalOpen(false)}
+                  aria-label="Close modal"
+                >
+                  <X size={17} />
+                </button>
+              </div>
             </div>
 
+            {/* Groq Configuration Dropdown */}
+            {isGroqConfigOpen && (
+              <div
+                style={{
+                  background: '#f1f5f9',
+                  borderBottom: '1px solid #e2e8f0',
+                  padding: '12px 18px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <b style={{ fontSize: '12px', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <Sparkles size={13} color="#2563eb" /> Groq AI Agent Settings
+                  </b>
+                  <span style={{ fontSize: '10px', color: '#64748b' }}>
+                    Saved locally in your browser
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                  <div style={{ flex: '1 1 240px' }}>
+                    <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: '#475569', marginBottom: '2px' }}>
+                      GROQ API KEY
+                    </label>
+                    <input
+                      type="password"
+                      placeholder="gsk_..."
+                      value={groqApiKey}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setGroqApiKey(val);
+                        localStorage.setItem('tracex_groq_api_key', val);
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '6px 10px',
+                        fontSize: '11px',
+                        border: '1px solid #cbd5e1',
+                        borderRadius: '4px',
+                        background: '#fff',
+                        fontFamily: 'monospace',
+                      }}
+                    />
+                  </div>
+                  <div style={{ flex: '0 0 190px' }}>
+                    <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: '#475569', marginBottom: '2px' }}>
+                      MODEL
+                    </label>
+                    <select
+                      value={selectedGroqModel}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSelectedGroqModel(val);
+                        localStorage.setItem('tracex_groq_model', val);
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '6px 8px',
+                        fontSize: '11px',
+                        border: '1px solid #cbd5e1',
+                        borderRadius: '4px',
+                        background: '#fff',
+                      }}
+                    >
+                      <option value="llama-3.3-70b-versatile">LLaMA 3.3 70B (Forensic Versatile)</option>
+                      <option value="llama-3.1-8b-instant">LLaMA 3.1 8B (Instant Low Latency)</option>
+                      <option value="llama3-70b-8192">LLaMA 3 70B</option>
+                      <option value="mixtral-8x7b-32768">Mixtral 8x7B</option>
+                    </select>
+                  </div>
+                </div>
+                <p style={{ margin: 0, fontSize: '10px', color: '#64748b' }}>
+                  If left empty, requests will use the server's <code>GROQ_API_KEY</code> environment variable or the local OpenCV forensic rule engine.
+                </p>
+              </div>
+            )}
+
             <div className="modal-body">
-              <div className="query-chat">
+              <div className="query-chat" style={{ maxHeight: '380px' }}>
                 {chatMessages.map((msg, i) => (
                   <div
                     key={i}
                     className={`query-bubble ${msg.sender === 'user' ? 'query-user' : 'query-assistant'}`}
                   >
-                    <b>{msg.sender === 'user' ? 'Investigator' : 'Forensic AI'}</b>
-                    <p style={{ margin: '4px 0 0', whiteSpace: 'pre-line' }}>{msg.text}</p>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
+                      <b>{msg.sender === 'user' ? 'Investigator' : 'Forensic AI'}</b>
+                      {msg.sender === 'assistant' && (
+                        <span
+                          style={{
+                            fontSize: '9px',
+                            color: msg.source === 'groq' ? '#059669' : '#64748b',
+                            fontWeight: 600,
+                            background: msg.source === 'groq' ? '#ecfdf5' : '#f1f5f9',
+                            padding: '1px 5px',
+                            borderRadius: '3px',
+                          }}
+                        >
+                          {msg.source === 'groq'
+                            ? `Groq (${(msg.model || selectedGroqModel).split('-')[0]})`
+                            : 'OpenCV Rule Engine'}
+                        </span>
+                      )}
+                    </div>
+                    <p style={{ margin: '4px 0 0', whiteSpace: 'pre-line', lineHeight: 1.45 }}>{msg.text}</p>
+                    
+                    {msg.groq_error && (
+                      <div
+                        style={{
+                          marginTop: '6px',
+                          padding: '6px 8px',
+                          background: '#fffbeb',
+                          border: '1px solid #fef3c7',
+                          borderRadius: '4px',
+                          fontSize: '10px',
+                          color: '#b45309',
+                        }}
+                      >
+                        <b>Groq Notice:</b> {msg.groq_error}.{' '}
+                        <button
+                          style={{ textDecoration: 'underline', background: 'none', border: 'none', color: '#b45309', cursor: 'pointer', padding: 0 }}
+                          onClick={() => setIsGroqConfigOpen(true)}
+                        >
+                          Check Groq Key in Setup
+                        </button>
+                      </div>
+                    )}
+
                     {msg.events && msg.events.length > 0 && (
                       <div style={{ marginTop: '8px', display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                        {msg.events.map((ev: any, idx: number) => (
-                          <button
-                            key={idx}
-                            className="btn btn-secondary"
-                            style={{ padding: '2px 6px', fontSize: '9px' }}
-                            onClick={() => {
-                              seekVideo(idx * 4);
-                              setIsQueryModalOpen(false);
-                              setView('Investigation Detail');
-                            }}
-                          >
-                            Jump to {ev.event_type || 'Event'} #{idx + 1}
-                          </button>
-                        ))}
+                        {msg.events.map((ev: any, idx: number) => {
+                          const timeLabel = ev.start_time || `Event #${idx + 1}`;
+                          return (
+                            <button
+                              key={idx}
+                              className="btn btn-secondary"
+                              style={{ padding: '2px 6px', fontSize: '9px' }}
+                              onClick={() => {
+                                seekVideo(idx * 4);
+                                setIsQueryModalOpen(false);
+                                setView('Investigation Detail');
+                              }}
+                            >
+                              Jump to {ev.event_type || 'Event'} ({timeLabel})
+                            </button>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
                 ))}
                 {isQuerying && (
                   <div className="query-bubble query-assistant">
-                    <small>Analyzing timeline events and generating forensic response...</small>
+                    <small>Analyzing OpenCV timeline events with Groq AI and generating forensic response...</small>
                   </div>
                 )}
               </div>
 
               <div className="query-input-row">
                 <input
-                  placeholder="e.g. 'Did any person enter after 10:00?', 'Show all vehicles'..."
+                  placeholder="e.g. 'Did any person enter after 10:00?', 'What vehicles were tracked?', 'Check tampering'..."
                   value={queryInput}
                   onChange={(e) => setQueryInput(e.target.value)}
                   onKeyDown={(e) => {
@@ -2684,10 +2862,11 @@ export default function App() {
 
               <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                 {[
-                  'What objects were detected?',
-                  'Did any vehicles appear?',
-                  'Check for video tampering',
-                  'Summarize incident timeline',
+                  'What objects & persons were detected?',
+                  'What vehicles were tracked & at what velocity?',
+                  'Check video integrity & frame continuity',
+                  'Were any stationary losses or disappearances detected?',
+                  'Summarize forensic incident timeline',
                 ].map((sugg) => (
                   <button
                     key={sugg}

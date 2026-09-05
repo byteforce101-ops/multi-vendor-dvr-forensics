@@ -8,6 +8,10 @@ import shutil
 import subprocess
 import uuid
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from fastapi import Depends, FastAPI, HTTPException, UploadFile, File
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -1222,62 +1226,116 @@ class VideoQueryRequest(BaseModel):
     query: str
     events: list[dict] = []
     summary: dict | None = None
+    integrity: dict | None = None
+    disappearances: list[dict] = []
+    groq_api_key: str | None = None
+    model: str | None = None
+    chat_history: list[dict] = []
 
 
 @app.post("/video/query")
 def query_video(payload: VideoQueryRequest):
     """
-    Answer questions about analyzed video events using Groq or heuristic fallback.
+    Answer questions about analyzed video events using Groq AI LLM agent or heuristic fallback.
     Matches CLI 'dvrforensics search' and interactive Q&A.
     """
     user_query = payload.query.strip()
     if not user_query:
         raise HTTPException(status_code=400, detail="Query cannot be empty")
 
-    events = payload.events
+    events = payload.events or []
     summary = payload.summary or {}
+    integrity = payload.integrity or {}
+    disappearances = payload.disappearances or []
+    chat_history = payload.chat_history or []
 
-    # Try Groq AI first if available
-    try:
-        from groq import Groq
-        import os
+    groq_key = (payload.groq_api_key or "").strip() or os.environ.get("GROQ_API_KEY", "").strip()
+    model_name = (payload.model or "").strip() or os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 
-        if os.environ.get("GROQ_API_KEY"):
-            groq_client = Groq()
+    groq_error = None
+
+    if groq_key:
+        try:
+            from groq import Groq
+
+            groq_client = Groq(api_key=groq_key)
+
+            # Build rich OpenCV forensic context
             event_lines = []
-            for ev in events[:80]:
+            for ev in events[:120]:
                 e_type = ev.get("event_type", "EVENT")
                 obj = ev.get("object_type") or "n/a"
                 start = ev.get("start_time", "")
+                end = ev.get("end_time", "")
                 conf = ev.get("confidence", 0)
-                note = (ev.get("metadata") or {}).get("note", "")
-                event_lines.append(f"- {e_type} ({obj}) at {start}, conf={conf:.2f} {note}")
+                track_id = ev.get("track_id")
+                meta = ev.get("metadata") or {}
+                note = meta.get("note", "")
+                vel = meta.get("avg_speed") or meta.get("velocity")
+                vel_str = f", vel={vel:.1f}px/s" if isinstance(vel, (int, float)) else ""
+                tid_str = f" [Track #{track_id}]" if track_id is not None else ""
+                time_str = f"{start} to {end}" if end and end != start else str(start)
+                event_lines.append(f"- {e_type} ({obj}){tid_str} at {time_str}, conf={conf:.2f}{vel_str} {note}".strip())
 
-            events_context = "\n".join(event_lines) if event_lines else "No specific events."
+            events_context = "\n".join(event_lines) if event_lines else "No specific events logged."
             headline = summary.get("headline", "")
             overview = summary.get("summary", "")
+            key_events = summary.get("key_events", [])
+            key_events_str = "; ".join(key_events) if isinstance(key_events, list) else str(key_events)
+
+            integrity_status = integrity.get("overall_status", "PASS")
+            integrity_score = integrity.get("integrity_score", 100)
+            integrity_anomalies = integrity.get("anomalies", [])
+            integrity_str = (
+                f"Integrity Status: {integrity_status} (Score: {integrity_score}%). "
+                f"Anomalies: {', '.join(integrity_anomalies) if integrity_anomalies else 'None detected (continuous frame stream).'}"
+            )
+
+            disappear_lines = []
+            for d in disappearances[:10]:
+                d_obj = d.get("object_type", "object")
+                d_time = d.get("disappearance_time", "unknown")
+                d_obs = d.get("observation_count", 0)
+                disappear_lines.append(f"- {d_obj} disappeared at {d_time} after {d_obs} observations")
+            disappear_str = "\n".join(disappear_lines) if disappear_lines else "No stationary loss incidents."
 
             system_prompt = (
-                "You are an expert digital forensics video analysis assistant. "
-                "Answer the investigator's question based strictly on the provided timeline of detected events "
-                "and video summary. Mention exact timestamps and object IDs when available. "
-                "If not enough evidence exists in the logs, state that clearly."
+                "You are TraceX AI, an elite digital forensics video analysis intelligence agent. "
+                "The surveillance footage has been processed using an advanced OpenCV Multi-Stage Forensic Vision Pipeline "
+                "(HOG Pedestrian SVM, Haar Pose Cascades, MOG2 Background Subtraction, and Centroid Kinematics Tracker).\n\n"
+                "Your objective is to answer the investigator's questions strictly based on the extracted forensic timeline, "
+                "integrity metrics, object trajectories, and behavioral summaries.\n\n"
+                "Guidelines:\n"
+                "1. Mention exact timestamps (ISO8601 or relative seconds) and track IDs whenever available.\n"
+                "2. When discussing persons or vehicles, reference confidence scores, velocities, and observation counts.\n"
+                "3. If asked about tampering, gaps, or video integrity, cite the integrity score and continuity findings.\n"
+                "4. If requested facts are not present in the forensic log, state that candidly without fabricating details.\n"
+                "5. Keep responses concise, investigative, professional, and directly actionable for courtroom and forensic reports."
             )
 
-            prompt = (
-                f"Forensic Summary: {headline} — {overview}\n\n"
-                f"Detected Events Timeline:\n{events_context}\n\n"
-                f"Investigator Question: {user_query}"
+            messages = [{"role": "system", "content": system_prompt}]
+
+            # Add previous conversational turns (up to last 6)
+            for msg in chat_history[-6:]:
+                role = "user" if msg.get("sender") == "user" or msg.get("role") == "user" else "assistant"
+                content = msg.get("text") or msg.get("content") or ""
+                if content.strip():
+                    messages.append({"role": role, "content": content.strip()})
+
+            user_content = (
+                f"FORENSIC OVERVIEW:\nHeadline: {headline}\nSummary: {overview}\nKey Events: {key_events_str}\n\n"
+                f"VIDEO INTEGRITY & TAMPERING:\n{integrity_str}\n\n"
+                f"STATIONARY LOSS & DISAPPEARANCES:\n{disappear_str}\n\n"
+                f"OPENCV FORENSIC TIMELINE (Sampled Events):\n{events_context}\n\n"
+                f"INVESTIGATOR QUESTION: {user_query}"
             )
+            messages.append({"role": "user", "content": user_content})
 
             resp = groq_client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
-                max_tokens=400,
+                model=model_name,
+                max_tokens=600,
                 temperature=0.2,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": prompt},
-                ],
+                messages=messages,
             )
             answer = resp.choices[0].message.content.strip()
 
@@ -1293,9 +1351,10 @@ def query_video(payload: VideoQueryRequest):
                 "answer": answer,
                 "matching_events": matching_events,
                 "source": "groq",
+                "model": model_name,
             }
-    except Exception:
-        pass
+        except Exception as exc:
+            groq_error = str(exc)
 
     # Heuristic / Rule-based forensic answer fallback
     q_lower = user_query.lower()
@@ -1303,13 +1362,17 @@ def query_video(payload: VideoQueryRequest):
     for ev in events:
         ev_type = str(ev.get("event_type", "")).lower()
         obj_type = str(ev.get("object_type", "")).lower()
-        if any(term in q_lower for term in ["person", "people", "human", "who"]) and ("person" in ev_type or "person" in obj_type):
+        if any(term in q_lower for term in ["person", "people", "human", "who", "pedestrian"]) and ("person" in ev_type or "person" in obj_type):
             matched.append(ev)
-        elif any(term in q_lower for term in ["car", "vehicle", "truck", "drive"]) and ("vehicle" in ev_type or "vehicle" in obj_type):
+        elif any(term in q_lower for term in ["car", "vehicle", "truck", "drive", "bus", "auto"]) and ("vehicle" in ev_type or "vehicle" in obj_type or "car" in obj_type or "truck" in obj_type):
+            matched.append(ev)
+        elif any(term in q_lower for term in ["bike", "bicycle", "motorcycle", "cyclist"]) and ("bicycle" in ev_type or "bicycle" in obj_type or "motorcycle" in obj_type):
             matched.append(ev)
         elif any(term in q_lower for term in ["motion", "movement", "move"]) and "motion" in ev_type:
             matched.append(ev)
-        elif any(term in q_lower for term in ["disappear", "lost", "missing", "gone"]) and "disappearance" in ev_type:
+        elif any(term in q_lower for term in ["disappear", "lost", "missing", "gone", "stolen"]) and "disappearance" in ev_type:
+            matched.append(ev)
+        elif any(term in q_lower for term in ["tamper", "integrity", "gap", "hash", "drop"]) and ("integrity" in ev_type or "tamper" in ev_type):
             matched.append(ev)
 
     if not matched and events:
@@ -1319,14 +1382,17 @@ def query_video(payload: VideoQueryRequest):
         answer = f"Found {len(matched)} matching event(s) matching your query in the forensic timeline."
     elif matched:
         first_time = matched[0].get("start_time", "unknown time")
-        answer = f"Detected {len(matched)} event(s) relevant to '{user_query}'. First occurrence observed at {first_time}."
+        first_type = matched[0].get("event_type", "Event")
+        first_obj = matched[0].get("object_type", "Object")
+        answer = f"Detected {len(matched)} event(s) relevant to '{user_query}'. First occurrence ({first_type} - {first_obj}) observed at {first_time}."
     else:
-        answer = f"No events matching '{user_query}' were found in the timeline."
+        answer = f"No events matching '{user_query}' were found in the timeline. Total analyzed events: {len(events)}."
 
     return {
         "answer": answer,
         "matching_events": matched[:10],
         "source": "heuristic",
+        "groq_error": groq_error,
     }
 
 

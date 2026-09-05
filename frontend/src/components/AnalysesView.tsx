@@ -16,6 +16,7 @@ import {
   Bot,
   User,
   EyeOff,
+  Settings,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { VideoAnalysisResult } from '../types';
@@ -59,13 +60,31 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({
   const [activeTab, setActiveTab] = useState<'video' | 'events' | 'reconstruction' | 'integrity' | 'disappearance' | 'query'>('video');
   const [selectedEventType, setSelectedEventType] = useState<string>('ALL');
 
-  // Conversational Video Q&A (CLI interactive mode integration)
+  // Conversational Video Q&A (Groq AI Agent + OpenCV Forensic Integration)
+  const [groqApiKey, setGroqApiKey] = useState<string>(() => {
+    return localStorage.getItem('tracex_groq_api_key') || '';
+  });
+  const [selectedGroqModel, setSelectedGroqModel] = useState<string>(() => {
+    return localStorage.getItem('tracex_groq_model') || 'llama-3.3-70b-versatile';
+  });
+  const [isGroqConfigOpen, setIsGroqConfigOpen] = useState(false);
   const [queryInput, setQueryInput] = useState('');
   const [isQuerying, setIsQuerying] = useState(false);
-  const [chatMessages, setChatMessages] = useState<Array<{ sender: 'user' | 'assistant'; text: string; events?: any[] }>>([
+  const [chatMessages, setChatMessages] = useState<
+    Array<{
+      sender: 'user' | 'assistant';
+      text: string;
+      events?: any[];
+      source?: string;
+      model?: string;
+      groq_error?: string;
+    }>
+  >([
     {
       sender: 'assistant',
-      text: 'Hello! I am your AI forensic analysis assistant. You can ask questions about this video like: "Did anyone enter after 10pm?", "What vehicles were seen?", "Did any object disappear?", or "Show all motion alerts".',
+      text: 'Hello! I am your TraceX Forensic AI Agent (powered by Groq LLaMA & OpenCV Vision). Ask questions about observed timeline events, vehicle identifications, kinematic velocities, or video integrity findings.',
+      source: 'groq',
+      model: 'llama-3.3-70b-versatile',
     },
   ]);
 
@@ -512,6 +531,12 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({
 
     try {
       const headers = await getAuthHeaders();
+      const integrityData = analysis?.integrity_analysis || (analysis as any)?.video_integrity || null;
+      const disappearancesData =
+        analysis?.object_disappearance_analysis?.disappearances ||
+        (analysis as any)?.object_disappearance?.disappearances ||
+        [];
+
       const res = await fetch(`${API_BASE}/video/query`, {
         method: 'POST',
         headers: {
@@ -522,6 +547,11 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({
           query: q,
           events: analysis?.events || [],
           summary: analysis?.forensic_summary || {},
+          integrity: integrityData,
+          disappearances: disappearancesData,
+          groq_api_key: groqApiKey.trim() || undefined,
+          model: selectedGroqModel,
+          chat_history: chatMessages.slice(-6).map((m) => ({ sender: m.sender, text: m.text })),
         }),
       });
 
@@ -533,6 +563,9 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({
             sender: 'assistant',
             text: data.answer,
             events: data.matching_events,
+            source: data.source,
+            model: data.model,
+            groq_error: data.groq_error,
           },
         ]);
       } else {
@@ -564,6 +597,7 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({
           sender: 'assistant',
           text: reply,
           events: matched.slice(0, 5),
+          source: 'heuristic',
         },
       ]);
     } finally {
@@ -1082,7 +1116,7 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({
           </motion.div>
         )}
 
-        {/* 6. ASK ABOUT VIDEO (CLI INTERACTIVE QUERY INTEGRATION) */}
+        {/* 6. ASK ABOUT VIDEO (GROQ AI FORENSIC ASSISTANT) */}
         {activeTab === 'query' && (
           <motion.div
             key="query"
@@ -1092,25 +1126,95 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({
             transition={{ duration: 0.2 }}
             className="spotlight-card p-6 sm:p-7 space-y-5"
           >
-            <div className="pb-4 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-blue-700" />
-                <h3 className="text-base font-bold text-slate-900 tracking-tight">
-                  Conversational Video Intelligence (CLI Query Engine)
-                </h3>
+            <div className="pb-4 border-b border-slate-100 flex items-center justify-between gap-3 flex-wrap">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-blue-700" />
+                  <h3 className="text-base font-bold text-slate-900 tracking-tight">
+                    Forensic AI Intelligence Agent
+                  </h3>
+                  <span
+                    className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                      groqApiKey
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        : 'bg-slate-100 text-slate-600 border-slate-200'
+                    }`}
+                  >
+                    {groqApiKey ? `● Groq ${selectedGroqModel.split('-')[0].toUpperCase()}` : '○ Groq / Local OpenCV'}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Natural-language conversational Q&A over OpenCV timeline events, object kinematics, disappearances, and integrity audit.
+                </p>
               </div>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Ask natural-language questions about this footage (e.g. "Did anyone enter?", "List vehicles seen", "Did any object disappear?")
-              </p>
+
+              <button
+                type="button"
+                onClick={() => setIsGroqConfigOpen((v) => !v)}
+                className="text-xs px-2.5 py-1.5 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <Settings className="w-3.5 h-3.5" />
+                <span>Groq Setup</span>
+              </button>
             </div>
+
+            {/* Groq Settings Drawer */}
+            {isGroqConfigOpen && (
+              <div className="p-3.5 rounded-lg bg-slate-50 border border-slate-200 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-blue-600" /> Groq AI Configuration
+                  </span>
+                  <span className="text-[10px] text-slate-400">Stored in browser localStorage</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                      GROQ API KEY
+                    </label>
+                    <input
+                      type="password"
+                      placeholder="gsk_..."
+                      value={groqApiKey}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setGroqApiKey(val);
+                        localStorage.setItem('tracex_groq_api_key', val);
+                      }}
+                      className="w-full px-2.5 py-1.5 text-xs rounded border border-slate-300 bg-white font-mono focus:outline-none focus:border-blue-600"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                      LLM MODEL
+                    </label>
+                    <select
+                      value={selectedGroqModel}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSelectedGroqModel(val);
+                        localStorage.setItem('tracex_groq_model', val);
+                      }}
+                      className="w-full px-2.5 py-1.5 text-xs rounded border border-slate-300 bg-white focus:outline-none focus:border-blue-600"
+                    >
+                      <option value="llama-3.3-70b-versatile">LLaMA 3.3 70B (Forensic Versatile)</option>
+                      <option value="llama-3.1-8b-instant">LLaMA 3.1 8B (Instant Low Latency)</option>
+                      <option value="llama3-70b-8192">LLaMA 3 70B</option>
+                      <option value="mixtral-8x7b-32768">Mixtral 8x7B</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Quick Query Suggestion Chips */}
             <div className="flex flex-wrap gap-2">
               {[
-                'Did any person appear in the video?',
-                'What vehicles were detected?',
+                'What objects & persons were detected?',
+                'What vehicles were tracked & at what velocity?',
                 'Show any motion or suspicious movements',
-                'Did any object disappear?',
+                'Did any object disappear from the scene?',
+                'Check video integrity & frame continuity',
                 'Summarize the timeline chronologically',
               ].map((promptText) => (
                 <button
@@ -1145,7 +1249,37 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({
                         : 'bg-white text-slate-900 border border-slate-200/80 rounded-tl-none shadow-xs'
                     }`}
                   >
-                    <p>{msg.text}</p>
+                    {msg.sender === 'assistant' && (
+                      <div className="flex items-center justify-between pb-1 border-b border-slate-100 text-[10px]">
+                        <span className="font-bold text-slate-700">TraceX Forensic AI</span>
+                        <span
+                          className={`font-semibold px-1.5 py-0.5 rounded text-[9px] ${
+                            msg.source === 'groq'
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                              : 'bg-slate-100 text-slate-600'
+                          }`}
+                        >
+                          {msg.source === 'groq'
+                            ? `Groq (${(msg.model || selectedGroqModel).split('-')[0]})`
+                            : 'OpenCV Heuristic Engine'}
+                        </span>
+                      </div>
+                    )}
+
+                    <p className="whitespace-pre-line">{msg.text}</p>
+
+                    {msg.groq_error && (
+                      <div className="p-2 rounded bg-amber-50 border border-amber-200 text-amber-800 text-[10px]">
+                        <b>Groq Notice:</b> {msg.groq_error}.{' '}
+                        <button
+                          type="button"
+                          onClick={() => setIsGroqConfigOpen(true)}
+                          className="underline font-bold cursor-pointer"
+                        >
+                          Check Groq Key in Setup
+                        </button>
+                      </div>
+                    )}
 
                     {/* Matching Event Jump Badges */}
                     {msg.events && msg.events.length > 0 && (
@@ -1191,7 +1325,7 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({
                   </div>
                   <div className="p-3.5 bg-white text-slate-600 rounded-lg border border-slate-200 shadow-xs flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-blue-800 animate-ping" />
-                    <span>Querying forensic event chronology...</span>
+                    <span>Querying forensic event chronology with Groq AI...</span>
                   </div>
                 </div>
               )}
@@ -1209,7 +1343,7 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({
                 type="text"
                 value={queryInput}
                 onChange={(e) => setQueryInput(e.target.value)}
-                placeholder="Ask anything about this video (e.g. 'What happened between 12:00 and 12:15?')"
+                placeholder="Ask anything about this video (e.g. 'What vehicles were detected and at what speed?')"
                 className="flex-1 px-4 py-2.5 rounded-md border border-slate-200 bg-white text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-700/15 shadow-xs"
               />
               <motion.button

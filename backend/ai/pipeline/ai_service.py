@@ -45,7 +45,7 @@ class AIDetectionResult:
     track_id: int | None
 
     # Detection provenance
-    source: str = "yolo"
+    source: str = "opencv"
 
     # Grounding DINO confidence
     dino_confidence: float | None = None

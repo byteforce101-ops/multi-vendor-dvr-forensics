@@ -34,11 +34,11 @@ const ARCHITECTURE_CARDS: ArchitectureCardItem[] = [
     id: 'analysis',
     title: '3. CV Inference & Timeline Correlation',
     description:
-      'Ultralytics YOLO tracking with automatic stationary-loss detection and heuristic behavioral reconstruction.',
+      'OpenCV multi-stage forensic vision tracking (HOG, Haar Cascades, MOG2) with kinematics and heuristic behavioral reconstruction.',
     iconType: 'analysis',
     iconColor: 'cyan',
     codeLines: [
-      { label: 'INFERENCE', value: 'YOLOv26 / ByteTrack Multi-Object' },
+      { label: 'INFERENCE', value: 'OpenCV HOG + Haar + MOG2 Kinematics' },
       { label: 'DETECTION', value: 'Persons, Vehicles, Motion Flux, Loss' },
       { label: 'DOSSIER', value: 'Certified JSON Chronological Timeline' },
     ],
@@ -84,7 +84,7 @@ export const ArchitectureSection: React.FC<ArchitectureSectionProps> = ({ isHigh
 
         <div className="flex items-center gap-2 text-xs font-mono text-[#00D2FF]">
           <span className="px-2 py-0.5 bg-[#0284C7]/20 border border-[#0284C7]/40 rounded font-bold">
-            FASTAPI + PYAV + YOLOV26
+            FASTAPI + PYAV + OPENCV FORENSICS
           </span>
         </div>
       </div>

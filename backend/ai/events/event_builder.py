@@ -272,9 +272,9 @@ def _make_event(
             "source": (
                 detections[0]
                 .metadata
-                .get("source", "yolo")
+                .get("source", "opencv")
                 if isinstance(detections[0].metadata, dict)
-                else "yolo"
+                else "opencv"
             ),
 
             "verified": any(

@@ -149,10 +149,36 @@ export const api = {
     return request<VideoAnalysisResult>('/video/analyze', { method: 'POST', body: form });
   },
 
-  queryVideo: (query: string, events: unknown[] = [], summary: unknown = null) =>
-    request<{ answer: string; matching_events: unknown[]; source: string }>(
+  queryVideo: (
+    query: string,
+    events: unknown[] = [],
+    summary: unknown = null,
+    extra: {
+      integrity?: unknown;
+      disappearances?: unknown[];
+      groqApiKey?: string;
+      model?: string;
+      chatHistory?: Array<{ sender: string; text: string }>;
+    } = {}
+  ) =>
+    request<{
+      answer: string;
+      matching_events: unknown[];
+      source: string;
+      model?: string;
+      groq_error?: string;
+    }>(
       '/video/query',
-      jsonInit('POST', { query, events, summary })
+      jsonInit('POST', {
+        query,
+        events,
+        summary,
+        integrity: extra.integrity,
+        disappearances: extra.disappearances,
+        groq_api_key: extra.groqApiKey,
+        model: extra.model,
+        chat_history: extra.chatHistory,
+      })
     ),
 
   getVideoStreamUrl: (analysisId: string) => `${API_BASE}/video/${analysisId}/stream`,

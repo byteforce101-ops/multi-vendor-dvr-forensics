@@ -283,6 +283,10 @@ class TraceXPipelineEngine:
                     obj = getattr(ev, "object_type", None)
                     if not obj or str(obj).strip().lower() in {"motion", "unknown", "none", ""}:
                         continue
+                    # Confidence bar: ignore weak or noisy detections
+                    conf = getattr(ev, "confidence", None)
+                    if conf is not None and conf < 0.50:
+                        continue
                     obj_name = str(obj).strip().lower()
                     st = getattr(ev, "start_time", None)
                     et = getattr(ev, "end_time", None) or st

@@ -1379,6 +1379,11 @@ def _detect_object_disappearances(console, events: list) -> list:
         if object_type in {"motion", "unknown", "none", ""}:
             continue
 
+        # Confidence bar: ignore low confidence noisy detections
+        conf = getattr(event, "confidence", None)
+        if conf is not None and conf < 0.50:
+            continue
+
         start_time = getattr(event, "start_time", None)
         end_time = getattr(event, "end_time", None) or start_time
         if start_time is None:

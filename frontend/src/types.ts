@@ -144,42 +144,48 @@ export interface ObjectDisappearanceAnalysis {
 }
 
 export interface VideoAnalysisResult {
-  video_integrity: any;
-  status: string;
+  video_integrity?: any;
+  status?: string;
   analysis_id: string;
-  filename: string;
+  filename?: string;
 
   metadata: {
-    duration_seconds: number | null;
+    duration_seconds?: number | null;
+    duration?: number | null;
     width: number | null;
     height: number | null;
     fps: number | null;
     codec: string | null;
-    has_audio: boolean;
+    has_audio?: boolean;
+    format_name?: string;
+    bitrate?: number;
   };
 
-  frames_analyzed: number;
-  event_count: number;
+  frames_analyzed?: number;
+  event_count?: number;
 
   events: Array<{
     event_type: string;
-    video_id: string;
+    video_id?: string;
     camera_id: string;
     start_time: string;
     end_time: string;
     confidence: number | null;
     track_id: number | null;
     object_type: string | null;
-    metadata: Record<string, unknown>;
+    start_seconds?: number;
+    end_seconds?: number;
+    bbox?: any;
+    metadata: Record<string, any>;
   }>;
 
-  reconstructed_events: ReconstructedForensicEvent[];
-  reconstruction_count: number;
-  forensic_summary: ForensicSummary;
+  reconstructed_events?: ReconstructedForensicEvent[];
+  reconstruction_count?: number;
+  forensic_summary?: any;
 
   /* Video integrity / tampering analysis */
-  integrity_analysis?: VideoIntegrityAnalysis;
+  integrity_analysis?: any;
 
   /* Object disappearance analysis */
-  object_disappearance_analysis?: ObjectDisappearanceAnalysis;
+  object_disappearance_analysis?: any;
 }

@@ -276,6 +276,110 @@ def scan_carved_streams(data: bytes | mmap.mmap) -> list[CarvedStreamInfo]:
                 description=f"Dahua DHAV Video Stream ({count} frames)",
             ))
 
+    # 7. Deep Raw H.264 (AVC) Annex-B NAL Stream Carving
+    # Look for 00 00 00 01 / 00 00 01 NAL start codes
+    # SPS: 0x67/0x27/0x47, PPS: 0x68/0x28/0x48, IDR: 0x65/0x25/0x45
+    h264_sps_pos = 0
+    h264_clusters: list[list[int]] = []
+    while True:
+        p = data.find(b"\x00\x00\x00\x01\x67", h264_sps_pos)
+        if p == -1:
+            p = data.find(b"\x00\x00\x01\x67", h264_sps_pos)
+        if p == -1:
+            break
+
+        # Scan forward for consecutive NAL units (PPS, IDR, slices)
+        scan_cur = p + 4
+        nal_count = 1
+        has_idr = False
+        last_nal = p
+        while scan_cur + 5 <= file_size:
+            next_start = data.find(b"\x00\x00\x00\x01", scan_cur)
+            start_len = 4
+            if next_start == -1 or next_start - last_nal > 2 * 1024 * 1024:
+                alt = data.find(b"\x00\x00\x01", scan_cur)
+                if alt != -1 and (next_start == -1 or alt < next_start):
+                    next_start = alt
+                    start_len = 3
+
+            if next_start == -1 or next_start - last_nal > 2 * 1024 * 1024:
+                break
+
+            nal_type_byte = data[next_start + start_len]
+            nal_type = nal_type_byte & 0x1F
+            # Common H.264 NAL types: 1 (non-IDR slice), 5 (IDR), 6 (SEI), 7 (SPS), 8 (PPS), 9 (AUD)
+            if nal_type in (1, 5, 6, 7, 8, 9):
+                nal_count += 1
+                if nal_type == 5:
+                    has_idr = True
+                last_nal = next_start
+                scan_cur = next_start + start_len + 1
+            else:
+                # Stop if non-NAL sequence encountered
+                break
+
+        if nal_count >= 10 and has_idr:
+            end_span = min(file_size, last_nal + 65536)
+            h264_clusters.append([p, end_span, nal_count])
+            h264_sps_pos = end_span
+        else:
+            h264_sps_pos = p + 4
+
+    for start_p, end_p, count in h264_clusters:
+        streams.append(CarvedStreamInfo(
+            stream_type="h264",
+            start_offset=start_p,
+            end_offset=end_p,
+            size_bytes=end_p - start_p,
+            description=f"Raw H.264/AVC Elementary Stream ({count} NALs)",
+        ))
+
+    # 8. Deep Raw H.265 (HEVC) Annex-B NAL Stream Carving
+    # VPS: 0x40/0x41 (type 32), SPS: 0x42/0x43 (type 33), PPS: 0x44/0x45 (type 34), IDR: 0x26/0x28 (type 19/20)
+    hevc_pos = 0
+    hevc_clusters: list[list[int]] = []
+    while True:
+        p = data.find(b"\x00\x00\x00\x01\x40", hevc_pos)
+        if p == -1:
+            p = data.find(b"\x00\x00\x00\x01\x42", hevc_pos)
+        if p == -1:
+            break
+
+        scan_cur = p + 4
+        nal_count = 1
+        has_idr = False
+        last_nal = p
+        while scan_cur + 6 <= file_size:
+            next_start = data.find(b"\x00\x00\x00\x01", scan_cur)
+            if next_start == -1 or next_start - last_nal > 2 * 1024 * 1024:
+                break
+            nal_type = (data[next_start + 4] >> 1) & 0x3F
+            # Types: 1 (TRAIL_R), 19/20 (IDR), 32 (VPS), 33 (SPS), 34 (PPS), 39/40 (SEI)
+            if nal_type in (1, 2, 19, 20, 32, 33, 34, 39, 40):
+                nal_count += 1
+                if nal_type in (19, 20):
+                    has_idr = True
+                last_nal = next_start
+                scan_cur = next_start + 5
+            else:
+                break
+
+        if nal_count >= 8 and has_idr:
+            end_span = min(file_size, last_nal + 65536)
+            hevc_clusters.append([p, end_span, nal_count])
+            hevc_pos = end_span
+        else:
+            hevc_pos = p + 4
+
+    for start_p, end_p, count in hevc_clusters:
+        streams.append(CarvedStreamInfo(
+            stream_type="hevc",
+            start_offset=start_p,
+            end_offset=end_p,
+            size_bytes=end_p - start_p,
+            description=f"Raw H.265/HEVC Elementary Stream ({count} NALs)",
+        ))
+
     # Sort and remove overlapping redundant slices
     streams.sort(key=lambda s: s.start_offset)
     unique_streams: list[CarvedStreamInfo] = []
@@ -354,7 +458,7 @@ class ForensicDiskCarverParser(BaseDVRParser):
                     for idx, s in enumerate(streams):
                         cam_num = idx + 1
                         rec_id = f"carved-{cam_num:03d}_{s.stream_type}"
-                        raw_ext = f".{s.stream_type}" if s.stream_type in ("mp4", "flv", "avi", "mkv") else ".bin"
+                        raw_ext = f".{s.stream_type}" if s.stream_type in ("mp4", "flv", "avi", "mkv", "h264", "hevc") else ".bin"
                         raw_carved_path = out_dir / f"{rec_id}_raw{raw_ext}"
                         mp4_output_path = out_dir / f"{rec_id}.mp4"
 
@@ -381,6 +485,32 @@ class ForensicDiskCarverParser(BaseDVRParser):
                                     "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
                                     "-movflags", "+faststart", str(mp4_output_path),
                                 ], capture_output=True).returncode
+                            elif s.stream_type == "h264":
+                                rc = subprocess.run([
+                                    "ffmpeg", "-y", "-f", "h264", "-analyzeduration", "200M", "-probesize", "200M",
+                                    "-fflags", "+genpts", "-i", str(raw_carved_path),
+                                    "-c:v", "copy", "-movflags", "+faststart", str(mp4_output_path),
+                                ], capture_output=True).returncode
+                                if rc != 0 or not mp4_output_path.exists() or mp4_output_path.stat().st_size == 0:
+                                    rc = subprocess.run([
+                                        "ffmpeg", "-y", "-f", "h264", "-analyzeduration", "200M", "-probesize", "200M",
+                                        "-fflags", "+genpts", "-i", str(raw_carved_path),
+                                        "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
+                                        "-movflags", "+faststart", str(mp4_output_path),
+                                    ], capture_output=True).returncode
+                            elif s.stream_type == "hevc":
+                                rc = subprocess.run([
+                                    "ffmpeg", "-y", "-f", "hevc", "-analyzeduration", "200M", "-probesize", "200M",
+                                    "-fflags", "+genpts", "-i", str(raw_carved_path),
+                                    "-c:v", "copy", "-movflags", "+faststart", str(mp4_output_path),
+                                ], capture_output=True).returncode
+                                if rc != 0 or not mp4_output_path.exists() or mp4_output_path.stat().st_size == 0:
+                                    rc = subprocess.run([
+                                        "ffmpeg", "-y", "-f", "hevc", "-analyzeduration", "200M", "-probesize", "200M",
+                                        "-fflags", "+genpts", "-i", str(raw_carved_path),
+                                        "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
+                                        "-movflags", "+faststart", str(mp4_output_path),
+                                    ], capture_output=True).returncode
                             else:
                                 rc = subprocess.run([
                                     "ffmpeg", "-y", "-i", str(raw_carved_path),

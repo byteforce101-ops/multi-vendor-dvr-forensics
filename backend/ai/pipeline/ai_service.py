@@ -374,7 +374,7 @@ class AIService:
     def __init__(
         self,
         model_path: str = "yolo26n.pt",
-        confidence: float = 0.25,
+        confidence: float = 0.50,
         iou: float = 0.50,
         device: str | None = None,
         enable_grounding_dino: bool = False,
@@ -976,6 +976,17 @@ class AIService:
                 confidence = float(
                     dino["confidence"]
                 )
+
+                # Suppress false positive bicycle detections inside vehicles or persons
+                if label in {"bicycle", "motorcycle"}:
+                    overlaps_existing = any(
+                        r.frame_number == frame.frame_number
+                        and r.object_type in {"car", "truck", "bus", "vehicle", "person"}
+                        and (self._iou(bbox, r.bbox) > 0.30 or (bbox[0] >= r.bbox[0] and bbox[1] >= r.bbox[1] and bbox[2] <= r.bbox[2] and bbox[3] <= r.bbox[3]))
+                        for r in results
+                    )
+                    if overlaps_existing:
+                        continue
 
                 # ---------------------------------------------
                 # Give DINO-only objects their own track ID.

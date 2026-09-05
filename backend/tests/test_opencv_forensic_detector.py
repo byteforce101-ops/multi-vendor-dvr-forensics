@@ -127,3 +127,22 @@ def test_video_analysis_service_with_pure_opencv():
     for r in ai_results:
         assert r.source == "opencv"
         assert r.object_type in FORENSIC_CLASSES
+
+
+def test_no_false_bicycle_or_vehicle_on_pedestrians():
+    """Verify that human motion blobs (e.g. walking, crouching, carrying items) are never misclassified as bicycles or vehicles."""
+    detector = OpenCVForensicDetector()
+    detector.reset_tracks()
+
+    # Frame 1: Background
+    detector.detect_frame(np.zeros((480, 640, 3), dtype=np.uint8))
+
+    # Frame 2: Moving human with roughly square/slightly wide aspect ratio (e.g. walking with basket / reaching)
+    # w=60, h=65 -> aspect_ratio_wh ~ 0.92
+    f2 = np.zeros((480, 640, 3), dtype=np.uint8)
+    f2[150:215, 200:260] = 200
+    dets = detector.detect_frame(f2, fps=2.0)
+
+    # Must NOT detect bicycle or vehicle
+    for d in dets:
+        assert d.class_name not in ("bicycle", "vehicle", "car", "motorcycle"), f"Unexpected false detection: {d.class_name}"

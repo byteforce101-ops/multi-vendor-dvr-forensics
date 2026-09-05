@@ -179,7 +179,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
         {/* Top Header */}
         <div className="relative z-10 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <TraceXLogo variant="white" className="h-9 w-auto object-contain" />
+            <TraceXLogo variant="white" className="h-12 w-auto object-contain" />
           </div>
         </div>
 
@@ -250,7 +250,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
       <div className="flex-1 flex flex-col justify-center items-center p-6 sm:p-12 lg:p-16 relative">
         {/* Mobile Logo banner */}
         <div className="lg:hidden mb-8 text-center flex flex-col items-center">
-          <TraceXLogo variant="dark" className="h-9 w-auto object-contain mb-2" />
+          <TraceXLogo variant="dark" className="h-11 w-auto object-contain mb-2" />
           <p className="text-xs text-slate-500 font-medium">Digital Video Forensics & Integrity Platform</p>
         </div>
 

@@ -31,7 +31,7 @@ class YOLODetector:
     def __init__(
         self,
         model_path: str = "yolo26n.pt",
-        confidence: float = 0.25,
+        confidence: float = 0.50,
         iou: float = 0.50,
         device: str | None = None,
     ):
@@ -155,6 +155,11 @@ class YOLODetector:
             }:
                 continue
 
+            # Require stricter confidence for bicycles and motorcycles to avoid false positives on car wheels, bumpers, and pedestrians
+            min_conf = max(self.confidence, 0.55) if cname in {"bicycle", "motorcycle"} else max(self.confidence, 0.40) if cname in {"car", "truck", "bus"} else self.confidence
+            if confidence < min_conf:
+                continue
+
             detections.append(
                 YOLODetection(
                     class_id=class_id,
@@ -170,7 +175,58 @@ class YOLODetector:
                 )
             )
 
+        # Cross-class suppression:
+        # 1. Bicycles/motorcycles overlapping with or inside cars/trucks/buses are car-wheel/fender artifacts -> suppress
+        # 2. Bicycles/motorcycles overlapping with pedestrians without high standalone confidence -> suppress
+        vehicles = [d for d in detections if d.class_name in {"car", "truck", "bus"}]
+        persons = [d for d in detections if d.class_name == "person"]
+
+        if vehicles or persons:
+            filtered: list[YOLODetection] = []
+            for d in detections:
+                if d.class_name in {"bicycle", "motorcycle"}:
+                    # Check if bicycle is inside or heavily intersecting a vehicle (car wheel / side panel artifact)
+                    in_vehicle = any(
+                        self._calc_containment_ratio(d.bbox, v.bbox) > 0.30 or self._calc_iou(d.bbox, v.bbox) > 0.25
+                        for v in vehicles
+                    )
+                    if in_vehicle:
+                        continue
+
+                    # Check if bicycle is overlapping a pedestrian
+                    in_person = any(
+                        self._calc_containment_ratio(d.bbox, p.bbox) > 0.35 or self._calc_iou(d.bbox, p.bbox) > 0.35
+                        for p in persons
+                    )
+                    if in_person:
+                        continue
+
+                filtered.append(d)
+            detections = filtered
+
         return detections
+
+    @staticmethod
+    def _calc_containment_ratio(inner_box: tuple[float, float, float, float], outer_box: tuple[float, float, float, float]) -> float:
+        ix1, iy1 = max(inner_box[0], outer_box[0]), max(inner_box[1], outer_box[1])
+        ix2, iy2 = min(inner_box[2], outer_box[2]), min(inner_box[3], outer_box[3])
+        iw, ih = max(0.0, ix2 - ix1), max(0.0, iy2 - iy1)
+        inter = iw * ih
+        inner_area = max(1.0, (inner_box[2] - inner_box[0]) * (inner_box[3] - inner_box[1]))
+        return inter / inner_area
+
+    @staticmethod
+    def _calc_iou(box_a: tuple[float, float, float, float], box_b: tuple[float, float, float, float]) -> float:
+        ax1, ay1, ax2, ay2 = box_a
+        bx1, by1, bx2, by2 = box_b
+        ix1, iy1 = max(ax1, bx1), max(ay1, by1)
+        ix2, iy2 = min(ax2, bx2), min(ay2, by2)
+        iw, ih = max(0.0, ix2 - ix1), max(0.0, iy2 - iy1)
+        inter = iw * ih
+        area_a = max(0.0, ax2 - ax1) * max(0.0, ay2 - ay1)
+        area_b = max(0.0, bx2 - bx1) * max(0.0, by2 - by1)
+        union = area_a + area_b - inter
+        return (inter / union) if union > 0 else 0.0
 
     # =========================================================
     # MOTION-GUIDED ROI PATCH DETECTION (DVR-Scan Architecture)

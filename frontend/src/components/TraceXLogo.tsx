@@ -20,9 +20,9 @@ const TraceXLogo: React.FC<TraceXLogoProps> = ({
     <img
       src={src}
       alt={alt}
-      className={`h-8 w-auto object-contain ${className}`}
+      className={`h-10 w-auto object-contain ${className}`}
     />
   );
 };
 
-export default TraceXLogo;
+export default TraceXLogo;

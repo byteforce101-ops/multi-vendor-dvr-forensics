@@ -1,4 +1,4 @@
-@echo off
+c@echo off
 setlocal
 set "PYTHONPATH=%~dp0"
 

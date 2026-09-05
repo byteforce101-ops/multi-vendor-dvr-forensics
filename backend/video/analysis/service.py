@@ -84,7 +84,7 @@ class VideoAnalysisService:
     def __init__(
         self,
         yolo_model: str = "yolo26n.pt",
-        ai_confidence: float = 0.25,
+        ai_confidence: float = 0.50,
         ai_iou: float = 0.50,
         device: str | None = None,
         enable_grounding_dino: bool = False,

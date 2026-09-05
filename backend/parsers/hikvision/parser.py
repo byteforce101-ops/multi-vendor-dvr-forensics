@@ -114,6 +114,45 @@ def _run_ffmpeg(cmd: list[str]) -> tuple[int, str]:
     return p.returncode, p.stderr.decode("utf-8", "ignore")
 
 
+def _scan_unallocated_blocks(mm, master: MasterBlock, indexed_offsets: set[int]) -> list[tuple[int, int]]:
+    """Scan disk image for unallocated or deleted data blocks containing valid MPEG-PS streams."""
+    unallocated: list[tuple[int, int]] = []
+    file_size = len(mm)
+    block_size = master.size_data_block if master.size_data_block > 0 else 2 * 1024 * 1024
+
+    # 1. Aligned block scan based on size_data_block
+    num_blocks = file_size // block_size
+    for i in range(num_blocks):
+        off = i * block_size
+        if off in indexed_offsets or off < 0x1000:
+            continue
+        slice_hdr = mm[off : min(file_size, off + 2 * 1024 * 1024)]
+        if _find_first_ps_pack(slice_hdr) >= 0:
+            if slice_hdr.count(0) < len(slice_hdr) * 0.98:
+                unallocated.append((off, 1))
+
+    # 2. Search for orphaned MPEG-PS clusters outside aligned blocks
+    if file_size > 0x1000:
+        pos = 0x1000
+        while True:
+            p = mm.find(BA_NAL, pos)
+            if p == -1 or p >= file_size:
+                break
+            is_covered = any(abs(p - off) < block_size for off in indexed_offsets) or any(abs(p - u[0]) < block_size for u in unallocated)
+            if not is_covered:
+                unallocated.append((p, 1))
+            pos = p + block_size
+
+    return unallocated
+
+
+def _parse_hbtree_safe(mm, master: MasterBlock) -> list[HIKBTREEEntry]:
+    try:
+        return _parse_hbtree(mm, master)
+    except Exception:
+        return []
+
+
 class HikvisionParser(BaseDVRParser):
     vendor_name = "hikvision"
     parser_version = "0.1.0"
@@ -158,35 +197,59 @@ class HikvisionParser(BaseDVRParser):
                 if master.version != KNOWN_GOOD_VERSION:
                     warnings.append(f"Untested filesystem version {master.version!r}")
 
-                entries = _parse_hbtree(mm, master)
-                if not entries:
+                entries = _parse_hbtree_safe(mm, master)
+                indexed_offsets: set[int] = set()
+
+                if entries:
+                    for i, entry in enumerate(entries):
+                        indexed_offsets.add(entry.offset_datablock)
+                        if entry.recording:
+                            warnings.append(f"Channel {entry.channel} block {i}: in-progress recording, no end timestamp")
+                            recovery_status = "PARTIAL"
+                        else:
+                            recovery_status = "ORIGINAL"
+
+                        recordings.append(NormalizedRecording(
+                            camera_id=f"CH-{entry.channel:02d}",
+                            recording_id=f"hik-{i:06d}",
+                            source_path=evidence_path,
+                            extracted_path=None,
+                            original_timestamp=entry.start_timestamp,
+                            normalized_timestamp=entry.start_timestamp,
+                            duration_seconds=None,
+                            resolution=None, fps=None, codec=None,
+                            file_size=master.size_data_block,
+                            recovery_status=recovery_status,
+                            device_model="Hikvision DVR (Indexed)",
+                            raw_metadata={"channel": entry.channel, "offset": entry.offset_datablock},
+                        ))
+
+                # Scan for deleted or unindexed data blocks in unallocated space
+                unallocated_blocks = _scan_unallocated_blocks(mm, master, indexed_offsets)
+                for unalloc_idx, (u_offset, u_chan) in enumerate(unallocated_blocks):
+                    rec_idx = len(recordings) + 1
+                    warnings.append(f"Carved deleted/unindexed footage block at offset 0x{u_offset:X} (CH-{u_chan:02d})")
+                    recordings.append(NormalizedRecording(
+                        camera_id=f"CH-{u_chan:02d}",
+                        recording_id=f"hik-recovered-{rec_idx:04d}",
+                        source_path=evidence_path,
+                        extracted_path=None,
+                        original_timestamp=None,
+                        normalized_timestamp=None,
+                        duration_seconds=None,
+                        resolution=None, fps=None, codec=None,
+                        file_size=master.size_data_block if master.size_data_block > 0 else 2 * 1024 * 1024,
+                        recovery_status="RECOVERED",
+                        device_model="Hikvision DVR (Deleted Footage Carved)",
+                        raw_metadata={"channel": u_chan, "offset": u_offset, "is_deleted_carved": True},
+                    ))
+
+                if not recordings:
                     return ParseResult(
                         vendor=self.vendor_name, parser_version=self.parser_version,
                         success=False, error_code=ParseError.PARTIALLY_PARSED,
-                        errors=["No HIKBTREE entries found — index may be corrupted or unsupported layout"],
+                        errors=["No HIKBTREE entries or carved data blocks found."],
                     )
-
-                for i, entry in enumerate(entries):
-                    if entry.recording:
-                        warnings.append(f"Channel {entry.channel} block {i}: in-progress recording, no end timestamp")
-                        recovery_status = "PARTIAL"
-                    else:
-                        recovery_status = "RECOVERED"
-
-                    recordings.append(NormalizedRecording(
-                        camera_id=f"CH-{entry.channel:02d}",
-                        recording_id=f"hik-{i:06d}",
-                        source_path=evidence_path,
-                        extracted_path=None,
-                        original_timestamp=entry.start_timestamp,
-                        normalized_timestamp=entry.start_timestamp,
-                        duration_seconds=None,
-                        resolution=None, fps=None, codec=None,
-                        file_size=master.size_data_block,
-                        recovery_status=recovery_status,
-                        device_model=None,
-                        raw_metadata={"channel": entry.channel, "offset": entry.offset_datablock},
-                    ))
 
             return ParseResult(
                 vendor=self.vendor_name, parser_version=self.parser_version,

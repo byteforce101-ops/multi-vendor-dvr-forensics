@@ -55,7 +55,7 @@ class OpenCVForensicDetector:
 
     def __init__(
         self,
-        confidence_threshold: float = 0.35,
+        confidence_threshold: float = 0.50,
         enable_hog_people: bool = True,
         enable_haar_body: bool = True,
         enable_motion_morphometrics: bool = True,
@@ -192,7 +192,7 @@ class OpenCVForensicDetector:
                 logger.debug(f"Haar body note: {exc}")
 
         # =====================================================
-        # STAGE 3: MOG2 Motion & Morphometric Aspect-Ratio Classification
+        # STAGE 3: MOG2 Motion & Morphometric Classification
         # =====================================================
         if self.enable_motion_morphometrics:
             motion_score, motion_boxes = self.motion_detector.process_frame(proc_frame)
@@ -200,47 +200,45 @@ class OpenCVForensicDetector:
                 area = float(bw * bh)
                 aspect_ratio_wh = float(bw) / float(max(1, bh))
                 aspect_ratio_hw = float(bh) / float(max(1, bw))
+                bbox = (float(bx), float(by), float(bx + bw), float(by + bh))
 
                 # Skip tiny noise or full-frame flashes
                 if area < 300 or (bw > 0.9 * w and bh > 0.9 * h):
                     continue
 
-                # Forensic Classification Heuristics:
-                # 1. Person: Vertical aspect ratio (h/w >= 1.35)
-                if aspect_ratio_hw >= 1.35 and area <= 0.35 * w * h:
+                # Check if this motion box already overlaps with a HOG / Haar person
+                overlaps_person = any(
+                    self._iou(bbox, c.bbox) > 0.25
+                    for c in candidates
+                    if c.class_name == "person"
+                )
+
+                if overlaps_person:
+                    # Reinforce as person rather than creating false vehicle/bicycle
                     candidates.append(OpenCVForensicDetection(
                         class_name="person",
-                        confidence=0.70,
-                        bbox=(float(bx), float(by), float(bx + bw), float(by + bh)),
+                        confidence=0.75,
+                        bbox=bbox,
+                        area=area,
+                        aspect_ratio=aspect_ratio_hw,
+                        attributes={"detector": "opencv_motion_person_overlap"},
+                    ))
+                # 1. Person: Vertical or standing aspect ratio (or HOG/Haar overlap)
+                elif aspect_ratio_hw >= 1.15 and area <= 0.40 * w * h:
+                    candidates.append(OpenCVForensicDetection(
+                        class_name="person",
+                        confidence=0.65,
+                        bbox=bbox,
                         area=area,
                         aspect_ratio=aspect_ratio_hw,
                         attributes={"detector": "opencv_morphometric_person"},
                     ))
-                # 2. Vehicle: Horizontal aspect ratio (w/h >= 1.1) and substantial area
-                elif aspect_ratio_wh >= 1.1 and area >= 800:
-                    candidates.append(OpenCVForensicDetection(
-                        class_name="vehicle",
-                        confidence=0.75,
-                        bbox=(float(bx), float(by), float(bx + bw), float(by + bh)),
-                        area=area,
-                        aspect_ratio=aspect_ratio_wh,
-                        attributes={"detector": "opencv_morphometric_vehicle"},
-                    ))
-                # 3. Bicycle / Motorcycle / Compact moving object
-                elif 0.8 <= aspect_ratio_wh <= 1.35 and 400 <= area <= 6000:
-                    candidates.append(OpenCVForensicDetection(
-                        class_name="bicycle",
-                        confidence=0.60,
-                        bbox=(float(bx), float(by), float(bx + bw), float(by + bh)),
-                        area=area,
-                        aspect_ratio=aspect_ratio_wh,
-                        attributes={"detector": "opencv_morphometric_bicycle"},
-                    ))
+                # 2. General moving object / motion (Pure motion contours should not fabricate vehicle/bicycle labels)
                 else:
                     candidates.append(OpenCVForensicDetection(
                         class_name="motion",
-                        confidence=0.55,
-                        bbox=(float(bx), float(by), float(bx + bw), float(by + bh)),
+                        confidence=0.50,
+                        bbox=bbox,
                         area=area,
                         aspect_ratio=aspect_ratio_wh,
                         attributes={"detector": "opencv_motion_cluster"},
@@ -257,6 +255,19 @@ class OpenCVForensicDetector:
         tracked = self._update_tracks(fused, fps=fps)
         return tracked
 
+    @staticmethod
+    def _iou(box_a: tuple[float, float, float, float], box_b: tuple[float, float, float, float]) -> float:
+        ax1, ay1, ax2, ay2 = box_a
+        bx1, by1, bx2, by2 = box_b
+        ix1, iy1 = max(ax1, bx1), max(ay1, by1)
+        ix2, iy2 = min(ax2, bx2), min(ay2, by2)
+        iw, ih = max(0.0, ix2 - ix1), max(0.0, iy2 - iy1)
+        inter = iw * ih
+        area_a = max(0.0, ax2 - ax1) * max(0.0, ay2 - ay1)
+        area_b = max(0.0, bx2 - bx1) * max(0.0, by2 - by1)
+        union = area_a + area_b - inter
+        return (inter / union) if union > 0 else 0.0
+
     def _apply_nms(
         self,
         detections: list[OpenCVForensicDetection],
@@ -266,26 +277,28 @@ class OpenCVForensicDetector:
         if not detections:
             return []
 
-        boxes = []
-        scores = []
-        for d in detections:
-            x1, y1, x2, y2 = d.bbox
-            boxes.append([int(x1), int(y1), int(x2 - x1), int(y2 - y1)])
-            scores.append(float(d.confidence))
+        # Sort by confidence descending, giving person detections a priority boost
+        def _sort_score(d: OpenCVForensicDetection) -> float:
+            score = d.confidence
+            if d.class_name == "person":
+                score += 0.2  # Person detections take precedence over ambiguous motion
+            return score
 
-        indices = cv2.dnn.NMSBoxes(
-            bboxes=boxes,
-            scores=scores,
-            score_threshold=self.confidence_threshold,
-            nms_threshold=iou_threshold,
-        )
+        sorted_dets = sorted(detections, key=_sort_score, reverse=True)
+        kept: list[OpenCVForensicDetection] = []
 
-        fused: list[OpenCVForensicDetection] = []
-        if len(indices) > 0:
-            for idx in indices.flatten():
-                fused.append(detections[idx])
+        for d in sorted_dets:
+            # Check overlap with already kept detections
+            suppressed = False
+            for k in kept:
+                iou = self._iou(d.bbox, k.bbox)
+                if iou >= iou_threshold:
+                    suppressed = True
+                    break
+            if not suppressed and d.confidence >= self.confidence_threshold:
+                kept.append(d)
 
-        return fused
+        return kept
 
     def _update_tracks(
         self,

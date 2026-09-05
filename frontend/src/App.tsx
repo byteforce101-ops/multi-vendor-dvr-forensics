@@ -2949,7 +2949,7 @@ export default function App() {
       {/* Sidebar */}
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="brand" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 4px 16px', borderBottom: '1px solid rgba(255,255,255,0.12)' }}>
-          <TraceXLogo variant="white" className="h-7 w-auto object-contain" />
+          <TraceXLogo variant="white" className="h-9 max-h-10 w-auto object-contain" />
           <button
             className="collapse"
             onClick={() => setSidebarOpen(false)}
@@ -3055,8 +3055,8 @@ export default function App() {
             <Menu size={18} />
           </button>
 
-          <div className="crumb" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <TraceXLogo variant="dark" className="h-6 w-auto object-contain" />
+          <div className="crumb" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <TraceXLogo variant="dark" className="h-8 max-h-9 w-auto object-contain" />
             <ChevronRight size={14} />
             <b>{view}</b>
             {selectedCase && (

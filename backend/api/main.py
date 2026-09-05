@@ -79,7 +79,7 @@ parser_manager = ParserManager()
 
 video_analysis_service = VideoAnalysisService(
     yolo_model="yolo26n.pt",
-    ai_confidence=0.35,
+    ai_confidence=0.50,
     ai_iou=0.50,
 )
 
@@ -1090,7 +1090,29 @@ async def analyze_video(file: UploadFile = File(...), user: AuthenticatedUser | 
                     video_start_time=recovered[0].original_timestamp or datetime.now(timezone.utc),
                     frame_sample_fps=5.0,
                 )
-                events = [{"event_type": e.event_type, "video_id": e.video_id, "camera_id": e.camera_id, "start_time": e.start_time.isoformat(), "end_time": e.end_time.isoformat(), "confidence": e.confidence, "track_id": e.track_id, "object_type": e.object_type, "metadata": e.metadata} for e in result.events]
+                fps = result.metadata.fps or 25.0
+                events = []
+                for e in result.events:
+                    meta = dict(e.metadata) if isinstance(e.metadata, dict) else {}
+                    obs = meta.get("observations") or []
+                    if obs and "bbox" not in meta:
+                        meta["bbox"] = obs[0].get("bbox")
+                    start_sec = round(meta["first_frame"] / fps, 2) if "first_frame" in meta else 0.0
+                    end_sec = round(meta["last_frame"] / fps, 2) if "last_frame" in meta else (start_sec + 3.0)
+                    events.append({
+                        "event_type": e.event_type,
+                        "video_id": e.video_id,
+                        "camera_id": e.camera_id,
+                        "start_time": e.start_time.isoformat(),
+                        "end_time": e.end_time.isoformat(),
+                        "confidence": e.confidence,
+                        "track_id": e.track_id,
+                        "object_type": e.object_type,
+                        "start_seconds": start_sec,
+                        "end_seconds": end_sec,
+                        "bbox": meta.get("bbox"),
+                        "metadata": meta,
+                    })
                 reconstructed_events = [{"video_id": e.video_id, "camera_id": e.camera_id, "event_type": e.event_type, "start_time": e.start_time.isoformat(), "end_time": e.end_time.isoformat(), "title": e.title, "description": e.description, "objects": e.objects, "confidence": e.confidence, "metadata": e.metadata} for e in result.reconstructed_events]
                 summary = result.forensic_summary
                 forensic_summary = {"video_id": summary.video_id, "camera_id": summary.camera_id, "start_time": summary.start_time.isoformat() if summary.start_time else None, "end_time": summary.end_time.isoformat() if summary.end_time else None, "headline": summary.headline, "summary": summary.summary, "key_events": summary.key_events, "objects_detected": summary.objects_detected, "event_count": summary.event_count, "confidence": summary.confidence, "metadata": {**summary.metadata, "vendor": detected_parser.vendor_name, "recordings_found": len(parse_result.recordings)}}
@@ -1210,7 +1232,29 @@ async def analyze_video(file: UploadFile = File(...), user: AuthenticatedUser | 
         result = video_analysis_service.analyze(video_id=analysis_id, camera_id="camera_01", video_path=normalized_path, video_start_time=datetime.now(timezone.utc), frame_sample_fps=5.0)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Video analysis failed: {exc}") from exc
-    events = [{"event_type": e.event_type, "video_id": e.video_id, "camera_id": e.camera_id, "start_time": e.start_time.isoformat(), "end_time": e.end_time.isoformat(), "confidence": e.confidence, "track_id": e.track_id, "object_type": e.object_type, "metadata": e.metadata} for e in result.events]
+    fps = result.metadata.fps or 25.0
+    events = []
+    for e in result.events:
+        meta = dict(e.metadata) if isinstance(e.metadata, dict) else {}
+        obs = meta.get("observations") or []
+        if obs and "bbox" not in meta:
+            meta["bbox"] = obs[0].get("bbox")
+        start_sec = round(meta["first_frame"] / fps, 2) if "first_frame" in meta else 0.0
+        end_sec = round(meta["last_frame"] / fps, 2) if "last_frame" in meta else (start_sec + 3.0)
+        events.append({
+            "event_type": e.event_type,
+            "video_id": e.video_id,
+            "camera_id": e.camera_id,
+            "start_time": e.start_time.isoformat(),
+            "end_time": e.end_time.isoformat(),
+            "confidence": e.confidence,
+            "track_id": e.track_id,
+            "object_type": e.object_type,
+            "start_seconds": start_sec,
+            "end_seconds": end_sec,
+            "bbox": meta.get("bbox"),
+            "metadata": meta,
+        })
     reconstructed_events = [{"video_id": e.video_id, "camera_id": e.camera_id, "event_type": e.event_type, "start_time": e.start_time.isoformat(), "end_time": e.end_time.isoformat(), "title": e.title, "description": e.description, "objects": e.objects, "confidence": e.confidence, "metadata": e.metadata} for e in result.reconstructed_events]
     summary = result.forensic_summary
     forensic_summary = {"video_id": summary.video_id, "camera_id": summary.camera_id, "start_time": summary.start_time.isoformat() if summary.start_time else None, "end_time": summary.end_time.isoformat() if summary.end_time else None, "headline": summary.headline, "summary": summary.summary, "key_events": summary.key_events, "objects_detected": summary.objects_detected, "event_count": summary.event_count, "confidence": summary.confidence, "metadata": summary.metadata}

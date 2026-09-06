@@ -60,6 +60,10 @@ import { generateForensicDossier } from './utils/forensicDossier';
 import TraceXLogo from './components/TraceXLogo';
 import opencvLogo from './assets/opencv-logo.png';
 import casesIcon from './assets/metric-cases.png';
+import evidenceIcon from './assets/metric-evidence.png';
+import trackedEntitiesIcon from './assets/metric-tracked-entities.png';
+import eventsIcon from './assets/metric-events.png';
+import integrityIcon from './assets/metric-integrity.png';
 import { LoginPage } from './components/LoginPage';
 import { supabase, isSupabaseConfigured, DEFAULT_USER } from './lib/supabase';
 import { LogOut, User as UserIcon } from 'lucide-react';
@@ -141,17 +145,20 @@ function Button({
   className = '',
   disabled = false,
   title,
+  type = 'button',
 }: {
   children?: ReactNode;
   onClick?: () => void;
-  variant?: 'primary' | 'secondary' | 'danger';
+  variant?: 'primary' | 'secondary' | 'success' | 'ai' | 'danger' | 'action' | 'ghost';
   icon?: React.ComponentType<{ size?: number }>;
   className?: string;
   disabled?: boolean;
   title?: string;
+  type?: 'button' | 'submit' | 'reset';
 }) {
   return (
     <button
+      type={type}
       onClick={onClick}
       disabled={disabled}
       title={title}
@@ -853,61 +860,89 @@ export default function App() {
 
   // OVERVIEW
   const renderOverview = () => {
+    const hasAnalysis = Boolean(analysisResult);
+    const hasActiveEvidence = Boolean(loadedFileName && analysisResult);
+    const activeEvidenceCount = hasActiveEvidence
+      ? 1
+      : caseEvidence.length > 0
+      ? caseEvidence.length
+      : overviewStats?.total_evidence && cases.length > 0
+      ? overviewStats.total_evidence
+      : 0;
+
     const metricCards = [
       {
         label: 'Total Cases',
-        val: (overviewStats?.total_cases ?? cases.length).toString(),
-        sub: `${overviewStats?.active_cases ?? cases.filter((c) => c.status !== 'closed').length} active investigations`,
+        val: cases.length > 0
+          ? cases.length.toString()
+          : (overviewStats?.total_cases != null && overviewStats.total_cases > 0
+              ? overviewStats.total_cases.toString()
+              : '0'),
+        sub: cases.length > 0
+          ? `${cases.filter((c) => c.status !== 'closed').length} active investigations`
+          : 'No active investigations',
         icon: FolderSearch,
         customIcon: casesIcon,
         color: 'navy',
       },
       {
         label: 'Evidence Files',
-        val: loadedFileName && analysisResult
-          ? '1'
-          : (overviewStats?.total_evidence ?? (caseEvidence.length || 23)).toString(),
+        val: activeEvidenceCount > 0 ? activeEvidenceCount.toString() : '0',
         sub: loadedFileName
           ? `Active: ${loadedFileName.slice(0, 18)}...`
-          : `${overviewStats?.total_evidence ?? 23} bitstreams in custody`,
+          : activeEvidenceCount > 0
+          ? `${activeEvidenceCount} bitstream${activeEvidenceCount === 1 ? '' : 's'} in custody`
+          : 'No media loaded',
         icon: Video,
+        customIcon: evidenceIcon,
         color: 'teal',
       },
       {
         label: 'OpenCV Detections',
-        val: (analysisResult ? analysisResult.event_count : (overviewStats?.total_events ?? 7)).toString(),
-        sub: analysisResult ? 'Active stream detections' : 'OpenCV detection events',
+        val: hasAnalysis ? (analysisResult?.event_count ?? 0).toString() : '—',
+        sub: hasAnalysis
+          ? `${analysisResult?.event_count ?? 0} stream detections`
+          : 'Awaiting video analysis',
         icon: ScanIcon,
         customIcon: opencvLogo,
         color: 'violet',
       },
       {
         label: 'Tracked Entities',
-        val: (analysisResult
-          ? (analysisResult?.forensic_summary?.objects_detected?.length ?? 0)
-          : (overviewStats?.tracked_entities_count ?? 3)
-        ).toString(),
-        sub: analysisResult ? 'Distinct target identities' : 'Person, Bed & Mobile targets',
+        val: hasAnalysis
+          ? (analysisResult?.forensic_summary?.objects_detected?.length ?? 0).toString()
+          : '—',
+        sub: hasAnalysis && (analysisResult?.forensic_summary?.objects_detected?.length ?? 0) > 0
+          ? analysisResult!.forensic_summary!.objects_detected.slice(0, 3).join(', ')
+          : 'No entities tracked yet',
         icon: UserRound,
+        customIcon: trackedEntitiesIcon,
         color: 'amber',
       },
       {
         label: 'Reconstructed Events',
-        val: (analysisResult
-          ? (analysisResult?.reconstruction_count ?? 0)
-          : (overviewStats?.reconstructed_events_count ?? 7)
-        ).toString(),
-        sub: 'Incident narrative milestones',
+        val: hasAnalysis
+          ? (analysisResult?.reconstruction_count ?? analysisResult?.reconstructed_events?.length ?? 0).toString()
+          : '—',
+        sub: hasAnalysis && ((analysisResult?.reconstruction_count ?? 0) > 0 || (analysisResult?.reconstructed_events?.length ?? 0) > 0)
+          ? `${analysisResult?.reconstruction_count ?? analysisResult?.reconstructed_events?.length} incident milestones`
+          : 'No events reconstructed yet',
         icon: Activity,
+        customIcon: eventsIcon,
         color: 'emerald',
       },
       {
         label: 'Integrity Score',
-        val: analysisResult?.integrity_analysis
+        val: hasAnalysis && analysisResult?.integrity_analysis
           ? `${analysisResult.integrity_analysis.integrity_score}%`
-          : `${overviewStats?.integrity_score ?? 100}%`,
-        sub: analysisResult?.integrity_analysis?.overall_status || (overviewStats ? `${overviewStats.integrity_status} (SHA-256 Validated)` : 'PASS (SHA-256 Validated)'),
+          : '—',
+        sub: hasAnalysis && analysisResult?.integrity_analysis
+          ? (analysisResult.integrity_analysis.tampering_detected
+              ? 'Tampering Detected'
+              : 'Cryptographically Verified (SHA-256)')
+          : 'Pending cryptographic audit',
         icon: ShieldCheck,
+        customIcon: integrityIcon,
         color: 'navy',
       },
     ];
@@ -949,8 +984,8 @@ export default function App() {
                       src={m.customIcon}
                       alt={m.label}
                       style={{
-                        width: '23px',
-                        height: '23px',
+                        width: '24px',
+                        height: '24px',
                         objectFit: 'contain',
                         borderRadius: '4px',
                       }}
@@ -975,7 +1010,9 @@ export default function App() {
                       />
                     )}
                   </p>
-                  <strong>{m.val}</strong>
+                  <strong style={m.val === '—' ? { color: '#94a3b8', fontWeight: 500 } : undefined}>
+                    {m.val}
+                  </strong>
                   <small>{m.sub}</small>
                 </div>
               </div>
@@ -985,10 +1022,12 @@ export default function App() {
 
         {/* Quick launch / Active Workspace Banner */}
         {loadedFileName ? (
-          <div className="panel" style={{ padding: '20px', marginBottom: '20px' }}>
+          <div className="panel active-workspace-card" style={{ padding: '20px', marginBottom: '20px' }}>
             <div className="section-head" style={{ marginBottom: '14px' }}>
               <div>
-                <p className="eyebrow">ACTIVE WORKSPACE</p>
+                <p className="eyebrow" style={{ color: '#2563eb', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span className="pulse" style={{ width: '6px', height: '6px' }} /> ACTIVE WORKSPACE TARGET
+                </p>
                 <h3>{loadedFileName}</h3>
               </div>
               <div style={{ display: 'flex', gap: '8px' }}>
@@ -999,7 +1038,11 @@ export default function App() {
                 >
                   Open in CCTV Viewer
                 </Button>
-                <Button icon={FileBarChart} onClick={handleExportPDF}>
+                <Button
+                  variant="success"
+                  icon={FileBarChart}
+                  onClick={handleExportPDF}
+                >
                   Export Certified PDF
                 </Button>
               </div>
@@ -1115,7 +1158,7 @@ export default function App() {
                       </td>
                       <td style={{ textAlign: 'right' }}>
                         <Button
-                          variant="secondary"
+                          variant="action"
                           icon={ChevronRight}
                           onClick={() => {
                             setSelectedCase(c);
@@ -1240,7 +1283,7 @@ export default function App() {
                       </td>
                       <td style={{ textAlign: 'right' }}>
                         <Button
-                          variant="secondary"
+                          variant="action"
                           icon={ChevronRight}
                           onClick={() => {
                             setSelectedCase(c);
@@ -1801,16 +1844,8 @@ export default function App() {
                 ].map((promptText) => (
                   <button
                     key={promptText}
+                    className="btn-chip"
                     onClick={() => handleSendQuery(promptText)}
-                    style={{
-                      padding: '4px 8px',
-                      borderRadius: '4px',
-                      background: '#f1f5f9',
-                      border: '1px solid #cbd5e1',
-                      color: '#334155',
-                      fontSize: '11px',
-                      cursor: 'pointer',
-                    }}
                   >
                     {promptText}
                   </button>
@@ -1877,15 +1912,12 @@ export default function App() {
                         {msg.events.map((ev, evIdx) => (
                           <button
                             key={evIdx}
-                            className="btn btn-secondary"
+                            className="btn-chip"
                             style={{
                               fontSize: '10px',
-                              padding: '2px 8px',
+                              padding: '3px 10px',
                               justifyContent: 'flex-start',
                               height: '24px',
-                              background: '#f0fdf4',
-                              borderColor: '#bbf7d0',
-                              color: '#15803d',
                             }}
                             onClick={() => {
                               if (ev.start_time) {
@@ -1940,7 +1972,7 @@ export default function App() {
                   }}
                 />
                 <Button
-                  variant="primary"
+                  variant="ai"
                   icon={Send}
                   type="submit"
                   disabled={isQuerying || !queryInput.trim()}
@@ -1977,7 +2009,7 @@ export default function App() {
                         <td>{Math.round((ev.confidence || 0.85) * 100)}%</td>
                         <td style={{ textAlign: 'right' }}>
                           <Button
-                            variant="secondary"
+                            variant="action"
                             icon={Play}
                             onClick={() => {
                               if (ev.start_time) {
@@ -2075,14 +2107,14 @@ export default function App() {
                 Ingest Media
               </Button>
               <Button
-                variant="secondary"
-                icon={MessageSquare}
+                variant="ai"
+                icon={Sparkles}
                 onClick={() => setIsQueryModalOpen(true)}
               >
                 AI Assistant
               </Button>
               <Button
-                variant="secondary"
+                variant="success"
                 icon={FileBarChart}
                 onClick={handleExportPDF}
               >
@@ -2107,11 +2139,11 @@ export default function App() {
                 <h3>Incident Context</h3>
               </div>
               <Button
-                variant="secondary"
+                variant="ai"
                 icon={Sparkles}
                 onClick={() => setIsQueryModalOpen(true)}
               >
-                Query
+                Query AI
               </Button>
             </div>
 
@@ -2291,7 +2323,7 @@ export default function App() {
                       <td>{ev.camera_id || 'CH-01'}</td>
                       <td style={{ textAlign: 'right' }}>
                         <Button
-                          variant="secondary"
+                          variant="action"
                           icon={Play}
                           onClick={() => {
                             seekVideo((i * 1.8) % (duration || 60));
@@ -2525,7 +2557,7 @@ export default function App() {
           title="Evidence Integrity & Bitstream Audit"
           description="Cryptographic checksums, frame-rate consistency checks, and video tampering verification."
           action={
-            <Button variant="primary" icon={Download} onClick={handleExportPDF}>
+            <Button variant="success" icon={Download} onClick={handleExportPDF}>
               Export Audit Certificate
             </Button>
           }
@@ -2679,10 +2711,10 @@ export default function App() {
               </p>
 
               <div className="report-actions">
-                <Button variant="primary" icon={Download} onClick={handleExportPDF}>
+                <Button variant="success" icon={Download} onClick={handleExportPDF}>
                   Download PDF Dossier (.pdf)
                 </Button>
-                <Button variant="secondary" icon={MessageSquare} onClick={() => setIsQueryModalOpen(true)}>
+                <Button variant="ai" icon={Sparkles} onClick={() => setIsQueryModalOpen(true)}>
                   Ask AI Assistant
                 </Button>
               </div>
@@ -3141,13 +3173,13 @@ export default function App() {
               <kbd>Enter</kbd>
             </div>
 
-            <button
-              className="btn btn-primary"
-              style={{ minHeight: '30px', padding: '0 10px', fontSize: '11px' }}
+            <Button
+              variant="primary"
+              icon={UploadCloud}
               onClick={() => setIsUploadModalOpen(true)}
             >
-              <UploadCloud size={14} /> Ingest Media
-            </button>
+              Ingest Media
+            </Button>
 
             <button
               className="icon-btn"
@@ -3496,14 +3528,14 @@ export default function App() {
                     )}
 
                     {msg.events && msg.events.length > 0 && (
-                      <div style={{ marginTop: '8px', display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                      <div style={{ marginTop: '8px', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                         {msg.events.map((ev: any, idx: number) => {
                           const timeLabel = ev.start_time || `Event #${idx + 1}`;
                           return (
                             <button
                               key={idx}
-                              className="btn btn-secondary"
-                              style={{ padding: '2px 6px', fontSize: '9px' }}
+                              className="btn-chip"
+                              style={{ fontSize: '10px', padding: '3px 9px' }}
                               onClick={() => {
                                 seekVideo(idx * 4);
                                 setIsQueryModalOpen(false);
@@ -3535,7 +3567,7 @@ export default function App() {
                   }}
                 />
                 <Button
-                  variant="primary"
+                  variant="ai"
                   icon={Send}
                   onClick={() => handleSendQuery()}
                   disabled={isQuerying || !queryInput.trim()}
@@ -3554,8 +3586,7 @@ export default function App() {
                 ].map((sugg) => (
                   <button
                     key={sugg}
-                    className="btn btn-secondary"
-                    style={{ fontSize: '10px', padding: '3px 8px' }}
+                    className="btn-chip"
                     onClick={() => handleSendQuery(sugg)}
                   >
                     {sugg}

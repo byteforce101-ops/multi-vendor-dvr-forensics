@@ -4,7 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --port=3000 --host=0.0.0.0",
+    "dev": "concurrently -k -c \"blue.bold,green.bold\" -n \"BACKEND,FRONTEND\" \"node ../run-backend.js\" \"vite --port=3000 --host=0.0.0.0\"",
+    "dev:vite": "vite --port=3000 --host=0.0.0.0",
+    "backend": "node ../run-backend.js",
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",

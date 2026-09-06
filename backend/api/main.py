@@ -362,22 +362,52 @@ def _require_case_access(
 # =========================================================
 
 @app.get("/overview/stats")
-def get_overview_stats(db: Session = Depends(get_db)):
-    total_cases = db.query(Case).count()
-    active_cases = db.query(Case).filter(Case.status != "closed").count()
-    total_evidence = db.query(Evidence).count()
-    total_events = db.query(Event).count()
+def get_overview_stats(
+    db: Session = Depends(get_db),
+    user: AuthenticatedUser | None = Depends(get_current_user),
+):
+    case_query = db.query(Case)
+    if user is not None:
+        case_query = case_query.filter(Case.owner_auth_id == user.user_id)
+
+    cases = case_query.all()
+    total_cases = len(cases)
+    active_cases = len([c for c in cases if c.status != "closed"])
+    case_ids = [c.id for c in cases]
+
+    if total_cases == 0:
+        return {
+            "total_cases": 0,
+            "active_cases": 0,
+            "total_evidence": 0,
+            "total_events": 0,
+            "tracked_entities_count": 0,
+            "tracked_entities": [],
+            "reconstructed_events_count": 0,
+            "integrity_score": None,
+            "integrity_status": "NONE",
+        }
+
+    evidence_query = db.query(Evidence).filter(Evidence.case_id.in_(case_ids))
+    total_evidence = evidence_query.count()
+
+    event_query = db.query(Event).filter(Event.case_id.in_(case_ids))
+    total_events = event_query.count()
 
     unique_objects = [
         r[0]
-        for r in db.query(Event.object_type)
+        for r in event_query.with_entities(Event.object_type)
         .filter(Event.object_type.isnot(None))
         .distinct()
         .all()
     ]
 
-    hashed_evidence = db.query(Evidence).filter(Evidence.sha256.isnot(None)).count()
-    integrity_score = round((hashed_evidence / total_evidence * 100)) if total_evidence > 0 else 100
+    hashed_evidence = evidence_query.filter(Evidence.sha256.isnot(None)).count()
+    integrity_score = (
+        round((hashed_evidence / total_evidence * 100))
+        if total_evidence > 0
+        else None
+    )
 
     return {
         "total_cases": total_cases,
@@ -388,7 +418,11 @@ def get_overview_stats(db: Session = Depends(get_db)):
         "tracked_entities": unique_objects,
         "reconstructed_events_count": total_events,
         "integrity_score": integrity_score,
-        "integrity_status": "PASS" if integrity_score >= 90 else "VERIFIED",
+        "integrity_status": (
+            ("PASS" if integrity_score is not None and integrity_score >= 90 else "VERIFIED")
+            if total_evidence > 0
+            else "NONE"
+        ),
     }
 
 

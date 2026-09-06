@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from ultralytics import YOLO
+try:
+    from ultralytics import YOLO
+except ImportError:
+    YOLO = None
 
 
 @dataclass
@@ -35,7 +38,10 @@ class YOLODetector:
         iou: float = 0.50,
         device: str | None = None,
     ):
-        self.model = YOLO(model_path)
+        if YOLO is not None:
+            self.model = YOLO(model_path)
+        else:
+            self.model = None
 
         self.confidence = confidence
         self.iou = iou

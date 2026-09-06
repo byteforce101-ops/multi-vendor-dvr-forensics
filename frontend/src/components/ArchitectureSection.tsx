@@ -73,11 +73,11 @@ export const ArchitectureSection: React.FC<ArchitectureSectionProps> = ({ isHigh
         <div>
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-[#00D2FF]" />
-            <h3 className="text-sm font-bold text-slate-100 uppercase tracking-wider font-mono">
+            <h3 className="text-sm font-bold text-slate-100 uppercase tracking-wider font-display">
               // FORENSIC ENGINE SYSTEM ARCHITECTURE & DATA PIPELINE
             </h3>
           </div>
-          <p className="text-xs text-[#94A3B8] font-mono mt-0.5">
+          <p className="text-xs text-[#94A3B8] mt-0.5">
             Courtroom-admissible video ingestion, stream integrity validation, and neural activity reconstruction
           </p>
         </div>
@@ -109,11 +109,11 @@ export const ArchitectureSection: React.FC<ArchitectureSectionProps> = ({ isHigh
                   <span className="text-[10px] font-mono text-[#64748B] uppercase">MODULE {card.id.toUpperCase()}</span>
                 </div>
 
-                <h4 className="text-xs font-bold text-slate-100 font-mono tracking-tight">
+                <h4 className="text-xs font-bold text-slate-100 font-display tracking-tight">
                   {card.title}
                 </h4>
 
-                <p className="text-xs text-[#94A3B8] mt-1.5 leading-relaxed font-mono">
+                <p className="text-xs text-[#94A3B8] mt-1.5 leading-relaxed">
                   {card.description}
                 </p>
               </div>

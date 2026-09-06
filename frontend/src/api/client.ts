@@ -182,4 +182,18 @@ export const api = {
     ),
 
   getVideoStreamUrl: (analysisId: string) => `${API_BASE}/video/${analysisId}/stream`,
+
+  getOverviewStats: () => request<OverviewStats>('/overview/stats'),
 };
+
+export interface OverviewStats {
+  total_cases: number;
+  active_cases: number;
+  total_evidence: number;
+  total_events: number;
+  tracked_entities_count: number;
+  tracked_entities: string[];
+  reconstructed_events_count: number;
+  integrity_score: number;
+  integrity_status: string;
+}

@@ -134,8 +134,8 @@ export const ComplianceModal: React.FC<ComplianceModalProps> = ({
           )}
 
           {activeTab === 'api' && (
-            <div className="space-y-3 font-mono">
-              <div className="flex items-center justify-between text-slate-400 font-sans">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between text-slate-400">
                 <span className="text-xs font-semibold">Ingest Endpoint Specification (cURL):</span>
                 <button
                   onClick={() => {

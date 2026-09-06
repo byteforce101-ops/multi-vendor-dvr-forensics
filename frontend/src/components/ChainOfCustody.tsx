@@ -30,7 +30,7 @@ export const ChainOfCustody: React.FC<ChainOfCustodyProps> = ({ recentFiles, onO
         </div>
 
         {recentFiles.length === 0 ? (
-          <div className="py-8 text-center text-xs font-mono text-[#64748B]">
+          <div className="py-8 text-center text-xs text-[#64748B]">
             No evidence bitstreams ingested in current session.
           </div>
         ) : (
@@ -59,7 +59,7 @@ export const ChainOfCustody: React.FC<ChainOfCustodyProps> = ({ recentFiles, onO
 
       <button
         onClick={onOpenActivityLog}
-        className="mt-4 pt-3 border-t border-[#1E3A5F] text-xs font-mono font-semibold text-[#00D2FF] hover:text-white flex items-center justify-between transition-colors cursor-pointer"
+        className="mt-4 pt-3 border-t border-[#1E3A5F] text-xs font-semibold text-[#00D2FF] hover:text-white flex items-center justify-between transition-colors cursor-pointer"
       >
         <span>Open Cryptographic Ledger</span>
         <ExternalLink className="w-3.5 h-3.5" />

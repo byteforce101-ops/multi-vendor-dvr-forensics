@@ -24,7 +24,7 @@ export const ProcessPipeline: React.FC<ProcessPipelineProps> = ({ currentStepId 
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-[#00D2FF] animate-pulse" />
-          <h2 className="text-[13px] font-bold tracking-wider text-slate-100 uppercase font-mono">
+          <h2 className="text-[13px] font-bold tracking-wider text-slate-100 uppercase font-display">
             // FORENSIC EVIDENCE PIPELINE
           </h2>
         </div>
@@ -62,7 +62,7 @@ export const ProcessPipeline: React.FC<ProcessPipelineProps> = ({ currentStepId 
                     {step.id}
                   </div>
                 )}
-                <span className={`text-[11px] font-mono ${isActive ? 'font-bold text-[#00D2FF]' : isCompleted ? 'font-semibold text-slate-300' : 'text-[#64748B]'}`}>
+                <span className={`text-[11px] font-sans ${isActive ? 'font-bold text-[#00D2FF]' : isCompleted ? 'font-semibold text-slate-300' : 'text-[#64748B]'}`}>
                   {step.label}
                 </span>
               </div>

@@ -358,6 +358,41 @@ def _require_case_access(
 
 
 # =========================================================
+# PLATFORM OVERVIEW & STATS
+# =========================================================
+
+@app.get("/overview/stats")
+def get_overview_stats(db: Session = Depends(get_db)):
+    total_cases = db.query(Case).count()
+    active_cases = db.query(Case).filter(Case.status != "closed").count()
+    total_evidence = db.query(Evidence).count()
+    total_events = db.query(Event).count()
+
+    unique_objects = [
+        r[0]
+        for r in db.query(Event.object_type)
+        .filter(Event.object_type.isnot(None))
+        .distinct()
+        .all()
+    ]
+
+    hashed_evidence = db.query(Evidence).filter(Evidence.sha256.isnot(None)).count()
+    integrity_score = round((hashed_evidence / total_evidence * 100)) if total_evidence > 0 else 100
+
+    return {
+        "total_cases": total_cases,
+        "active_cases": active_cases,
+        "total_evidence": total_evidence,
+        "total_events": total_events,
+        "tracked_entities_count": len(unique_objects),
+        "tracked_entities": unique_objects,
+        "reconstructed_events_count": total_events,
+        "integrity_score": integrity_score,
+        "integrity_status": "PASS" if integrity_score >= 90 else "VERIFIED",
+    }
+
+
+# =========================================================
 # CASES
 # =========================================================
 

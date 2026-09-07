@@ -380,12 +380,12 @@ class AIService:
         enable_grounding_dino: bool = False,
         enable_enhancement: bool = True,
         enable_motion_rois: bool = True,
-        detector_engine: str = "opencv",  # "opencv" | "hybrid" | "yolo"
+        detector_engine: str = "yolo",  # "yolo" | "hybrid" | "opencv"
     ):
         self.detector_engine = detector_engine
 
         # -----------------------------------------------------
-        # OPENCV PURE FORENSIC DETECTOR
+        # OPENCV PURE FORENSIC DETECTOR (Primary or Fallback)
         # -----------------------------------------------------
 
         self.opencv_detector = (
@@ -393,12 +393,12 @@ class AIService:
                 confidence_threshold=confidence,
                 enable_enhancement=enable_enhancement,
             )
-            if detector_engine in ("opencv", "hybrid")
+            if detector_engine in ("opencv", "hybrid") or detector_engine == "yolo"
             else None
         )
 
         # -----------------------------------------------------
-        # YOLO (Optional / Hybrid)
+        # YOLO (Deep Learning Semantic Detector)
         # -----------------------------------------------------
 
         self.yolo = None
@@ -716,9 +716,9 @@ class AIService:
                 _, motion_boxes = self.motion_detector.process_frame(processed_image)
 
             # =================================================
-            # 1. PURE OPENCV FORENSIC DETECTION
+            # 1. OPENCV FORENSIC DETECTION (or fallback)
             # =================================================
-            if self.detector_engine == "opencv" and self.opencv_detector is not None:
+            if (self.detector_engine == "opencv" or self.yolo is None) and self.opencv_detector is not None:
                 opencv_detections = self.opencv_detector.detect_frame(frame.image, fps=2.0)
                 for det in opencv_detections:
                     obj_type = self._normalise_label(det.class_name)

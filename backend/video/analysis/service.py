@@ -12,6 +12,10 @@ from backend.ai.events.event_builder import (
     build_detection_events,
 )
 
+from backend.ai.events.incident_heuristics import (
+    detect_incident_candidates,
+)
+
 from backend.video.analysis.models import (
     Detection,
     VideoEvent,
@@ -84,13 +88,13 @@ class VideoAnalysisService:
     def __init__(
         self,
         yolo_model: str = "yolo26n.pt",
-        ai_confidence: float = 0.50,
+        ai_confidence: float = 0.30,
         ai_iou: float = 0.50,
         device: str | None = None,
         enable_grounding_dino: bool = False,
         enable_enhancement: bool = True,
         enable_motion_rois: bool = True,
-        detector_engine: str = "opencv",  # "opencv" | "hybrid" | "yolo"
+        detector_engine: str = "yolo",  # "yolo" | "hybrid" | "opencv"
     ):
         self.detector_engine = detector_engine
         self.opencv_reconstructor = OpenCVForensicReconstructor()
@@ -114,7 +118,7 @@ class VideoAnalysisService:
         camera_id: str,
         video_path: str | Path,
         video_start_time: datetime,
-        frame_sample_fps: float = 2.0,
+        frame_sample_fps: float = 4.0,
     ) -> VideoAnalysisResult:
 
         # =====================================================
@@ -236,6 +240,9 @@ class VideoAnalysisService:
 
         ai_events = (
             build_detection_events(
+                detections
+            )
+            + detect_incident_candidates(
                 detections
             )
         )

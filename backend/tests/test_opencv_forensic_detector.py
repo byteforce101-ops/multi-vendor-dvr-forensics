@@ -171,3 +171,41 @@ def test_temporal_confirmation_suppresses_transient_noise():
     assert len(dets_frame3) == 1
     assert dets_frame3[0].track_id is not None
 
+
+def test_ego_motion_suppresses_moving_camera_noise():
+    """Verify that global frame motion (dashcam / moving camera) is detected and suppresses false contour explosions."""
+    detector = OpenCVForensicDetector()
+    detector.reset_tracks()
+
+    # Frame 1: Initial background
+    detector.detect_frame(np.zeros((480, 640, 3), dtype=np.uint8))
+
+    # Frame 2: Moving camera scenario (global shift across entire frame: 12 scattered blocks)
+    f2 = np.zeros((480, 640, 3), dtype=np.uint8)
+    for r in range(4):
+        for c in range(4):
+            f2[r * 100 + 20 : r * 100 + 80, c * 150 + 20 : c * 150 + 120] = 200
+
+    dets = detector.detect_frame(f2, fps=2.0)
+    # Ego-motion guard must prevent emitting dozens of false motion/person candidates
+    assert len(dets) <= 3
+
+
+def test_no_false_person_on_vertical_foliage_or_poles():
+    """Verify that a vertical moving motion contour (like passing trees/poles) is NOT falsely labeled as a person without HOG/Haar confirmation."""
+    detector = OpenCVForensicDetector()
+    detector.reset_tracks()
+
+    # Frame 1: Background
+    detector.detect_frame(np.zeros((480, 640, 3), dtype=np.uint8))
+
+    # Frame 2: Vertical bar (like tree trunk / telephone pole: w=25, h=150, ratio=6.0)
+    f2 = np.zeros((480, 640, 3), dtype=np.uint8)
+    f2[50:200, 100:125] = 200
+    dets = detector.detect_frame(f2, fps=2.0)
+
+    # Should NEVER be falsely tagged as "person"
+    for d in dets:
+        assert d.class_name != "person", "Vertical motion artifact must not be hallucinated as person"
+
+

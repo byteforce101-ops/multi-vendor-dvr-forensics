@@ -34,7 +34,7 @@ class YOLODetector:
     def __init__(
         self,
         model_path: str = "yolo26n.pt",
-        confidence: float = 0.50,
+        confidence: float = 0.30,
         iou: float = 0.50,
         device: str | None = None,
     ):

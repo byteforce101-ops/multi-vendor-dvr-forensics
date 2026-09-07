@@ -79,7 +79,7 @@ parser_manager = ParserManager()
 
 video_analysis_service = VideoAnalysisService(
     yolo_model="yolo26n.pt",
-    ai_confidence=0.50,
+    ai_confidence=0.30,
     ai_iou=0.50,
 )
 

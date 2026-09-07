@@ -64,6 +64,7 @@ class OpenCVForensicDetector:
         max_disappeared_frames: int = 6,
         min_hits: int = 1,
         min_motion_area: float = 400.0,
+        dashboard_mask_ratio: float = 0.0,
     ):
         self.confidence_threshold = confidence_threshold
         self.enable_hog_people = enable_hog_people
@@ -74,6 +75,7 @@ class OpenCVForensicDetector:
         self.max_disappeared_frames = max_disappeared_frames
         self.min_hits = max(1, int(min_hits))
         self.min_motion_area = float(min_motion_area)
+        self.dashboard_mask_ratio = max(0.0, min(0.5, float(dashboard_mask_ratio)))
 
         # 1. OpenCV HOG People Detector
         self.hog = None
@@ -196,57 +198,60 @@ class OpenCVForensicDetector:
                 logger.debug(f"Haar body note: {exc}")
 
         # =====================================================
-        # STAGE 3: MOG2 Motion & Morphometric Classification
+        # STAGE 3: MOG2 Motion & Camera Ego-Motion Detection
         # =====================================================
         if self.enable_motion_morphometrics:
             motion_score, motion_boxes = self.motion_detector.process_frame(proc_frame)
-            for bx, by, bw, bh in motion_boxes:
-                area = float(bw * bh)
-                aspect_ratio_wh = float(bw) / float(max(1, bh))
-                aspect_ratio_hw = float(bh) / float(max(1, bw))
-                bbox = (float(bx), float(by), float(bx + bw), float(by + bh))
 
-                # Skip tiny noise, edge margin artifacts, or full-frame flashes
-                if area < self.min_motion_area or bw < 15 or bh < 15 or (bw > 0.9 * w and bh > 0.9 * h):
-                    continue
+            # Global Camera Motion / Dashcam Guard:
+            # If the camera itself is moving (driving, panning PTZ), MOG2 background subtraction is invalid.
+            # Detect global frame motion by score, contour count, and total motion area coverage.
+            total_motion_area = sum(float(bw * bh) for _, _, bw, bh in motion_boxes)
+            motion_coverage = total_motion_area / float(max(1, w * h))
+            is_camera_moving = (motion_score > 0.15) or (len(motion_boxes) > 8) or (motion_coverage > 0.25)
 
-                # Check if this motion box already overlaps with a HOG / Haar person
-                overlaps_person = any(
-                    self._iou(bbox, c.bbox) > 0.25
-                    for c in candidates
-                    if c.class_name == "person"
-                )
+            if not is_camera_moving:
+                dashboard_cutoff = h * (1.0 - self.dashboard_mask_ratio) if self.dashboard_mask_ratio > 0.0 else h
 
-                if overlaps_person:
-                    # Reinforce as person rather than creating false vehicle/bicycle
-                    candidates.append(OpenCVForensicDetection(
-                        class_name="person",
-                        confidence=0.75,
-                        bbox=bbox,
-                        area=area,
-                        aspect_ratio=aspect_ratio_hw,
-                        attributes={"detector": "opencv_motion_person_overlap"},
-                    ))
-                # 1. Person: Vertical or standing aspect ratio (or HOG/Haar overlap)
-                elif aspect_ratio_hw >= 1.15 and area <= 0.40 * w * h:
-                    candidates.append(OpenCVForensicDetection(
-                        class_name="person",
-                        confidence=0.65,
-                        bbox=bbox,
-                        area=area,
-                        aspect_ratio=aspect_ratio_hw,
-                        attributes={"detector": "opencv_morphometric_person"},
-                    ))
-                # 2. General moving object / motion (Pure motion contours should not fabricate vehicle/bicycle labels)
-                else:
-                    candidates.append(OpenCVForensicDetection(
-                        class_name="motion",
-                        confidence=0.50,
-                        bbox=bbox,
-                        area=area,
-                        aspect_ratio=aspect_ratio_wh,
-                        attributes={"detector": "opencv_motion_cluster"},
-                    ))
+                for bx, by, bw, bh in motion_boxes:
+                    area = float(bw * bh)
+                    aspect_ratio_wh = float(bw) / float(max(1, bh))
+                    aspect_ratio_hw = float(bh) / float(max(1, bw))
+                    bbox = (float(bx), float(by), float(bx + bw), float(by + bh))
+
+                    # Skip tiny noise, dashboard/hood zone, or full-frame flashes
+                    if area < self.min_motion_area or bw < 15 or bh < 15 or (bw > 0.9 * w and bh > 0.9 * h):
+                        continue
+                    if by >= dashboard_cutoff or (by + bh) > dashboard_cutoff + (h * 0.05):
+                        continue
+
+                    # Check if this motion box overlaps with an already confirmed HOG / Haar person
+                    overlaps_person = any(
+                        self._iou(bbox, c.bbox) > 0.25
+                        for c in candidates
+                        if c.class_name == "person"
+                    )
+
+                    if overlaps_person:
+                        # Reinforce detected person position
+                        candidates.append(OpenCVForensicDetection(
+                            class_name="person",
+                            confidence=0.75,
+                            bbox=bbox,
+                            area=area,
+                            aspect_ratio=aspect_ratio_hw,
+                            attributes={"detector": "opencv_motion_person_overlap"},
+                        ))
+                    else:
+                        # General moving object / motion (Never fabricate person label from raw motion contours)
+                        candidates.append(OpenCVForensicDetection(
+                            class_name="motion",
+                            confidence=0.50,
+                            bbox=bbox,
+                            area=area,
+                            aspect_ratio=aspect_ratio_wh,
+                            attributes={"detector": "opencv_motion_cluster"},
+                        ))
 
         # =====================================================
         # STAGE 4: Non-Maximum Suppression (NMS) Fusion

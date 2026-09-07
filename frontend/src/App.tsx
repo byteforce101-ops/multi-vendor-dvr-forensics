@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 import {
   Activity,
+  AlertCircle,
   AlertTriangle,
   ArrowLeft,
   Bell,
@@ -12,6 +13,8 @@ import {
   ChevronRight,
   Clock,
   Download,
+  Eye,
+  EyeOff,
   FileBarChart,
   FileImage,
   FileText,
@@ -55,6 +58,8 @@ import type {
   VideoIntegrityAnalysis,
   EvidenceFile,
   SupabaseUser,
+  ObjectDisappearance,
+  ObjectDisappearanceAnalysis,
 } from './types';
 import { generateForensicDossier } from './utils/forensicDossier';
 import TraceXLogo from './components/TraceXLogo';
@@ -81,6 +86,7 @@ type View =
   | 'Detections'
   | 'Entities'
   | 'Entity Detail'
+  | 'Disappearances'
   | 'Events'
   | 'Evidence'
   | 'Integrity'
@@ -95,6 +101,7 @@ const navItems: [View, React.ComponentType<{ size?: number }>, string][] = [
   ['Timeline', Activity, 'Synchronized Analysis'],
   ['Detections', ScanIcon, 'Forensic Observations'],
   ['Entities', UserRound, 'Tracked Physical Objects'],
+  ['Disappearances', EyeOff, 'Object Disappearance Detection'],
   ['Events', Activity, 'Reconstructed Incidents'],
   ['Evidence', FileImage, 'Keyframe Captures'],
   ['Integrity', ShieldCheck, 'Tampering & Hash Audit'],
@@ -284,7 +291,7 @@ export default function App() {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isQueryModalOpen, setIsQueryModalOpen] = useState(false);
   const [globalSearchText, setGlobalSearchText] = useState('');
-  const [timelineSubTab, setTimelineSubTab] = useState<'ai' | 'detections' | 'incidents'>('ai');
+  const [timelineSubTab, setTimelineSubTab] = useState<'ai' | 'detections' | 'incidents' | 'disappearances'>('ai');
 
   // AI Conversational Query state
   const [groqApiKey, setGroqApiKey] = useState<string>(() => {
@@ -737,6 +744,103 @@ export default function App() {
     } finally {
       setCaseCreating(false);
     }
+  };
+
+  // -------------------------------------------------------------------------
+  // 4b. Object Disappearance & Temporal Continuity Detection Helper
+  // -------------------------------------------------------------------------
+
+  const computeObjectDisappearances = (events: any[]): ObjectDisappearanceAnalysis => {
+    if (!events || events.length === 0) {
+      return {
+        available: true,
+        count: 0,
+        disappearances: [],
+        note: 'Object disappearance is a forensic observation. It does not prove that the object was removed, stolen, hidden, or that the footage was manipulated.',
+      };
+    }
+
+    const observations: Record<string, Array<{ start: Date; end: Date; event: any }>> = {};
+
+    for (const ev of events) {
+      const objectType = (ev.object_type || '').trim().toLowerCase();
+      if (!objectType || ['motion', 'unknown', 'none', ''].includes(objectType)) continue;
+      if (ev.confidence != null && ev.confidence < 0.5) continue;
+
+      const startTime = ev.start_time ? new Date(ev.start_time) : null;
+      const endTime = ev.end_time ? new Date(ev.end_time) : startTime;
+      if (!startTime || isNaN(startTime.getTime())) continue;
+
+      const key = `${ev.camera_id || 'CH-01'}__${objectType}`;
+      if (!observations[key]) observations[key] = [];
+      observations[key].push({
+        start: startTime,
+        end: endTime || startTime,
+        event: ev,
+      });
+    }
+
+    const candidates: ObjectDisappearance[] = [];
+
+    for (const [key, items] of Object.entries(observations)) {
+      const [cameraId, objectType] = key.split('__');
+      items.sort((a, b) => a.start.getTime() - b.start.getTime());
+      if (items.length < 2) continue;
+
+      const gaps: number[] = [];
+      for (let i = 0; i < items.length - 1; i++) {
+        const gap = (items[i + 1].start.getTime() - items[i].end.getTime()) / 1000;
+        if (gap >= 0) gaps.push(gap);
+      }
+
+      let medianGap = 1.0;
+      if (gaps.length > 0) {
+        gaps.sort((a, b) => a - b);
+        medianGap = gaps[Math.floor(gaps.length / 2)];
+      }
+
+      const disappearanceDelay = Math.max(2.0, medianGap * 3.0);
+      const lastSeenTime = Math.max(...items.map((it) => it.end.getTime()));
+      const lastSeen = new Date(lastSeenTime);
+      const disappearanceTime = new Date(lastSeenTime + disappearanceDelay * 1000);
+
+      const relatedActivity: string[] = [];
+      for (const ev of events) {
+        if ((ev.camera_id || 'CH-01') !== cameraId) continue;
+        const evStart = ev.start_time ? new Date(ev.start_time) : null;
+        if (!evStart || evStart.getTime() < disappearanceTime.getTime()) continue;
+        const desc = `${evStart.toISOString().slice(11, 19)} → ${ev.event_type || 'activity'}${ev.object_type ? ` (${ev.object_type})` : ''}`;
+        relatedActivity.push(desc);
+        if (relatedActivity.length >= 3) break;
+      }
+
+      candidates.push({
+        camera_id: cameraId,
+        object_type: objectType,
+        first_seen: items[0].start.toISOString(),
+        last_seen: lastSeen.toISOString(),
+        disappearance_time: disappearanceTime.toISOString(),
+        observation_count: items.length,
+        related_activity: relatedActivity,
+      });
+    }
+
+    return {
+      available: true,
+      count: candidates.length,
+      disappearances: candidates,
+      note: 'Object disappearance is a forensic observation. It does not prove that the object was removed, stolen, hidden, or that the footage was manipulated.',
+    };
+  };
+
+  const getDisappearanceAnalysis = (): ObjectDisappearanceAnalysis => {
+    if (analysisResult?.object_disappearance_analysis?.disappearances) {
+      return analysisResult.object_disappearance_analysis;
+    }
+    if ((analysisResult as any)?.object_disappearance?.disappearances) {
+      return (analysisResult as any).object_disappearance;
+    }
+    return computeObjectDisappearances(analysisResult?.events || []);
   };
 
   // -------------------------------------------------------------------------
@@ -1811,6 +1915,56 @@ export default function App() {
                 </span>
               )}
             </button>
+
+            {/* Object Disappearance Detection Tab */}
+            <button
+              onClick={() => setTimelineSubTab('disappearances')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '10px 14px',
+                fontSize: '12px',
+                fontWeight: timelineSubTab === 'disappearances' ? 700 : 500,
+                color: timelineSubTab === 'disappearances' ? '#172554' : '#64748b',
+                borderBottom: timelineSubTab === 'disappearances' ? '2px solid #2563eb' : '2px solid transparent',
+                background: 'transparent',
+                borderTop: 0,
+                borderLeft: 0,
+                borderRight: 0,
+                cursor: 'pointer',
+              }}
+            >
+              <EyeOff size={14} style={{ color: timelineSubTab === 'disappearances' ? '#2563eb' : '#94a3b8' }} />
+              <span>Object Disappearances</span>
+              {getDisappearanceAnalysis().count > 0 ? (
+                <span
+                  style={{
+                    fontSize: '9px',
+                    fontWeight: 700,
+                    padding: '1px 5px',
+                    borderRadius: '4px',
+                    background: '#fee2e2',
+                    color: '#991b1b',
+                  }}
+                >
+                  {getDisappearanceAnalysis().count} Flag{getDisappearanceAnalysis().count === 1 ? '' : 's'}
+                </span>
+              ) : (
+                <span
+                  style={{
+                    fontSize: '9px',
+                    fontWeight: 700,
+                    padding: '1px 5px',
+                    borderRadius: '4px',
+                    background: '#ecfdf5',
+                    color: '#065f46',
+                  }}
+                >
+                  0 Clean
+                </span>
+              )}
+            </button>
           </div>
         </div>
 
@@ -2070,6 +2224,165 @@ export default function App() {
               )}
             </div>
           )}
+
+          {/* Object Disappearance Detection Tab Content */}
+          {timelineSubTab === 'disappearances' && (() => {
+            const disp = getDisappearanceAnalysis();
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                  <div>
+                    <h4 style={{ margin: 0, fontSize: '13px', color: '#1e293b', fontWeight: 700 }}>
+                      Object Disappearance & Temporal Continuity Detection
+                    </h4>
+                    <p style={{ margin: '2px 0 0', fontSize: '11px', color: '#64748b' }}>
+                      Heuristic tracking for physical objects consistently observed across sequential frames that abruptly ceased appearing.
+                    </p>
+                  </div>
+                  <div>
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        padding: '4px 10px',
+                        borderRadius: '6px',
+                        background: disp.count > 0 ? '#fff1f2' : '#f0fdf4',
+                        border: disp.count > 0 ? '1px solid #fecdd3' : '1px solid #bbf7d0',
+                        color: disp.count > 0 ? '#be123c' : '#15803d',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                      }}
+                    >
+                      {disp.count > 0 ? (
+                        <>
+                          <AlertCircle size={13} />
+                          <span>{disp.count} Disappearance Flag{disp.count === 1 ? '' : 's'}</span>
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 size={13} />
+                          <span>No Suspicious Disappearance Anomalies</span>
+                        </>
+                      )}
+                    </span>
+                  </div>
+                </div>
+
+                {disp.disappearances.length > 0 ? (
+                  <>
+                    <div style={{ maxHeight: '240px', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Object Classification</th>
+                            <th>Camera</th>
+                            <th>First Observed</th>
+                            <th>Last Observed</th>
+                            <th>No Longer Seen</th>
+                            <th>Observations</th>
+                            <th style={{ textAlign: 'right' }}>Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {disp.disappearances.map((cand, i) => (
+                            <tr key={i}>
+                              <td>
+                                <b style={{ textTransform: 'capitalize', color: '#0f172a' }}>{cand.object_type}</b>
+                              </td>
+                              <td className="mono" style={{ fontSize: '11px' }}>{cand.camera_id}</td>
+                              <td className="mono" style={{ fontSize: '11px' }}>
+                                {new Date(cand.first_seen).toISOString().slice(11, 19)}
+                              </td>
+                              <td className="mono" style={{ fontSize: '11px' }}>
+                                {new Date(cand.last_seen).toISOString().slice(11, 19)}
+                              </td>
+                              <td className="mono" style={{ fontSize: '11px', color: '#b91c1c', fontWeight: 700 }}>
+                                {new Date(cand.disappearance_time).toISOString().slice(11, 19)}
+                              </td>
+                              <td>
+                                <span className="hash-pill" style={{ fontSize: '10px', background: '#f1f5f9' }}>
+                                  {cand.observation_count} frames
+                                </span>
+                              </td>
+                              <td style={{ textAlign: 'right' }}>
+                                <Button
+                                  variant="action"
+                                  icon={Play}
+                                  onClick={() => {
+                                    try {
+                                      const sec = (new Date(cand.disappearance_time).getTime() / 1000) % (duration || 60);
+                                      seekVideo(sec);
+                                    } catch {}
+                                  }}
+                                >
+                                  Seek Point
+                                </Button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Candidate Panels matching CLI */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '10px' }}>
+                      {disp.disappearances.map((cand, idx) => (
+                        <div
+                          key={idx}
+                          style={{
+                            padding: '12px',
+                            borderRadius: '6px',
+                            background: '#fffbeb',
+                            border: '1px solid #fde68a',
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                            <span style={{ fontSize: '11px', fontWeight: 700, color: '#92400e' }}>
+                              OBJECT DISAPPEARANCE #{idx + 1}
+                            </span>
+                            <span className="hash-pill" style={{ background: '#fef08a', color: '#713f12', border: '1px solid #facc15' }}>
+                              {cand.object_type}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: '11px', lineHeight: 1.5, color: '#451a03' }}>
+                            <div><b>Camera:</b> {cand.camera_id}</div>
+                            <div><b>First Seen:</b> <span className="mono">{new Date(cand.first_seen).toISOString().slice(11, 19)}</span></div>
+                            <div><b>Last Seen:</b> <span className="mono">{new Date(cand.last_seen).toISOString().slice(11, 19)}</span></div>
+                            <div><b>No Longer Seen:</b> <span className="mono" style={{ color: '#b91c1c', fontWeight: 700 }}>{new Date(cand.disappearance_time).toISOString().slice(11, 19)}</span></div>
+                          </div>
+                          {cand.related_activity && cand.related_activity.length > 0 && (
+                            <div style={{ marginTop: '6px', paddingTop: '6px', borderTop: '1px solid #fef3c7' }}>
+                              <small style={{ fontWeight: 700, color: '#78350f', display: 'block', marginBottom: '2px' }}>
+                                Related activity after disappearance:
+                              </small>
+                              {cand.related_activity.map((act, actIdx) => (
+                                <div key={actIdx} style={{ fontSize: '10px', color: '#57534e' }}>
+                                  • {act}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ padding: '24px', textAlign: 'center', background: '#f8fafc', borderRadius: '6px', border: '1px dashed #cbd5e1' }}>
+                    <CheckCircle2 size={24} style={{ color: '#16a34a', margin: '0 auto 8px' }} />
+                    <h4 style={{ margin: 0, fontSize: '13px', color: '#1e293b' }}>No Significant Object Disappearance Patterns Detected</h4>
+                    <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#64748b' }}>
+                      All tracked entities maintain regular continuity across video timestamps.
+                    </p>
+                  </div>
+                )}
+
+                <div style={{ padding: '8px 12px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '10.5px', color: '#64748b' }}>
+                  <b>Forensic Disclaimer:</b> Object disappearance is a forensic observation. It does not prove that the object was removed, stolen, hidden, or that the footage was manipulated.
+                </div>
+              </div>
+            );
+          })()}
         </div>
       </div>
     );
@@ -2196,6 +2509,72 @@ export default function App() {
                     ))}
                   </div>
                 </div>
+
+                {/* Object Disappearances Context */}
+                {(() => {
+                  const disp = getDisappearanceAnalysis();
+                  return (
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                        <p className="eyebrow" style={{ margin: 0 }}>
+                          OBJECT DISAPPEARANCES ({disp.count})
+                        </p>
+                        <span
+                          style={{
+                            fontSize: '9px',
+                            fontWeight: 700,
+                            padding: '1px 5px',
+                            borderRadius: '3px',
+                            background: disp.count > 0 ? '#fee2e2' : '#ecfdf5',
+                            color: disp.count > 0 ? '#991b1b' : '#065f46',
+                          }}
+                        >
+                          {disp.count > 0 ? `${disp.count} FLAGGED` : 'CLEAN'}
+                        </span>
+                      </div>
+                      {disp.disappearances.length > 0 ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '150px', overflowY: 'auto' }}>
+                          {disp.disappearances.map((d, i) => (
+                            <div
+                              key={i}
+                              style={{
+                                padding: '8px 10px',
+                                border: '1px solid #fecdd3',
+                                borderRadius: '4px',
+                                background: '#fff1f2',
+                                cursor: 'pointer',
+                              }}
+                              onClick={() => {
+                                try {
+                                  const sec = (new Date(d.disappearance_time).getTime() / 1000) % (duration || 60);
+                                  seekVideo(sec);
+                                } catch {}
+                              }}
+                              title={`Jump to disappearance timestamp: ${new Date(d.disappearance_time).toISOString().slice(11, 19)}`}
+                            >
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <b style={{ fontSize: '11px', color: '#9f1239', textTransform: 'capitalize' }}>
+                                  {d.object_type} Disappeared
+                                </b>
+                                <span className="mono" style={{ fontSize: '9.5px', color: '#be123c', fontWeight: 600 }}>
+                                  {new Date(d.disappearance_time).toISOString().slice(11, 19)}
+                                </span>
+                              </div>
+                              <small style={{ color: '#475569', fontSize: '9.5px' }}>
+                                Camera {d.camera_id} • {d.observation_count} frames observed
+                              </small>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div style={{ padding: '8px 10px', border: '1px solid #bbf7d0', borderRadius: '4px', background: '#f0fdf4', fontSize: '10.5px', color: '#166534', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <CheckCircle2 size={13} className="shrink-0 text-emerald-600" />
+                          <span>No sudden object disappearances detected</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '12px' }}>
                   <Button
@@ -2451,6 +2830,358 @@ export default function App() {
             />
           </div>
         )}
+
+        {/* Object Disappearance & Continuity Detection Section */}
+        {analysisResult && (() => {
+          const disp = getDisappearanceAnalysis();
+          return (
+            <div className="panel" style={{ marginTop: '20px', padding: '20px' }}>
+              <div className="section-head" style={{ marginBottom: '16px' }}>
+                <div>
+                  <p className="eyebrow">CONTINUITY & TEMPORAL INTEGRITY</p>
+                  <h3>Object Disappearance Detection</h3>
+                  <p style={{ fontSize: '11px', color: '#64748b', margin: '2px 0 0' }}>
+                    Automated heuristic auditing to detect physical objects that had repeated temporal observations and ceased appearing without standard exit trajectories.
+                  </p>
+                </div>
+                <span
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    background: disp.count > 0 ? '#fff1f2' : '#f0fdf4',
+                    border: disp.count > 0 ? '1px solid #fecdd3' : '1px solid #bbf7d0',
+                    color: disp.count > 0 ? '#be123c' : '#15803d',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}
+                >
+                  {disp.count > 0 ? (
+                    <>
+                      <AlertCircle size={14} />
+                      <span>{disp.count} Potential Disappearance{disp.count === 1 ? '' : 's'} Flagged</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 size={14} />
+                      <span>Continuity Verified • 0 Anomalies</span>
+                    </>
+                  )}
+                </span>
+              </div>
+
+              {disp.disappearances.length > 0 ? (
+                <>
+                  <div className="table-scroll" style={{ border: '1px solid #e2e8f0', borderRadius: '6px', marginBottom: '16px' }}>
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Object Class</th>
+                          <th>Camera Channel</th>
+                          <th>First Observed</th>
+                          <th>Last Observed</th>
+                          <th>No Longer Seen</th>
+                          <th>Observations</th>
+                          <th style={{ textAlign: 'right' }}>Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {disp.disappearances.map((d, i) => (
+                          <tr key={i}>
+                            <td>
+                              <b style={{ textTransform: 'capitalize', color: '#0f172a' }}>{d.object_type}</b>
+                            </td>
+                            <td><span className="mono" style={{ fontSize: '11px' }}>{d.camera_id}</span></td>
+                            <td><span className="mono" style={{ fontSize: '11px' }}>{new Date(d.first_seen).toISOString().slice(11, 19)}</span></td>
+                            <td><span className="mono" style={{ fontSize: '11px' }}>{new Date(d.last_seen).toISOString().slice(11, 19)}</span></td>
+                            <td><b className="mono" style={{ fontSize: '11px', color: '#b91c1c' }}>{new Date(d.disappearance_time).toISOString().slice(11, 19)}</b></td>
+                            <td><span className="hash-pill" style={{ fontSize: '10px' }}>{d.observation_count} frames</span></td>
+                            <td style={{ textAlign: 'right' }}>
+                              <Button
+                                variant="action"
+                                icon={Play}
+                                onClick={() => {
+                                  try {
+                                    const sec = (new Date(d.disappearance_time).getTime() / 1000) % (duration || 60);
+                                    seekVideo(sec);
+                                    setView('Investigation Detail');
+                                  } catch {}
+                                }}
+                              >
+                                Jump to Frame
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px', marginBottom: '12px' }}>
+                    {disp.disappearances.map((d, idx) => (
+                      <div
+                        key={idx}
+                        style={{
+                          padding: '12px 14px',
+                          borderRadius: '6px',
+                          background: '#fffbeb',
+                          border: '1px solid #fde68a',
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                          <span style={{ fontSize: '11px', fontWeight: 700, color: '#92400e' }}>
+                            OBJECT DISAPPEARANCE #{idx + 1}
+                          </span>
+                          <span className="hash-pill" style={{ background: '#fef08a', color: '#713f12', border: '1px solid #facc15' }}>
+                            {d.object_type}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '11px', lineHeight: 1.5, color: '#451a03' }}>
+                          <div><b>Camera:</b> {d.camera_id}</div>
+                          <div><b>First Seen:</b> <span className="mono">{new Date(d.first_seen).toISOString().slice(11, 19)}</span></div>
+                          <div><b>Last Seen:</b> <span className="mono">{new Date(d.last_seen).toISOString().slice(11, 19)}</span></div>
+                          <div><b>No Longer Seen:</b> <span className="mono" style={{ color: '#b91c1c', fontWeight: 700 }}>{new Date(d.disappearance_time).toISOString().slice(11, 19)}</span></div>
+                          <div><b>Observations:</b> {d.observation_count}</div>
+                        </div>
+                        {d.related_activity && d.related_activity.length > 0 && (
+                          <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid #fef3c7' }}>
+                            <small style={{ fontWeight: 700, color: '#78350f', display: 'block', marginBottom: '2px' }}>
+                              Related activity after disappearance:
+                            </small>
+                            {d.related_activity.map((act, actIdx) => (
+                              <div key={actIdx} style={{ fontSize: '10px', color: '#57534e' }}>
+                                • {act}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div style={{ padding: '20px', textAlign: 'center', background: '#f8fafc', borderRadius: '6px', border: '1px dashed #cbd5e1' }}>
+                  <CheckCircle2 size={20} style={{ color: '#16a34a', margin: '0 auto 6px' }} />
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: '#1e293b', display: 'block' }}>No significant object disappearance patterns detected</span>
+                  <small style={{ color: '#64748b' }}>All tracked objects maintained steady continuous trajectories without unexpected mid-stream absence.</small>
+                </div>
+              )}
+
+              <div style={{ padding: '8px 12px', background: '#fffbeb', border: '1px solid #fef3c7', borderRadius: '6px', fontSize: '10.5px', color: '#92400e', marginTop: '12px' }}>
+                <b>Forensic Note:</b> Object disappearance is a forensic observation. It does not prove that the object was removed, stolen, hidden, or that the footage was manipulated.
+              </div>
+            </div>
+          );
+        })()}
+      </div>
+    );
+  };
+
+  // DISAPPEARANCES VIEW
+  const renderDisappearances = () => {
+    const disp = getDisappearanceAnalysis();
+
+    return (
+      <div className="page">
+        <PageTitle
+          eyebrow="ANALYSIS / OBJECT CONTINUITY"
+          title="Object Disappearance Detection"
+          description="Heuristic temporal continuity audit identifying physical targets tracked across sequential frames that abruptly ceased appearing."
+          action={
+            <Button
+              variant="primary"
+              icon={Play}
+              onClick={() => setView('Investigation Detail')}
+            >
+              Open CCTV Viewer
+            </Button>
+          }
+        />
+
+        {/* Overview status banner */}
+        <div className="panel" style={{ padding: '20px', marginBottom: '20px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+              <div
+                style={{
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '10px',
+                  background: disp.count > 0 ? '#fee2e2' : '#dcfce7',
+                  color: disp.count > 0 ? '#b91c1c' : '#15803d',
+                  display: 'grid',
+                  placeItems: 'center',
+                }}
+              >
+                <EyeOff size={24} />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '15px', color: '#0f172a', fontWeight: 700 }}>
+                  {disp.count > 0 ? `${disp.count} Potential Object Disappearance(s) Flagged` : 'No Significant Disappearance Anomalies'}
+                </h3>
+                <p style={{ margin: '3px 0 0', color: '#64748b', fontSize: '12px' }}>
+                  {disp.count > 0
+                    ? 'Target observations discontinued before standard exit boundary threshold was met.'
+                    : 'All tracked objects maintained steady continuous trajectories without unexplained mid-stream absence.'}
+                </p>
+              </div>
+            </div>
+
+            <span
+              style={{
+                fontSize: '12px',
+                fontWeight: 700,
+                padding: '6px 14px',
+                borderRadius: '6px',
+                background: disp.count > 0 ? '#fff1f2' : '#f0fdf4',
+                border: disp.count > 0 ? '1px solid #fecdd3' : '1px solid #bbf7d0',
+                color: disp.count > 0 ? '#be123c' : '#15803d',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+              }}
+            >
+              {disp.count > 0 ? <AlertCircle size={15} /> : <CheckCircle2 size={15} />}
+              <span>{disp.count > 0 ? `${disp.count} CANDIDATE(S) FLAGGED` : 'CONTINUITY VERIFIED'}</span>
+            </span>
+          </div>
+        </div>
+
+        {disp.disappearances.length > 0 ? (
+          <>
+            <div className="panel table-panel" style={{ marginBottom: '20px' }}>
+              <div className="section-head" style={{ padding: '16px 20px 0' }}>
+                <div>
+                  <p className="eyebrow">FORENSIC CANDIDATE TABLE</p>
+                  <h3>Observed Dropout Timecodes</h3>
+                </div>
+              </div>
+              <div className="table-scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Object Classification</th>
+                      <th>Camera Channel</th>
+                      <th>First Observed</th>
+                      <th>Last Observed</th>
+                      <th>No Longer Seen (Dropout)</th>
+                      <th>Observation Count</th>
+                      <th style={{ textAlign: 'right' }}>Forensic Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {disp.disappearances.map((cand, i) => (
+                      <tr key={i}>
+                        <td>
+                          <b style={{ textTransform: 'capitalize', color: '#0f172a' }}>{cand.object_type}</b>
+                        </td>
+                        <td>
+                          <span className="mono" style={{ fontSize: '11.5px' }}>{cand.camera_id}</span>
+                        </td>
+                        <td>
+                          <span className="mono" style={{ fontSize: '11.5px' }}>
+                            {new Date(cand.first_seen).toISOString().slice(11, 19)}
+                          </span>
+                        </td>
+                        <td>
+                          <span className="mono" style={{ fontSize: '11.5px' }}>
+                            {new Date(cand.last_seen).toISOString().slice(11, 19)}
+                          </span>
+                        </td>
+                        <td>
+                          <b className="mono" style={{ fontSize: '11.5px', color: '#b91c1c', fontWeight: 700 }}>
+                            {new Date(cand.disappearance_time).toISOString().slice(11, 19)}
+                          </b>
+                        </td>
+                        <td>
+                          <span className="hash-pill" style={{ background: '#f1f5f9', color: '#334155' }}>
+                            {cand.observation_count} frames
+                          </span>
+                        </td>
+                        <td style={{ textAlign: 'right' }}>
+                          <Button
+                            variant="action"
+                            icon={Play}
+                            onClick={() => {
+                              try {
+                                const sec = (new Date(cand.disappearance_time).getTime() / 1000) % (duration || 60);
+                                seekVideo(sec);
+                                setView('Investigation Detail');
+                              } catch {}
+                            }}
+                          >
+                            Jump to Disappearance
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Candidate Breakdown Panels matching CLI format */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '16px', marginBottom: '20px' }}>
+              {disp.disappearances.map((cand, idx) => (
+                <div
+                  key={idx}
+                  className="panel"
+                  style={{
+                    padding: '16px',
+                    border: '1px solid #fde047',
+                    background: '#fffdf5',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 700, color: '#854d0e', textTransform: 'uppercase' }}>
+                      OBJECT DISAPPEARANCE #{idx + 1}
+                    </span>
+                    <span className="hash-pill" style={{ background: '#fef08a', color: '#713f12', border: '1px solid #facc15' }}>
+                      {cand.object_type}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '12px', lineHeight: 1.6, color: '#334155' }}>
+                    <div><b>Target Object:</b> {cand.object_type}</div>
+                    <div><b>Camera Stream:</b> {cand.camera_id}</div>
+                    <div><b>First observed:</b> <span className="mono">{new Date(cand.first_seen).toISOString().slice(11, 19)}</span></div>
+                    <div><b>Last observed:</b> <span className="mono">{new Date(cand.last_seen).toISOString().slice(11, 19)}</span></div>
+                    <div><b>No longer seen:</b> <span className="mono" style={{ color: '#b91c1c', fontWeight: 700 }}>{new Date(cand.disappearance_time).toISOString().slice(11, 19)}</span></div>
+                    <div><b>Sequential Observations:</b> {cand.observation_count} frames</div>
+                  </div>
+
+                  {cand.related_activity && cand.related_activity.length > 0 && (
+                    <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px solid #fef08a' }}>
+                      <b style={{ fontSize: '11px', color: '#78350f', display: 'block', marginBottom: '6px' }}>
+                        Related activity after disappearance:
+                      </b>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        {cand.related_activity.map((act, actIdx) => (
+                          <div key={actIdx} style={{ fontSize: '11px', color: '#475569' }}>
+                            • {act}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          <div className="panel" style={{ padding: '40px 20px', textAlign: 'center' }}>
+            <CheckCircle2 size={36} style={{ color: '#16a34a', margin: '0 auto 12px' }} />
+            <h3 style={{ margin: 0, fontSize: '15px', color: '#0f172a' }}>No Significant Object Disappearance Patterns Detected</h3>
+            <p style={{ margin: '6px auto 0', maxWidth: '480px', color: '#64748b', fontSize: '12px' }}>
+              All tracked targets within the evidentiary stream demonstrated regular spatial continuity without unexplained disappearance anomalies.
+            </p>
+          </div>
+        )}
+
+        <div style={{ padding: '12px 16px', background: '#fffbeb', border: '1px solid #fef3c7', borderRadius: '8px', fontSize: '11px', color: '#92400e', lineHeight: 1.5 }}>
+          <b>Forensic Observation Standard:</b> Object disappearance is a forensic observation. It does not prove that the object was removed, stolen, hidden, or that the footage was manipulated.
+        </div>
       </div>
     );
   };
@@ -2971,6 +3702,9 @@ export default function App() {
     case 'Entities':
     case 'Entity Detail':
       mainContent = renderEntities();
+      break;
+    case 'Disappearances':
+      mainContent = renderDisappearances();
       break;
     case 'Events':
       mainContent = renderEvents();

@@ -21,6 +21,7 @@ import {
 import { supabase, isSupabaseConfigured, DEFAULT_USER } from '../lib/supabase';
 import { SupabaseUser } from '../types';
 import TraceXLogo from './TraceXLogo';
+import loginBg from '../assets/login-bg.png';
 
 interface LoginPageProps {
   onLoginSuccess: (user: SupabaseUser) => void;
@@ -161,42 +162,38 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
   };
 
   return (
-    <div className="min-h-screen w-full flex bg-[#f5f6f7] text-[#111827] font-sans antialiased selection:bg-[#c7d2fe] selection:text-[#172554]">
-      {/* LEFT COLUMN: Forensic Branding & Platform Capabilities Hero */}
-      <div className="hidden lg:flex lg:w-[48%] xl:w-[52%] bg-[#172554] text-white flex-col justify-between p-12 relative overflow-hidden">
-        {/* Subtle grid and ambient lighting overlays */}
-        <div
-          className="absolute inset-0 pointer-events-none opacity-10"
-          style={{
-            backgroundImage:
-              'linear-gradient(#5eead4 1px, transparent 1px), linear-gradient(90deg, #5eead4 1px, transparent 1px)',
-            backgroundSize: '36px 36px',
-          }}
-        />
-        <div className="absolute -top-24 -left-24 w-96 h-96 bg-[#2dd4bf]/15 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-[#3730a3]/40 rounded-full blur-3xl pointer-events-none" />
+    <div 
+      className="min-h-screen w-full flex bg-[#0c1322] text-[#111827] font-sans antialiased selection:bg-[#c7d2fe] selection:text-[#172554] relative overflow-hidden bg-cover bg-center bg-no-repeat"
+      style={{
+        backgroundImage: `url(${loginBg})`,
+      }}
+    >
+      {/* Unified dark overlay across the entire page */}
+      <div className="absolute inset-0 bg-[#060c18]/65 backdrop-blur-[0.5px] pointer-events-none" />
 
+      {/* LEFT COLUMN: Forensic Branding & Platform Capabilities Hero */}
+      <div className="hidden lg:flex lg:w-[48%] xl:w-[52%] text-white flex-col justify-between p-12 relative z-10">
         {/* Top Header */}
         <div className="relative z-10 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <TraceXLogo variant="white" className="h-12 w-auto object-contain" />
+            <TraceXLogo variant="white" className="h-12 w-auto object-contain drop-shadow-md" />
           </div>
         </div>
 
         {/* Middle Hero Showcase */}
         <div className="relative z-10 my-auto py-8 max-w-xl">
-          <h1 className="text-3xl xl:text-4xl font-semibold tracking-tight text-white leading-[1.2] mb-4">
+          <h1 className="text-3xl xl:text-4xl font-semibold tracking-tight text-white leading-[1.2] mb-4 drop-shadow-md">
             Cryptographic Integrity & Neural Event Reconstruction.
           </h1>
 
-          <p className="text-slate-300 text-sm xl:text-base leading-relaxed mb-8">
+          <p className="text-slate-200 text-sm xl:text-base leading-relaxed mb-8 drop-shadow-sm">
             Acquire multi-channel DVR raw disk sectors, verify SHA-256 bitstream continuity, and perform temporal kinematic event reconstruction with zero data loss.
           </p>
 
           {/* Feature Highlights Grid */}
           <div className="grid grid-cols-2 gap-4">
-            <div className="p-4 rounded-lg bg-white/5 border border-white/10 backdrop-blur-xs">
-              <div className="w-8 h-8 rounded-md bg-[#0f766e]/30 text-[#5eead4] flex items-center justify-center mb-2.5">
+            <div className="p-4 rounded-lg bg-slate-900/40 border border-white/15 backdrop-blur-sm shadow-md">
+              <div className="w-8 h-8 rounded-md bg-[#0f766e]/40 text-[#5eead4] flex items-center justify-center mb-2.5">
                 <HardDrive className="w-4 h-4" />
               </div>
               <h4 className="text-xs font-semibold text-white mb-1">DVR File System Carving</h4>
@@ -205,8 +202,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               </p>
             </div>
 
-            <div className="p-4 rounded-lg bg-white/5 border border-white/10 backdrop-blur-xs">
-              <div className="w-8 h-8 rounded-md bg-[#3730a3]/40 text-[#c7d2fe] flex items-center justify-center mb-2.5">
+            <div className="p-4 rounded-lg bg-slate-900/40 border border-white/15 backdrop-blur-sm shadow-md">
+              <div className="w-8 h-8 rounded-md bg-[#3730a3]/50 text-[#c7d2fe] flex items-center justify-center mb-2.5">
                 <Cpu className="w-4 h-4" />
               </div>
               <h4 className="text-xs font-semibold text-white mb-1">OpenCV Rule Engine</h4>
@@ -215,8 +212,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               </p>
             </div>
 
-            <div className="p-4 rounded-lg bg-white/5 border border-white/10 backdrop-blur-xs">
-              <div className="w-8 h-8 rounded-md bg-[#047857]/40 text-[#a7f3d0] flex items-center justify-center mb-2.5">
+            <div className="p-4 rounded-lg bg-slate-900/40 border border-white/15 backdrop-blur-sm shadow-md">
+              <div className="w-8 h-8 rounded-md bg-[#047857]/50 text-[#a7f3d0] flex items-center justify-center mb-2.5">
                 <FileCheck2 className="w-4 h-4" />
               </div>
               <h4 className="text-xs font-semibold text-white mb-1">Tamper Audit & Dossiers</h4>
@@ -225,8 +222,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               </p>
             </div>
 
-            <div className="p-4 rounded-lg bg-white/5 border border-white/10 backdrop-blur-xs">
-              <div className="w-8 h-8 rounded-md bg-[#7c3aed]/40 text-[#ddd6fe] flex items-center justify-center mb-2.5">
+            <div className="p-4 rounded-lg bg-slate-900/40 border border-white/15 backdrop-blur-sm shadow-md">
+              <div className="w-8 h-8 rounded-md bg-[#7c3aed]/50 text-[#ddd6fe] flex items-center justify-center mb-2.5">
                 <ShieldCheck className="w-4 h-4" />
               </div>
               <h4 className="text-xs font-semibold text-white mb-1">Supabase Access Control</h4>
@@ -238,7 +235,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
         </div>
 
         {/* Footer Meta */}
-        <div className="relative z-10 pt-6 border-t border-white/10 flex items-center justify-between text-[11px] text-slate-400 font-mono">
+        <div className="relative z-10 pt-6 border-t border-white/15 max-w-xl flex items-center justify-between text-[11px] text-slate-300 font-mono">
           <span className="flex items-center gap-1 text-[#5eead4]">
             <Terminal className="w-3.5 h-3.5" />
             SYSTEM READY
@@ -247,14 +244,16 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
       </div>
 
       {/* RIGHT COLUMN: Authentication Form */}
-      <div className="flex-1 flex flex-col justify-center items-center p-6 sm:p-12 lg:p-16 relative">
+      <div className="flex-1 flex flex-col justify-center items-center p-6 sm:p-12 lg:p-16 relative z-10">
         {/* Mobile Logo banner */}
         <div className="lg:hidden mb-8 text-center flex flex-col items-center">
-          <TraceXLogo variant="dark" className="h-11 w-auto object-contain mb-2" />
-          <p className="text-xs text-slate-500 font-medium">Digital Video Forensics & Integrity Platform</p>
+          <div className="p-2.5 bg-white/95 backdrop-blur-md rounded-xl shadow-lg mb-2">
+            <TraceXLogo variant="dark" className="h-10 w-auto object-contain" />
+          </div>
+          <p className="text-xs text-slate-200 font-medium drop-shadow-sm">Digital Video Forensics & Integrity Platform</p>
         </div>
 
-        <div className="w-full max-w-md bg-white border border-[#e2e6ea] rounded-xl shadow-xl shadow-slate-900/5 p-8 sm:p-10">
+        <div className="w-full max-w-md bg-white/95 backdrop-blur-md border border-white/30 rounded-xl shadow-2xl shadow-slate-950/40 p-8 sm:p-10">
           {/* Header */}
           <div className="mb-6 text-left">
             <div className="mb-2">
@@ -432,7 +431,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
         </div>
 
         {/* Legal / Compliance Notice */}
-        <p className="text-[11px] text-slate-400 mt-8 text-center max-w-sm">
+        <p className="text-[11px] text-slate-300 mt-8 text-center max-w-sm drop-shadow-sm">
           Trace-X ensures bitstream isolation and strict cryptographic custody compliance for all uploaded media.
         </p>
       </div>

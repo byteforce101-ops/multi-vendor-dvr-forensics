@@ -62,6 +62,8 @@ class OpenCVForensicDetector:
         enable_enhancement: bool = True,
         max_track_distance: float = 80.0,
         max_disappeared_frames: int = 6,
+        min_hits: int = 1,
+        min_motion_area: float = 400.0,
     ):
         self.confidence_threshold = confidence_threshold
         self.enable_hog_people = enable_hog_people
@@ -70,6 +72,8 @@ class OpenCVForensicDetector:
         self.enable_enhancement = enable_enhancement
         self.max_track_distance = max_track_distance
         self.max_disappeared_frames = max_disappeared_frames
+        self.min_hits = max(1, int(min_hits))
+        self.min_motion_area = float(min_motion_area)
 
         # 1. OpenCV HOG People Detector
         self.hog = None
@@ -100,7 +104,7 @@ class OpenCVForensicDetector:
 
         # 4. Centroid Tracker State
         self._next_track_id = 1
-        self._tracked_objects: dict[int, dict] = {}  # id -> {centroid, bbox, class_name, disappeared, history}
+        self._tracked_objects: dict[int, dict] = {}  # id -> {centroid, bbox, class_name, disappeared, hits, history}
 
     def reset_tracks(self) -> None:
         """Reset object tracker state between different videos."""
@@ -202,8 +206,8 @@ class OpenCVForensicDetector:
                 aspect_ratio_hw = float(bh) / float(max(1, bw))
                 bbox = (float(bx), float(by), float(bx + bw), float(by + bh))
 
-                # Skip tiny noise or full-frame flashes
-                if area < 300 or (bw > 0.9 * w and bh > 0.9 * h):
+                # Skip tiny noise, edge margin artifacts, or full-frame flashes
+                if area < self.min_motion_area or bw < 15 or bh < 15 or (bw > 0.9 * w and bh > 0.9 * h):
                     continue
 
                 # Check if this motion box already overlaps with a HOG / Haar person
@@ -336,9 +340,12 @@ class OpenCVForensicDetector:
                     "bbox": d.bbox,
                     "class_name": d.class_name,
                     "disappeared": 0,
+                    "hits": 1,
                     "velocity": (0.0, 0.0),
                     "history": [(cx, cy)],
                 }
+            if self.min_hits > 1:
+                return [d for d in detections if d.track_id is not None and self._tracked_objects.get(d.track_id, {}).get("hits", 0) >= self.min_hits]
             return detections
 
         dt = 1.0 / max(0.1, fps)
@@ -426,12 +433,14 @@ class OpenCVForensicDetector:
 
             # Keep stronger class name
             best_class = d.class_name if d.class_name not in ("object", "motion") else self._tracked_objects[tid]["class_name"]
+            prev_hits = self._tracked_objects[tid].get("hits", 1)
 
             self._tracked_objects[tid] = {
                 "centroid": (cx, cy),
                 "bbox": d.bbox,
                 "class_name": best_class,
                 "disappeared": 0,
+                "hits": prev_hits + 1,
                 "velocity": (smooth_vx, smooth_vy),
                 "history": hist,
             }
@@ -448,6 +457,7 @@ class OpenCVForensicDetector:
                     "bbox": d.bbox,
                     "class_name": d.class_name,
                     "disappeared": 0,
+                    "hits": 1,
                     "velocity": (0.0, 0.0),
                     "history": [(cx, cy)],
                 }
@@ -459,4 +469,6 @@ class OpenCVForensicDetector:
                 if self._tracked_objects[tid]["disappeared"] > self.max_disappeared_frames:
                     del self._tracked_objects[tid]
 
+        if self.min_hits > 1:
+            return [d for d in detections if d.track_id is not None and self._tracked_objects.get(d.track_id, {}).get("hits", 0) >= self.min_hits]
         return detections

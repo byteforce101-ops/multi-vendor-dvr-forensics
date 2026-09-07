@@ -11,6 +11,8 @@ from backend.video.analysis.models import (
 def build_detection_events(
     detections: list[Detection],
     max_gap_seconds: float = 3.0,
+    min_observations: int = 1,
+    min_duration_seconds: float = 0.0,
 ) -> list[VideoEvent]:
 
     grouped: dict[
@@ -71,29 +73,32 @@ def build_detection_events(
 
                 continue
 
-            events.append(
-                _make_event(
-                    current,
-                    object_type,
-                    track_id,
-                    camera_id,
+            dur = (current[-1].timestamp - current[0].timestamp).total_seconds()
+            if len(current) >= min_observations and dur >= min_duration_seconds:
+                events.append(
+                    _make_event(
+                        current,
+                        object_type,
+                        track_id,
+                        camera_id,
+                    )
                 )
-            )
 
             current = [
                 detection
             ]
 
         if current:
-
-            events.append(
-                _make_event(
-                    current,
-                    object_type,
-                    track_id,
-                    camera_id,
+            dur = (current[-1].timestamp - current[0].timestamp).total_seconds()
+            if len(current) >= min_observations and dur >= min_duration_seconds:
+                events.append(
+                    _make_event(
+                        current,
+                        object_type,
+                        track_id,
+                        camera_id,
+                    )
                 )
-            )
 
     return sorted(
         events,
@@ -287,3 +292,134 @@ def _make_event(
             ),
         },
     )
+
+
+def generate_forensic_activity_digest(
+    events: list[VideoEvent],
+    suppressed_noise_count: int = 0,
+) -> dict:
+    """Aggregate a sequence of VideoEvents into a structured executive forensic summary."""
+    if not events:
+        return {
+            "total_events": 0,
+            "unique_entities": {},
+            "loitering_events": [],
+            "movement_highlights": [],
+            "review_flags": [],
+            "suppressed_noise_count": suppressed_noise_count,
+            "time_range": None,
+            "markdown_summary": "### Forensic Activity Digest\n- **Status**: No significant forensic events detected.",
+        }
+
+    unique_entities: dict[str, set[int | str]] = defaultdict(set)
+    loitering_events = []
+    movement_highlights = []
+    review_flags = []
+
+    earliest = min(e.start_time for e in events)
+    latest = max(e.end_time for e in events)
+
+    for e in events:
+        meta = e.metadata if isinstance(e.metadata, dict) else {}
+        obj_type = e.object_type or "object"
+        entity_id = meta.get("entity_id", f"{obj_type}#{e.track_id or 'unknown'}")
+
+        if e.track_id is not None:
+            unique_entities[obj_type].add(e.track_id)
+        else:
+            unique_entities[obj_type].add(entity_id)
+
+        dur = (e.end_time - e.start_time).total_seconds()
+        direction = meta.get("direction", "Stationary")
+        avg_speed = meta.get("avg_speed", 0.0)
+
+        # Loitering identification
+        if meta.get("is_loitering", False) or (dur >= 4.0 and direction == "Stationary" and obj_type in ("person", "vehicle", "car")):
+            loitering_events.append({
+                "entity_id": entity_id,
+                "start_time": e.start_time.strftime("%H:%M:%S") if hasattr(e.start_time, "strftime") else str(e.start_time),
+                "end_time": e.end_time.strftime("%H:%M:%S") if hasattr(e.end_time, "strftime") else str(e.end_time),
+                "duration_seconds": round(dur, 1),
+                "camera_id": e.camera_id,
+            })
+        elif direction != "Stationary" and avg_speed >= 5.0:
+            movement_highlights.append({
+                "entity_id": entity_id,
+                "direction": direction,
+                "avg_speed": round(avg_speed, 1),
+                "start_time": e.start_time.strftime("%H:%M:%S") if hasattr(e.start_time, "strftime") else str(e.start_time),
+                "end_time": e.end_time.strftime("%H:%M:%S") if hasattr(e.end_time, "strftime") else str(e.end_time),
+                "duration_seconds": round(dur, 1),
+                "camera_id": e.camera_id,
+            })
+
+        if "REVIEW_FLAG" in e.event_type or "PROXIMITY" in e.event_type or "COLLISION" in e.event_type:
+            review_flags.append({
+                "event_type": e.event_type,
+                "timestamp": e.start_time.strftime("%H:%M:%S") if hasattr(e.start_time, "strftime") else str(e.start_time),
+                "confidence": e.confidence,
+                "reason": meta.get("reason", "proximity/interaction"),
+            })
+
+    entity_counts = {k: len(v) for k, v in unique_entities.items()}
+
+    digest = {
+        "total_events": len(events),
+        "unique_entities": entity_counts,
+        "loitering_events": loitering_events,
+        "movement_highlights": movement_highlights,
+        "review_flags": review_flags,
+        "suppressed_noise_count": suppressed_noise_count,
+        "time_range": (
+            earliest.strftime("%H:%M:%S") if hasattr(earliest, "strftime") else str(earliest),
+            latest.strftime("%H:%M:%S") if hasattr(latest, "strftime") else str(latest),
+        ),
+    }
+
+    digest["markdown_summary"] = format_forensic_activity_digest_markdown(digest)
+    return digest
+
+
+def format_forensic_activity_digest_markdown(digest: dict) -> str:
+    """Format the forensic activity digest into a human-readable Markdown report."""
+    lines = []
+    lines.append("### Forensic Activity Digest")
+
+    entities_str = ", ".join(
+        f"{cnt} {k.title()}{'s' if cnt > 1 else ''}" for k, cnt in digest.get("unique_entities", {}).items()
+    ) or "None"
+    lines.append(f"- **Unique Entities Observed**: {entities_str}")
+    if digest.get("time_range"):
+        t_start, t_end = digest["time_range"]
+        lines.append(f"- **Timeline Span**: `{t_start}` → `{t_end}`")
+
+    if digest.get("suppressed_noise_count", 0) > 0:
+        lines.append(f"- **Noise Rejection**: {digest['suppressed_noise_count']} transient blips suppressed")
+
+    loitering = digest.get("loitering_events", [])
+    if loitering:
+        lines.append("\n#### Loitering & Dwell Events")
+        for item in loitering:
+            lines.append(
+                f"- **{item['entity_id']}**: Loitering for {item['duration_seconds']}s "
+                f"(`{item['start_time']}` - `{item['end_time']}` on {item['camera_id']})"
+            )
+
+    movements = digest.get("movement_highlights", [])
+    if movements:
+        lines.append("\n#### Key Movements")
+        for item in movements:
+            lines.append(
+                f"- **{item['entity_id']}**: {item['direction']} at ~{item['avg_speed']} px/s "
+                f"(`{item['start_time']}` - `{item['end_time']}`)"
+            )
+
+    flags = digest.get("review_flags", [])
+    if flags:
+        lines.append("\n#### Review Flags & Interactions")
+        for item in flags:
+            lines.append(
+                f"- `[{item['timestamp']}]` **{item['event_type']}** (Conf: {item['confidence']}) - {item['reason']}"
+            )
+
+    return "\n".join(lines)

@@ -146,3 +146,28 @@ def test_no_false_bicycle_or_vehicle_on_pedestrians():
     # Must NOT detect bicycle or vehicle
     for d in dets:
         assert d.class_name not in ("bicycle", "vehicle", "car", "motorcycle"), f"Unexpected false detection: {d.class_name}"
+
+
+def test_temporal_confirmation_suppresses_transient_noise():
+    """Verify that setting min_hits=2 suppresses 1-frame transient noise and promotes consistent objects on 2nd frame."""
+    detector = OpenCVForensicDetector(min_hits=2)
+    detector.reset_tracks()
+
+    # Frame 1: Background
+    detector.detect_frame(np.zeros((300, 300, 3), dtype=np.uint8))
+
+    # Frame 2: Transient noise blob appears for 1 frame only (or 1st detection of new object)
+    f2 = np.zeros((300, 300, 3), dtype=np.uint8)
+    f2[100:180, 50:120] = 240
+    dets_frame2 = detector.detect_frame(f2, fps=2.0)
+    # Because min_hits=2, transient 1st-hit should NOT be emitted yet
+    assert len(dets_frame2) == 0
+
+    # Frame 3: The object moves and persists in frame 3 (2nd consecutive hit)
+    f3 = np.zeros((300, 300, 3), dtype=np.uint8)
+    f3[100:180, 70:140] = 240
+    dets_frame3 = detector.detect_frame(f3, fps=2.0)
+    # Now confirmed and emitted
+    assert len(dets_frame3) == 1
+    assert dets_frame3[0].track_id is not None
+

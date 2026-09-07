@@ -995,21 +995,7 @@ export default function App() {
                   )}
                 </div>
                 <div>
-                  <p style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span>{m.label}</span>
-                    {m.customIcon && (
-                      <img
-                        src={m.customIcon}
-                        alt={m.label}
-                        style={{
-                          width: '14px',
-                          height: '14px',
-                          objectFit: 'contain',
-                          borderRadius: '2px',
-                        }}
-                      />
-                    )}
-                  </p>
+                  <p>{m.label}</p>
                   <strong style={m.val === '—' ? { color: '#94a3b8', fontWeight: 500 } : undefined}>
                     {m.val}
                   </strong>
@@ -3035,7 +3021,17 @@ export default function App() {
       {/* Sidebar */}
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="brand" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 4px 16px', borderBottom: '1px solid rgba(255,255,255,0.12)' }}>
-          <TraceXLogo variant="white" className="h-9 max-h-10 w-auto object-contain" />
+          <button
+            type="button"
+            onClick={() => {
+              setView('Overview');
+              setSidebarOpen(false);
+            }}
+            className="flex items-center hover:opacity-85 transition-opacity cursor-pointer bg-transparent border-0 p-0 text-left"
+            title="Go to Overview"
+          >
+            <TraceXLogo variant="white" className="h-9 max-h-10 w-auto object-contain" />
+          </button>
           <button
             className="collapse"
             onClick={() => setSidebarOpen(false)}
@@ -3141,16 +3137,39 @@ export default function App() {
             <Menu size={18} />
           </button>
 
-          <div className="crumb" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <TraceXLogo variant="dark" className="h-8 max-h-9 w-auto object-contain" />
-            <ChevronRight size={14} />
-            <b>{view}</b>
+          <div className="crumb" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button
+              type="button"
+              onClick={() => setView('Overview')}
+              className="flex items-center hover:opacity-80 transition-opacity cursor-pointer bg-transparent border-0 p-0 text-left"
+              title="Go to Overview"
+            >
+              <TraceXLogo variant="dark" className="h-8 max-h-9 w-auto object-contain" />
+            </button>
+
+            <ChevronRight size={14} className="text-slate-400 shrink-0" />
+
+            <button
+              type="button"
+              onClick={() => setView(view)}
+              className="hover:text-blue-700 transition-colors cursor-pointer bg-transparent border-0 p-0 text-left font-semibold text-slate-800"
+              title={`Current view: ${view}`}
+            >
+              <b>{view}</b>
+            </button>
+
             {selectedCase && (
               <>
-                <ChevronRight size={14} />
-                <span className="mono" style={{ color: '#0f766e', fontWeight: 600 }}>
+                <ChevronRight size={14} className="text-slate-400 shrink-0" />
+                <button
+                  type="button"
+                  onClick={() => setView('Investigation Detail')}
+                  className="mono hover:text-teal-800 hover:underline transition-colors cursor-pointer bg-transparent border-0 p-0 text-left"
+                  style={{ color: '#0f766e', fontWeight: 600 }}
+                  title={`Open investigation ${selectedCase.case_number || selectedCase.name}`}
+                >
                   {selectedCase.case_number || selectedCase.name}
-                </span>
+                </button>
               </>
             )}
           </div>

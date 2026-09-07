@@ -176,19 +176,17 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
         {/* Top Header */}
         <div className="relative z-10 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <TraceXLogo variant="white" className="h-12 w-auto object-contain drop-shadow-md" />
+            <TraceXLogo variant="white" className="h-16 xl:h-20 w-auto object-contain drop-shadow-xl" />
           </div>
         </div>
 
         {/* Middle Hero Showcase */}
         <div className="relative z-10 my-auto py-8 max-w-xl">
-          <h1 className="text-3xl xl:text-4xl font-semibold tracking-tight text-white leading-[1.2] mb-4 drop-shadow-md">
+          <h1 className="text-xl xl:text-2xl font-medium tracking-tight text-white leading-[1.3] mb-6 drop-shadow-md">
             Cryptographic Integrity & Neural Event Reconstruction.
           </h1>
 
-          <p className="text-slate-200 text-sm xl:text-base leading-relaxed mb-8 drop-shadow-sm">
-            Acquire multi-channel DVR raw disk sectors, verify SHA-256 bitstream continuity, and perform temporal kinematic event reconstruction with zero data loss.
-          </p>
+          
 
           {/* Feature Highlights Grid */}
           <div className="grid grid-cols-2 gap-4">

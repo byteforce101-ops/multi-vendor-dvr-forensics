@@ -42,9 +42,9 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* TraceX Logo */}
           <div
-            onClick={() => onNavChange('Pipelines')}
+            onClick={() => onNavChange('Overview')}
             className="flex items-center cursor-pointer select-none group"
-            title="TraceX Forensics Studio"
+            title="TraceX Forensics Studio - Go to Overview"
           >
             <TraceXLogo className="h-9 w-auto group-hover:opacity-90 transition-opacity" />
           </div>

@@ -182,11 +182,13 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
 
         {/* Middle Hero Showcase */}
         <div className="relative z-10 my-auto py-8 max-w-xl">
-          <h1 className="text-xl xl:text-2xl font-medium tracking-tight text-white leading-[1.3] mb-6 drop-shadow-md">
+          <h1 className="text-xl xl:text-2xl font-medium tracking-tight text-white leading-[1.3] mb-3 drop-shadow-md">
             Cryptographic Integrity & Neural Event Reconstruction.
           </h1>
 
-          
+          <p className="text-xs text-cyan-300/90 font-mono mb-6">
+            ✦ Powered by TraceX's proprietary AI engine
+          </p>
 
           {/* Feature Highlights Grid */}
           <div className="grid grid-cols-2 gap-4">
@@ -204,9 +206,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               <div className="w-8 h-8 rounded-md bg-[#3730a3]/50 text-[#c7d2fe] flex items-center justify-center mb-2.5">
                 <Cpu className="w-4 h-4" />
               </div>
-              <h4 className="text-xs font-semibold text-white mb-1">OpenCV Rule Engine</h4>
+              <h4 className="text-xs font-semibold text-white mb-1">TraceX Forensic Rule Engine</h4>
               <p className="text-[11px] text-slate-300 leading-normal">
-                Multi-stage kinematic velocity tracking, HOG pedestrian & Haar cascades.
+                Multi-stage kinematic velocity tracking, neural vision & spatial feature analysis.
               </p>
             </div>
 

@@ -165,4 +165,30 @@ def test_tui_ctrl_o_new_file_upload_keybind():
     asyncio.run(run())
 
 
+def test_plasma_process_phase_synchronization():
+    """Verify that GenerativePatternEngine and LivePlasmaWidget change animation patterns and palettes in sync with process stages."""
+    from backend.cli.tui.plasma_visualizer import GenerativePatternEngine, LivePlasmaWidget, PROCESS_PHASES
 
+    engine = GenerativePatternEngine(width=34, height=11)
+    assert engine.current_stage == "idle"
+    assert engine.current_pattern_name == "Pulse"
+
+    # Transition through pipeline stages
+    for stage in ["detect", "parse", "extract", "vision", "integrity", "reconstruct", "query", "complete"]:
+        engine.set_process_stage(stage)
+        assert engine.current_stage == stage
+        phase = PROCESS_PHASES[stage]
+        assert engine.current_pattern_name == phase["pattern"]
+        assert engine.stage_palette == phase["palette"]
+        assert engine.speed_multiplier == phase["speed"]
+
+        frame = engine.render_frame()
+        assert frame is not None
+        assert len(str(frame)) > 0
+
+    # Test widget synchronization
+    widget = LivePlasmaWidget()
+    widget.set_process_stage("vision", "CUSTOM VISION TEST")
+    assert widget.engine.current_stage == "vision"
+    assert widget.engine.current_pattern_name == "Warp"
+    assert widget.engine.stage_label == "CUSTOM VISION TEST"

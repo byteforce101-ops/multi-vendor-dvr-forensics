@@ -77,6 +77,11 @@ def print_tracex_banner(console) -> None:
         "T R A C E   ·   R E C O V E R   ·   A N A L Y Z E",
         style="bold magenta",
     )
+    body.append("\n")
+    body.append(
+        "Powered by TraceX's proprietary AI engine",
+        style="dim cyan",
+    )
 
     console.print(
         Panel(
@@ -246,7 +251,7 @@ def _print_reconstructed_events(
 
     section_header(
         console,
-        "AI Forensic Event Reconstruction",
+        "TraceX AI Forensic Reconstruction",
     )
 
     if not reconstructed_events:
@@ -422,7 +427,7 @@ def _print_forensic_summary(
 
     section_header(
         console,
-        "Final AI Forensic Summary",
+        "TraceX Forensic Intelligence Summary",
     )
 
     if not summaries:
@@ -1847,9 +1852,7 @@ def _run_pipeline_once(console) -> None:
 
         return
 
-    service = VideoAnalysisService(
-        yolo_model="yolo26n.pt"
-    )
+    service = VideoAnalysisService()
 
     # Existing Q&A expects this structure:
     # [(camera_id, event), ...]
@@ -2016,7 +2019,7 @@ def _run_pipeline_once(console) -> None:
         duration_sec=float(len(all_events)) * 0.5,
         resolution="720p/1080p CCTV",
         fps=2.0,
-        detector_engine="Pure OpenCV (HOG + Morphometrics + Centroid Tracker)",
+        detector_engine="TraceX Forensic Vision (HOG + Morphometrics + Centroid Tracker)",
     )
 
     # =========================================================

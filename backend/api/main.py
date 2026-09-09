@@ -78,7 +78,6 @@ def health_check():
 parser_manager = ParserManager()
 
 video_analysis_service = VideoAnalysisService(
-    yolo_model="yolo26n.pt",
     ai_confidence=0.30,
     ai_iou=0.50,
 )
@@ -1373,7 +1372,7 @@ def query_video(payload: VideoQueryRequest):
 
             groq_client = Groq(api_key=groq_key)
 
-            # Compress raw OpenCV frame detections into high-signal track & event summaries (TUI pipeline)
+            # Compress raw forensic frame detections into high-signal track & event summaries (TUI pipeline)
             tracks: dict[str, dict] = {}
             discrete_events: list[dict] = []
 

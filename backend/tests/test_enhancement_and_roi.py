@@ -1,4 +1,4 @@
-"""backend/tests/test_enhancement_and_roi.py — Tests for OpenCV CLAHE enhancement and motion ROI detection."""
+"""backend/tests/test_enhancement_and_roi.py — Tests for CLAHE enhancement and motion ROI detection."""
 
 import cv2
 import numpy as np
@@ -11,8 +11,8 @@ from backend.video.enhancement.preprocessor import (
     unsharp_mask,
     enhance_surveillance_frame,
 )
-from backend.ai.detectors.yolo_detector import YOLODetector, YOLODetection
-from backend.ai.pipeline.ai_service import AIService
+from backend.ai.detectors.tracex_vision_detector import TraceXVisionDetector, TraceXVisionDetection
+from backend.ai.pipeline.tracex_ai_engine import TraceXAIEngine
 from backend.video.extraction.frame_extractor import FrameSample
 
 
@@ -67,9 +67,9 @@ def test_enhance_surveillance_frame_pipeline():
     assert np.mean(enhanced) > np.mean(frame)
 
 
-def test_yolo_motion_roi_patch_detection():
-    """Verify YOLODetector.detect_with_motion_rois runs inference on motion crops and fuses detections."""
-    detector = YOLODetector()
+def test_tracex_vision_motion_roi_patch_detection():
+    """Verify TraceXVisionDetector.detect_with_motion_rois runs inference on motion crops and fuses detections."""
+    detector = TraceXVisionDetector()
 
     # Create synthetic frame with a high-contrast object in a motion bounding box
     frame = np.zeros((480, 640, 3), dtype=np.uint8)
@@ -80,9 +80,9 @@ def test_yolo_motion_roi_patch_detection():
     assert isinstance(detections, list)
 
 
-def test_ai_service_with_enhancement_and_motion_rois():
-    """Verify AIService analyze_frames executes with enhancement and motion ROIs enabled."""
-    service = AIService(
+def test_tracex_ai_engine_with_enhancement_and_motion_rois():
+    """Verify TraceXAIEngine analyze_frames executes with enhancement and motion ROIs enabled."""
+    service = TraceXAIEngine(
         enable_grounding_dino=False,
         enable_enhancement=True,
         enable_motion_rois=True,

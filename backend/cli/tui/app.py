@@ -543,6 +543,7 @@ class TraceXApp(App):
     def _get_file_prompt_text(self) -> str:
         lines = [
             "[bold white]Step 1 / 2 — Evidence File Ingestion[/bold white]",
+            "[dim cyan]✦ Powered by TraceX's proprietary AI engine[/dim cyan]",
             _rule(48),
             "",
             "Please provide a digital video file or raw DVR disk image.",
@@ -778,6 +779,11 @@ class TraceXApp(App):
         """Reset to evidence file ingestion mode to upload and analyze another file."""
         self.mode = "file"
         self.engine.clear()
+        try:
+            plasma = self.query_one("#plasma-widget", LivePlasmaWidget)
+            plasma.set_process_stage("idle", "STANDBY / READY")
+        except Exception:
+            pass
         search_input = self.query_one("#search-input", PasteableInput)
         search_input.value = ""
         search_input.placeholder = "Enter evidence / video file path..."
@@ -805,6 +811,11 @@ class TraceXApp(App):
             return
         elif val == ":reset":
             self.mode = "file"
+            try:
+                plasma = self.query_one("#plasma-widget", LivePlasmaWidget)
+                plasma.set_process_stage("idle", "STANDBY / READY")
+            except Exception:
+                pass
             search_input.value = ""
             search_input.placeholder = "Enter evidence / video file path..."
             self.query_one("#query-results-content", Static).update(self._get_file_prompt_text())
@@ -860,22 +871,33 @@ class TraceXApp(App):
     def _run_pipeline_worker(self, file_path_str: str) -> None:
         """Worker thread executing the real pipeline."""
         try:
-            def update_progress(msg: str):
-                self.call_from_thread(self._on_pipeline_progress, msg)
+            def update_progress(msg: str, stage: str = "idle"):
+                self.call_from_thread(self._on_pipeline_progress, msg, stage)
 
             res = self.engine.run_pipeline(file_path_str, progress_cb=update_progress)
             self.call_from_thread(self._on_pipeline_success, res)
         except Exception as exc:
             self.call_from_thread(self._on_pipeline_error, file_path_str, str(exc))
 
-    def _on_pipeline_progress(self, msg: str) -> None:
+    def _on_pipeline_progress(self, msg: str, stage: str = "idle") -> None:
         results_content = self.query_one("#query-results-content", Static)
         existing = str(results_content.render())
         results_content.update(f"{existing}\n• [dim]{msg}[/dim]")
+        try:
+            plasma = self.query_one("#plasma-widget", LivePlasmaWidget)
+            plasma.set_process_stage(stage)
+        except Exception:
+            pass
 
     def _on_pipeline_success(self, res: PipelineResult) -> None:
         """Switch to Query Analysis mode and render full AI analysis dossier in Right Panel."""
         self.mode = "query"
+
+        try:
+            plasma = self.query_one("#plasma-widget", LivePlasmaWidget)
+            plasma.set_process_stage("complete", "DOSSIER CERTIFIED")
+        except Exception:
+            pass
 
         # Update Right Panel: Full AI analysis dossier from the original CLI
         right_text = self._format_ai_analysis_dossier(res)
@@ -925,6 +947,12 @@ class TraceXApp(App):
             self.action_submit_input()
 
     def _on_pipeline_error(self, file_str: str, err: str) -> None:
+        try:
+            plasma = self.query_one("#plasma-widget", LivePlasmaWidget)
+            plasma.set_process_stage("idle", "STANDBY / ERROR")
+        except Exception:
+            pass
+
         results_content = self.query_one("#query-results-content", Static)
         lines = [
             f"[bold red]❌ Pipeline Error on file:[/bold red] {file_str}",
@@ -943,6 +971,12 @@ class TraceXApp(App):
 
     def _start_query_analysis(self, query_text: str) -> None:
         """Run conversational Q&A on the loaded video events."""
+        try:
+            plasma = self.query_one("#plasma-widget", LivePlasmaWidget)
+            plasma.set_process_stage("query", "AI AGENT REASONING")
+        except Exception:
+            pass
+
         results_content = self.query_one("#query-results-content", Static)
         lines = [
             f"[bold bright_cyan]Query:[/bold bright_cyan] [bold white]\"{query_text}\"[/bold white]",
@@ -963,6 +997,12 @@ class TraceXApp(App):
             self.call_from_thread(self._on_query_error, query_text, str(exc))
 
     def _on_query_success(self, ans: QueryAnswer) -> None:
+        try:
+            plasma = self.query_one("#plasma-widget", LivePlasmaWidget)
+            plasma.set_process_stage("complete", "QUERY COMPLETE")
+        except Exception:
+            pass
+
         formatted = self._format_query_answer(ans)
         query_panel = self.query_one("#query-results-panel", VerticalScroll)
         self.query_one("#query-results-content", Static).update(formatted)
@@ -972,6 +1012,12 @@ class TraceXApp(App):
         search_input.focus()
 
     def _on_query_error(self, query_text: str, err: str) -> None:
+        try:
+            plasma = self.query_one("#plasma-widget", LivePlasmaWidget)
+            plasma.set_process_stage("idle", "STANDBY / READY")
+        except Exception:
+            pass
+
         results_content = self.query_one("#query-results-content", Static)
         lines = [
             "[bold red]❌ Query Analysis Error[/bold red]",
@@ -1059,7 +1105,7 @@ class TraceXApp(App):
         lines.append("[bold white]Pipeline Processing Stages:[/bold white]")
         lines.append("  [bold green]✔ Stage 1 (Carving & Ingestion):[/bold green]    Carved playable H.264/MP4 stream without modifying source evidence.")
         lines.append("  [bold green]✔ Stage 2 (CCTV Preprocessing):[/bold green]    Applied adaptive LAB CLAHE, auto-gamma correction, and unsharp filter.")
-        lines.append("  [bold green]✔ Stage 3 (AI & Motion Engine):[/bold green]    Pure OpenCV HOG + MOG2 Morphometrics (0 hallucinated COCO classes).")
+        lines.append("  [bold green]✔ Stage 3 (AI & Motion Engine):[/bold green]    TraceX Forensic Vision HOG + MOG2 Morphometrics (0 false positive classes).")
         lines.append("  [bold green]✔ Stage 4 (Event Reconstruction):[/bold green]  8-point compass trajectory tracking and localized perimeter loitering analysis.")
         lines.append("")
 

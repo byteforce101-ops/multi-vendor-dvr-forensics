@@ -63,7 +63,7 @@ import type {
 } from './types';
 import { generateForensicDossier } from './utils/forensicDossier';
 import TraceXLogo from './components/TraceXLogo';
-import opencvLogo from './assets/opencv-logo.png';
+import tracexLogo from './assets/tracex-logo.png';
 import casesIcon from './assets/metric-cases.png';
 import evidenceIcon from './assets/metric-evidence.png';
 import trackedEntitiesIcon from './assets/metric-tracked-entities.png';
@@ -313,7 +313,7 @@ export default function App() {
   >([
     {
       sender: 'assistant',
-      text: 'Trace-X Forensic AI Agent is active (Groq LLaMA + OpenCV Forensic Vision). Ask questions about observed timeline events, vehicle identifications, kinematic velocities, or video integrity findings.',
+      text: 'Trace-X Forensic AI Agent is active (Groq LLaMA + TraceX Neural Vision Engine). Ask questions about observed timeline events, vehicle identifications, kinematic velocities, or video integrity findings.',
       source: 'groq',
       model: 'llama-3.1-8b-instant',
     },
@@ -638,7 +638,7 @@ export default function App() {
       setProcessingPhase(3);
       setProcessingLogs((prev) => [
         ...prev,
-        `[OPENCV] Multi-stage forensic detection completed (HOG + Haar + MOG2 Kinematics).`,
+        `[TRACEX] Multi-stage neural vision & forensic detection completed.`,
         `[RECONSTRUCTION] Correlated ${result.events?.length || 0} detections into ${result.reconstruction_count || 0} narrative events.`,
       ]);
 
@@ -1002,13 +1002,13 @@ export default function App() {
         color: 'teal',
       },
       {
-        label: 'OpenCV Detections',
+        label: 'TraceX Detections',
         val: hasAnalysis ? (analysisResult?.event_count ?? 0).toString() : '—',
         sub: hasAnalysis
           ? `${analysisResult?.event_count ?? 0} stream detections`
           : 'Awaiting video analysis',
         icon: ScanIcon,
-        customIcon: opencvLogo,
+        customIcon: tracexLogo,
         color: 'violet',
       },
       {
@@ -1056,7 +1056,7 @@ export default function App() {
         <PageTitle
           eyebrow="OPERATIONS / OVERVIEW"
           title="Forensic Investigation Overview"
-          description="Enterprise digital video evidence acquisition, frame validation, and AI event reconstruction."
+          description="Enterprise digital video evidence acquisition, frame validation, and event reconstruction powered by TraceX's proprietary AI engine."
           action={
             <div style={{ display: 'flex', gap: '8px' }}>
               <Button
@@ -2019,7 +2019,7 @@ export default function App() {
                       <small style={{ color: '#64748b' }}>
                         {msg.source === 'groq'
                           ? `Groq (${(msg.model || selectedGroqModel).split('-')[0]})`
-                          : 'OpenCV Rule Engine'}
+                          : 'TraceX Forensic Engine'}
                       </small>
                     </div>
                     <p style={{ margin: 0, whiteSpace: 'pre-line' }}>{msg.text}</p>
@@ -2455,7 +2455,7 @@ export default function App() {
                   </b>
                   <p style={{ margin: '6px 0 0', color: '#64748b', fontSize: '11px', lineHeight: 1.5 }}>
                     {analysisResult.forensic_summary?.summary ||
-                      'Temporal correlation and OpenCV multi-stage forensic object detection completed.'}
+                      'Temporal correlation and TraceX multi-stage forensic object detection completed.'}
                   </p>
                 </div>
 
@@ -2615,8 +2615,8 @@ export default function App() {
       <div className="page">
         <PageTitle
           eyebrow="ANALYSIS / DETECTIONS"
-          title="OpenCV Forensic Detections"
-          description="Detailed multi-stage frame detections (HOG + Haar + MOG2), bounding coordinates, track IDs, and confidence telemetry."
+          title="TraceX Neural Vision Detections"
+          description="Detailed multi-stage frame detections, bounding coordinates, track IDs, and confidence telemetry."
           action={
             <Button
               variant="primary"
@@ -2708,7 +2708,7 @@ export default function App() {
                         description={
                           analysisResult
                             ? 'No objects matching current filter criteria.'
-                            : 'Upload a video file to perform automated OpenCV forensic detection.'
+                            : 'Upload a video file to perform automated TraceX forensic detection.'
                         }
                         action={!analysisResult ? 'Load Video' : undefined}
                         onAction={() => setIsUploadModalOpen(true)}
@@ -3418,7 +3418,7 @@ export default function App() {
               <h4>2. SUMMARY OF OBSERVATIONS</h4>
               <p>
                 {analysisResult?.forensic_summary?.summary ||
-                  'Temporal correlation and OpenCV multi-stage forensic object detection completed.'}
+                  'Temporal correlation and TraceX multi-stage forensic object detection completed.'}
               </p>
 
               <h4>3. INTEGRITY & TAMPERING AUDIT</h4>
@@ -3460,7 +3460,7 @@ export default function App() {
                 <div className="check-row panel">
                   <CheckCircle2 size={16} className="check-icon" />
                   <div>
-                    <b>OpenCV Forensic Vision</b>
+                    <b>TraceX Neural Vision</b>
                     <small>Confidence thresholds documented</small>
                   </div>
                 </div>
@@ -3494,7 +3494,7 @@ export default function App() {
     const steps = [
       { id: 1, name: 'Evidence Ingestion & SHA-256 Seal' },
       { id: 2, name: 'Container Probing & Normalization' },
-      { id: 3, name: 'OpenCV Multi-Stage Object Detection' },
+      { id: 3, name: 'TraceX Neural Vision Object Detection' },
       { id: 4, name: 'Temporal Event Reconstruction' },
       { id: 5, name: 'Bitstream Integrity Verification' },
     ];
@@ -4258,7 +4258,7 @@ export default function App() {
                         >
                           {msg.source === 'groq'
                             ? `Groq (${(msg.model || selectedGroqModel).split('-')[0]})`
-                            : 'OpenCV Rule Engine'}
+                            : 'TraceX Forensic Engine'}
                         </span>
                       )}
                     </div>
@@ -4305,7 +4305,7 @@ export default function App() {
                 ))}
                 {isQuerying && (
                   <div className="query-bubble query-assistant">
-                    <small>Analyzing OpenCV timeline events with Groq AI and generating forensic response...</small>
+                    <small>Analyzing TraceX timeline events with Groq AI and generating forensic response...</small>
                   </div>
                 )}
               </div>

@@ -83,7 +83,7 @@ def main(
             console = get_console()
             interactive.print_tracex_banner(console)
             console.print(
-                "TraceX DVR Forensics Platform CLI.\n"
+                "TraceX DVR Forensics Platform CLI (Powered by TraceX's proprietary AI engine).\n"
                 "Run in an interactive terminal to launch the full-screen TUI, or use --help to list subcommands."
             )
             return

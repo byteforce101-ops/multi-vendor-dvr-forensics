@@ -1,5 +1,5 @@
 """
-OpenCV Surveillance Image Enhancement Preprocessor.
+TraceX Surveillance Image Enhancement Preprocessor.
 
 Applies Contrast Limited Adaptive Histogram Equalization (CLAHE),
 adaptive gamma luminance correction, and unsharp masking to enhance

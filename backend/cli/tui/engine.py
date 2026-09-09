@@ -92,10 +92,20 @@ class TraceXPipelineEngine:
     def run_pipeline(
         self,
         file_path_str: str,
-        progress_cb: Optional[Callable[[str], None]] = None,
+        progress_cb: Optional[Callable[..., None]] = None,
     ) -> PipelineResult:
         """Run the real detect -> parse -> extract -> AI analyze pipeline on the given file."""
         start_t = time.perf_counter()
+
+        def _emit_progress(msg: str, stage: str = "idle") -> None:
+            if progress_cb:
+                try:
+                    progress_cb(msg, stage=stage)
+                except TypeError:
+                    try:
+                        progress_cb(msg, stage)
+                    except TypeError:
+                        progress_cb(msg)
 
         path = Path(file_path_str.strip('"').strip("'")).expanduser().resolve()
         if not path.is_file():
@@ -113,8 +123,7 @@ class TraceXPipelineEngine:
         # =====================================================
         # STEP 1 — DETECT
         # =====================================================
-        if progress_cb:
-            progress_cb("Step 1 / 4 — Detecting vendor and signature...")
+        _emit_progress("Step 1 / 4 — Detecting vendor and signature...", stage="detect")
 
         parser, confidence, info = manager.detect(str(path))
         if parser is None:
@@ -127,8 +136,7 @@ class TraceXPipelineEngine:
         # =====================================================
         # STEP 2 — PARSE
         # =====================================================
-        if progress_cb:
-            progress_cb(f"Step 2 / 4 — Parsing evidence ({parser.vendor_name})...")
+        _emit_progress(f"Step 2 / 4 — Parsing evidence ({parser.vendor_name})...", stage="parse")
 
         out_dir = Path("./tracex_output") / path.stem
         out_dir.mkdir(parents=True, exist_ok=True)
@@ -157,8 +165,7 @@ class TraceXPipelineEngine:
         # =====================================================
         # STEP 3 — EXTRACT
         # =====================================================
-        if progress_cb:
-            progress_cb("Step 3 / 4 — Extracting recordings...")
+        _emit_progress("Step 3 / 4 — Extracting recordings...", stage="extract")
 
         already_usable = [
             rec for rec in parse_result.recordings
@@ -200,22 +207,20 @@ class TraceXPipelineEngine:
             return res
 
         # =====================================================
-        # STEP 4 — AI ANALYSIS (Vision + Motion + Reconstruction)
+        # STEP 4 — TRACEX AI ANALYSIS (Vision + Motion + Reconstruction)
         # =====================================================
-        if progress_cb:
-            progress_cb("Step 4 / 4 — Running AI video analysis (Vision & Motion)...")
+        _emit_progress("Step 4 / 4 — Running TraceX AI video analysis (Vision & Motion)...", stage="vision")
 
         try:
             from backend.video.analysis.service import VideoAnalysisService
 
-            service = VideoAnalysisService(yolo_model="yolo26n.pt")
+            service = VideoAnalysisService()
             all_events = []
             all_reconstructed = []
             all_summaries = []
 
             for rec in recovered:
-                if progress_cb:
-                    progress_cb(f"Analyzing recording: {rec.recording_id}...")
+                _emit_progress(f"Analyzing recording: {rec.recording_id} (TraceX Vision)...", stage="vision")
 
                 try:
                     analysis_res = service.analyze(
@@ -252,8 +257,7 @@ class TraceXPipelineEngine:
         # =====================================================
         # TAMPERING / VIDEO INTEGRITY CHECKS
         # =====================================================
-        if progress_cb:
-            progress_cb("Checking video integrity and tampering indicators...")
+        _emit_progress("Checking video integrity and tampering indicators...", stage="integrity")
 
         from backend.cli.interactive import _run_video_integrity_analysis
 
@@ -269,8 +273,7 @@ class TraceXPipelineEngine:
         # =====================================================
         # OBJECT DISAPPEARANCE DETECTION
         # =====================================================
-        if progress_cb:
-            progress_cb("Detecting object disappearances and continuity...")
+        _emit_progress("Detecting object disappearances and continuity...", stage="reconstruct")
 
         from backend.cli.interactive import _detect_object_disappearances
 

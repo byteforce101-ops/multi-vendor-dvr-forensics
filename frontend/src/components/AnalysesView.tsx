@@ -66,7 +66,7 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({
     videoUrl ||
     (analysis?.analysis_id ? api.getVideoStreamUrl(analysis.analysis_id) : null);
 
-  // Conversational Video Q&A (Groq AI Agent + OpenCV Forensic Integration)
+  // Conversational Video Q&A (Groq AI Agent + TraceX Neural Vision Integration)
   const [groqApiKey, setGroqApiKey] = useState<string>(() => {
     return localStorage.getItem('tracex_groq_api_key') || '';
   });
@@ -88,7 +88,7 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({
   >([
     {
       sender: 'assistant',
-      text: 'Hello! I am your TraceX Forensic AI Agent (powered by Groq LLaMA & OpenCV Vision). Ask questions about observed timeline events, vehicle identifications, kinematic velocities, or video integrity findings.',
+      text: 'Hello! I am your TraceX Forensic AI Agent (powered by Groq LLaMA & TraceX Vision Engine). Ask questions about observed timeline events, vehicle identifications, kinematic velocities, or video integrity findings.',
       source: 'groq',
       model: 'llama-3.1-8b-instant',
     },
@@ -1163,11 +1163,11 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({
                         : 'bg-slate-100 text-slate-600 border-slate-200'
                     }`}
                   >
-                    {groqApiKey ? `● Groq ${selectedGroqModel.split('-')[0].toUpperCase()}` : '○ Groq / Local OpenCV'}
+                    {groqApiKey ? `● Groq ${selectedGroqModel.split('-')[0].toUpperCase()}` : '○ Groq / Local TraceX Vision'}
                   </span>
                 </div>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Natural-language conversational Q&A over OpenCV timeline events, object kinematics, disappearances, and integrity audit.
+                  Natural-language conversational Q&A over TraceX timeline events, object kinematics, disappearances, and integrity audit.
                 </p>
               </div>
             </div>
@@ -1226,7 +1226,7 @@ export const AnalysesView: React.FC<AnalysesViewProps> = ({
                         >
                           {msg.source === 'groq'
                             ? `Groq (${(msg.model || selectedGroqModel).split('-')[0]})`
-                            : 'OpenCV Heuristic Engine'}
+                            : 'TraceX Forensic Engine'}
                         </span>
                       </div>
                     )}

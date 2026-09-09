@@ -4,8 +4,9 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-from backend.ai.pipeline.ai_service import (
-    AIService,
+from backend.ai.pipeline.tracex_ai_engine import (
+    TraceXAIEngine,
+    TraceXDetectionResult,
 )
 
 from backend.ai.events.event_builder import (
@@ -57,8 +58,8 @@ from backend.video.reconstruction.summarizer import (
 )
 
 
-from backend.video.reconstruction.opencv_reconstructor import (
-    OpenCVForensicReconstructor,
+from backend.video.reconstruction.tracex_reconstructor import (
+    TraceXForensicReconstructor,
 )
 
 
@@ -87,20 +88,24 @@ class VideoAnalysisService:
 
     def __init__(
         self,
-        yolo_model: str = "yolo26n.pt",
+        vision_model: str | None = None,
         ai_confidence: float = 0.30,
         ai_iou: float = 0.50,
         device: str | None = None,
         enable_grounding_dino: bool = False,
         enable_enhancement: bool = True,
         enable_motion_rois: bool = True,
-        detector_engine: str = "yolo",  # "yolo" | "hybrid" | "opencv"
+        detector_engine: str = "vision",
     ):
-        self.detector_engine = detector_engine
-        self.opencv_reconstructor = OpenCVForensicReconstructor()
+        norm_engine = detector_engine.lower()
+        if norm_engine not in ("vision", "forensic", "hybrid"):
+            norm_engine = "vision"
 
-        self.ai = AIService(
-            model_path=yolo_model,
+        self.detector_engine = norm_engine
+        self.forensic_reconstructor = TraceXForensicReconstructor()
+
+        self.ai = TraceXAIEngine(
+            model_path=vision_model,
             confidence=ai_confidence,
             iou=ai_iou,
             device=device,
@@ -109,7 +114,7 @@ class VideoAnalysisService:
             ),
             enable_enhancement=enable_enhancement,
             enable_motion_rois=enable_motion_rois,
-            detector_engine=detector_engine,
+            detector_engine=norm_engine,
         )
 
     def analyze(
@@ -287,7 +292,7 @@ class VideoAnalysisService:
 
                     metadata={
                         "source": (
-                            "opencv_motion"
+                            "tracex_motion"
                         ),
                     },
                 )
@@ -319,8 +324,8 @@ class VideoAnalysisService:
         # 10. RECONSTRUCTION & FORENSIC SUMMARY
         # =====================================================
 
-        if self.detector_engine == "opencv" and ai_results:
-            reconstructed_events, forensic_summary = self.opencv_reconstructor.reconstruct_from_detections(
+        if self.detector_engine == "forensic" and ai_results:
+            reconstructed_events, forensic_summary = self.forensic_reconstructor.reconstruct_from_detections(
                 [(r.timestamp_seconds, [r]) for r in ai_results],
                 video_start_time=video_start_time,
                 video_id=video_id,
@@ -366,3 +371,13 @@ class VideoAnalysisService:
                 forensic_summary
             ),
         )
+
+
+# Backward compatibility and TraceX-branded alias
+TraceXVideoAnalysisService = VideoAnalysisService
+
+__all__ = [
+    "VideoAnalysisService",
+    "TraceXVideoAnalysisService",
+    "VideoAnalysisResult",
+]

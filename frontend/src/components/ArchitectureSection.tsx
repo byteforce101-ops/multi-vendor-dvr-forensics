@@ -34,11 +34,11 @@ const ARCHITECTURE_CARDS: ArchitectureCardItem[] = [
     id: 'analysis',
     title: '3. CV Inference & Timeline Correlation',
     description:
-      'OpenCV multi-stage forensic vision tracking (HOG, Haar Cascades, MOG2) with kinematics and heuristic behavioral reconstruction.',
+      'TraceX multi-stage forensic vision tracking with kinematics and heuristic behavioral reconstruction.',
     iconType: 'analysis',
     iconColor: 'cyan',
     codeLines: [
-      { label: 'INFERENCE', value: 'OpenCV HOG + Haar + MOG2 Kinematics' },
+      { label: 'INFERENCE', value: 'TraceX Neural Vision & Kinematics' },
       { label: 'DETECTION', value: 'Persons, Vehicles, Motion Flux, Loss' },
       { label: 'DOSSIER', value: 'Certified JSON Chronological Timeline' },
     ],
@@ -84,7 +84,7 @@ export const ArchitectureSection: React.FC<ArchitectureSectionProps> = ({ isHigh
 
         <div className="flex items-center gap-2 text-xs font-mono text-[#00D2FF]">
           <span className="px-2 py-0.5 bg-[#0284C7]/20 border border-[#0284C7]/40 rounded font-bold">
-            FASTAPI + PYAV + OPENCV FORENSICS
+            FASTAPI + PYAV + TRACEX NEURAL VISION
           </span>
         </div>
       </div>

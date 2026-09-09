@@ -83,6 +83,72 @@ FIRE_AMBER_PALETTE = [
 
 DENSITY_CHARS = " .:-=+*#%@"
 
+PROCESS_PHASES = {
+    "idle": {
+        "pattern": "Pulse",
+        "label": "STANDBY / READY",
+        "palette": CYBER_CYAN_PALETTE,
+        "speed": 1.0,
+        "style": "bold #58a6ff",
+    },
+    "detect": {
+        "pattern": "Matrix",
+        "label": "SIGNATURE SCAN",
+        "palette": MATRIX_GREEN_PALETTE,
+        "speed": 2.2,
+        "style": "bold #00ff66",
+    },
+    "parse": {
+        "pattern": "Diamond",
+        "label": "GOP SECTOR PARSE",
+        "palette": FIRE_AMBER_PALETTE,
+        "speed": 1.8,
+        "style": "bold #ffaa00",
+    },
+    "extract": {
+        "pattern": "Tunnel",
+        "label": "BITSTREAM CARVING",
+        "palette": PURPLE_NEON_PALETTE,
+        "speed": 2.4,
+        "style": "bold #d2a8ff",
+    },
+    "vision": {
+        "pattern": "Warp",
+        "label": "TRACEX NEURAL VISION",
+        "palette": CYBER_CYAN_PALETTE,
+        "speed": 3.0,
+        "style": "bold #00ffff",
+    },
+    "integrity": {
+        "pattern": "Interference",
+        "label": "CRYPTO SHA-256 AUDIT",
+        "palette": CYBER_CYAN_PALETTE,
+        "speed": 1.5,
+        "style": "bold #79c0ff",
+    },
+    "reconstruct": {
+        "pattern": "Kaleidoscope",
+        "label": "SCENARIO RECON",
+        "palette": PURPLE_NEON_PALETTE,
+        "speed": 1.6,
+        "style": "bold #f0883e",
+    },
+    "query": {
+        "pattern": "Spiral",
+        "label": "AI AGENT REASONING",
+        "palette": FIRE_AMBER_PALETTE,
+        "speed": 2.4,
+        "style": "bold #ff7b72",
+    },
+    "complete": {
+        "pattern": "Ripple",
+        "label": "DOSSIER CERTIFIED",
+        "palette": CYBER_CYAN_PALETTE,
+        "speed": 1.0,
+        "style": "bold #56d364",
+    },
+}
+
 
 def _sample_palette(val: float, palette: List[Tuple[int, int, int]]) -> Tuple[int, int, int]:
     """Sample an interpolated RGB color from a palette for normalized val in [0.0, 1.0]."""
@@ -110,6 +176,13 @@ class GenerativePatternEngine:
         self.time = 0.0
         self.palette = CYBER_CYAN_PALETTE
         
+        # Process stage synchronization
+        self.current_stage = "idle"
+        self.stage_label: str | None = None
+        self.stage_style: str | None = None
+        self.stage_palette: List[Tuple[int, int, int]] | None = None
+        self.speed_multiplier: float = 1.0
+        
         # Matrix rain state
         self._matrix_drops = [random.uniform(0, 20) for _ in range(self.width)]
         self._matrix_speeds = [random.uniform(0.4, 1.2) for _ in range(self.width)]
@@ -119,6 +192,9 @@ class GenerativePatternEngine:
             (random.uniform(-1.0, 1.0), random.uniform(-1.0, 1.0), random.uniform(0.1, 1.0))
             for _ in range(40)
         ]
+
+        # Initialize to idle stage
+        self.set_process_stage("idle")
 
     @property
     def current_pattern_name(self) -> str:
@@ -130,6 +206,10 @@ class GenerativePatternEngine:
 
     def next_pattern(self) -> None:
         self.pattern_index = (self.pattern_index + 1) % len(PATTERNS)
+        self.stage_label = None
+        self.stage_style = None
+        self.stage_palette = None
+        self.speed_multiplier = 1.0
 
     def set_pattern_by_name(self, name: str) -> None:
         for i, (p_name, _) in enumerate(PATTERNS):
@@ -137,16 +217,29 @@ class GenerativePatternEngine:
                 self.pattern_index = i
                 break
 
+    def set_process_stage(self, stage: str, custom_label: str | None = None) -> None:
+        """Dynamically sync pattern, palette, speed, and status label with executing process."""
+        norm_stage = stage.lower().strip()
+        self.current_stage = norm_stage
+        cfg = PROCESS_PHASES.get(norm_stage, PROCESS_PHASES["idle"])
+        self.set_pattern_by_name(cfg["pattern"])
+        self.stage_label = custom_label or cfg["label"]
+        self.stage_style = cfg["style"]
+        self.stage_palette = cfg["palette"]
+        self.speed_multiplier = cfg["speed"]
+
     def render_frame(self, time_step: float = 0.08) -> Text:
         """Calculate and render one mathematical generative frame into a Rich Text widget."""
-        self.time += time_step
+        self.time += time_step * self.speed_multiplier
         t = self.time
         w = self.width
         h = self.height
         p_name = self.current_pattern_name
 
         # Select matching thematic palette
-        if p_name == "Matrix":
+        if self.stage_palette is not None:
+            palette = self.stage_palette
+        elif p_name == "Matrix":
             palette = MATRIX_GREEN_PALETTE
         elif p_name in ("Kaleidoscope", "Vortex", "Tunnel"):
             palette = PURPLE_NEON_PALETTE
@@ -193,7 +286,11 @@ class GenerativePatternEngine:
             lines.append(line)
 
         # Append title footer line
-        title_text = Text(f" ◆ {p_name.upper()}", style="bold #58a6ff")
+        display_label = self.stage_label or f" ◆ {p_name.upper()}"
+        if not display_label.startswith(" ◆"):
+            display_label = f" ◆ {display_label}"
+        display_style = self.stage_style or "bold #58a6ff"
+        title_text = Text(display_label, style=display_style)
         res = Text("\n").join(lines)
         res.append("\n")
         res.append(title_text)
@@ -250,53 +347,47 @@ class GenerativePatternEngine:
             d1 = (x - b1_x) ** 2 + (y - b1_y) ** 2 + 0.08
             d2 = (x - b2_x) ** 2 + (y - b2_y) ** 2 + 0.08
             d3 = (x - b3_x) ** 2 + (y - b3_y) ** 2 + 0.08
-            field = 0.15 / d1 + 0.15 / d2 + 0.12 / d3
-            return field * 4.0 - t * 2.0
+            return (0.15 / d1 + 0.15 / d2 + 0.15 / d3) * 2.0
 
         elif name == "Moiré":
             # Hypnotic overlapping circle patterns
-            shift = 0.25 * math.sin(t * 1.2)
-            d1 = math.hypot(x - shift, y)
-            d2 = math.hypot(x + shift, y)
-            return math.sin(12.0 * d1) * math.sin(12.0 * d2) * 3.14
+            d1 = math.hypot(x - 0.4 * math.sin(t * 0.8), y)
+            d2 = math.hypot(x + 0.4 * math.sin(t * 0.8), y)
+            return math.sin(12.0 * d1) + math.sin(12.0 * d2)
 
         elif name == "Pulse":
             # Breathing concentric rings from center
-            breath = 1.0 + 0.35 * math.sin(t * 2.5)
-            return math.sin(8.0 * r * breath - t * 4.0) * 3.14
+            pulse = math.sin(t * 2.0) * 0.3
+            return math.sin(8.0 * r - t * 3.0 + pulse) * 3.14
 
         elif name == "Ripple":
             # Water droplet ripples expanding from center
-            decay = 1.0 / (1.0 + 1.8 * r)
-            return math.cos(10.0 * r - t * 5.0) * decay * 4.0
+            return math.sin(10.0 * r - t * 4.0) / (r + 0.4)
 
         elif name == "Spiral":
             # Tight Archimedean spiral pattern
-            return math.sin(8.0 * r - 4.0 * theta + t * 3.0) * 3.14
+            return math.sin(theta * 4.0 + r * 8.0 - t * 3.0) * 3.14
 
         elif name == "Tunnel":
             # Zooming tunnel effect moving in/out from center
-            u = 3.0 / r + t * 2.5
-            v = theta * 3.0 / math.pi
-            return (math.sin(u) * math.cos(v * 3.14)) * 3.14
+            u = theta / math.pi
+            v = 1.0 / (r + 0.1) + t * 1.5
+            return (math.sin(u * 8.0) * math.cos(v * 4.0)) * 3.14
 
         elif name == "Vortex":
             # Rotating spiral emanating from the center
-            rot_r = r * 6.0
-            return math.sin(rot_r - 3.0 * theta - t * 4.0) * 3.14
+            return math.sin(theta * 5.0 - r * 6.0 + t * 4.0) * 3.14
 
         elif name == "Waves":
             # Horizontal waves with retro scanline feel
-            w1 = math.sin(6.0 * y + 2.0 * math.sin(3.0 * x + t) + t * 2.0)
-            w2 = math.cos(3.0 * x - t)
-            return (w1 + w2) * 2.5
+            return math.sin(y * 6.0 + math.sin(x * 4.0 + t * 2.0) + t * 1.5) * 3.14
 
         return math.sin(r * 5.0 - t * 2.0)
 
     def _render_matrix_frame(self, w: int, h: int, palette: List[Tuple[int, int, int]]) -> Text:
-        """Render animated falling green digital matrix rain."""
+        """Render falling digital matrix rain streaks."""
         grid = [[" " for _ in range(w)] for _ in range(h)]
-        styles = [[(0, 20, 5) for _ in range(w)] for _ in range(h)]
+        styles = [[(0, 0, 0) for _ in range(w)] for _ in range(h)]
         chars = "0123456789ABCDEF$#@*+=-:"
 
         for col in range(w):
@@ -329,7 +420,11 @@ class GenerativePatternEngine:
 
         res = Text("\n").join(lines)
         res.append("\n")
-        res.append(Text(" ◆ MATRIX RAIN", style="bold #00ff66"))
+        display_label = self.stage_label or " ◆ MATRIX RAIN"
+        if not display_label.startswith(" ◆"):
+            display_label = f" ◆ {display_label}"
+        display_style = self.stage_style or "bold #00ff66"
+        res.append(Text(display_label, style=display_style))
         return res
 
     def _render_warp_frame(self, w: int, h: int, palette: List[Tuple[int, int, int]]) -> Text:
@@ -371,7 +466,11 @@ class GenerativePatternEngine:
 
         res = Text("\n").join(lines)
         res.append("\n")
-        res.append(Text(" ◆ WARP DRIVE", style="bold #ffaa00"))
+        display_label = self.stage_label or " ◆ WARP DRIVE"
+        if not display_label.startswith(" ◆"):
+            display_label = f" ◆ {display_label}"
+        display_style = self.stage_style or "bold #ffaa00"
+        res.append(Text(display_label, style=display_style))
         return res
 
 
@@ -393,4 +492,9 @@ class LivePlasmaWidget(Static):
     def next_pattern(self) -> None:
         """Switch to next generative pattern when prompted by user."""
         self.engine.next_pattern()
+        self.update(self.engine.render_frame())
+
+    def set_process_stage(self, stage: str, custom_label: str | None = None) -> None:
+        """Update visualizer animation pattern, speed, and status in sync with current process."""
+        self.engine.set_process_stage(stage, custom_label)
         self.update(self.engine.render_frame())

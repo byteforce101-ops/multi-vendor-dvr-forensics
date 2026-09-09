@@ -31,7 +31,7 @@ def main():
     print("Starting analysis...")
 
     service = VideoAnalysisService(
-        yolo_model="yolo26n.pt",
+        vision_model="backend/models/tracex_vision.pt",
         ai_confidence=0.35,
         ai_iou=0.50,
     )

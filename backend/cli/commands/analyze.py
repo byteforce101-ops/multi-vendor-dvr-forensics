@@ -10,6 +10,7 @@ import typer
 from rich.panel import Panel
 from rich.table import Table
 
+from backend.ai.detectors.tracex_vision_detector import get_default_vision_model_path
 from backend.cli.common import require_file
 from backend.cli.exit_codes import ExitCode
 from backend.cli.theme import (
@@ -20,7 +21,7 @@ from backend.cli.theme import (
     warn,
 )
 
-DEFAULT_MODEL = "yolo26n.pt"
+DEFAULT_MODEL = get_default_vision_model_path()
 
 
 # ============================================================
@@ -38,7 +39,7 @@ def _print_reconstructed_events(console, result) -> None:
 
     section_header(
         console,
-        "AI Forensic Event Reconstruction",
+        "TraceX AI Forensic Reconstruction",
     )
 
     if not reconstructed:
@@ -208,7 +209,7 @@ def _print_forensic_summary(console, result) -> None:
 
     section_header(
         console,
-        "Final Forensic Summary",
+        "TraceX Forensic Intelligence Summary",
     )
 
     if summary is None:
@@ -1638,7 +1639,7 @@ def analyze(
     model: str = typer.Option(
         DEFAULT_MODEL,
         "--model",
-        help="Path to the YOLO model weights",
+        help="Path to the vision model weights",
     ),
     start_time: Optional[datetime] = typer.Option(
         None,
@@ -1656,7 +1657,7 @@ def analyze(
     Pipeline:
 
     motion
-    -> YOLO
+    -> TraceX Vision
     -> tracking
     -> forensic events
     -> AI event reconstruction
@@ -1740,7 +1741,7 @@ def analyze(
     try:
 
         service = VideoAnalysisService(
-            yolo_model=model
+            vision_model=model
         )
 
     except Exception as exc:
@@ -1799,7 +1800,7 @@ def analyze(
         (
             "[brand]"
             "Running AI pipeline "
-            "(probe → frames → motion → YOLO → "
+            "(probe → frames → motion → TraceX Vision → "
             "events → reconstruction → summary)..."
             "[/brand]"
         ),
@@ -1857,7 +1858,7 @@ def analyze(
         duration_sec=result.metadata.duration_seconds or 0.0,
         resolution=f"{result.metadata.width}x{result.metadata.height}",
         fps=result.metadata.fps or 25.0,
-        detector_engine="Pure OpenCV (HOG + Morphometrics + Centroid Tracker)",
+        detector_engine="TraceX Forensic Vision (HOG + Morphometrics + Centroid Tracker)",
     )
 
     # ========================================================

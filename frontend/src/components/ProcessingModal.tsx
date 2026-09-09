@@ -104,7 +104,7 @@ export const ProcessingModal: React.FC<ProcessingModalProps> = ({
         setCurrentPhase(3);
         setLogs((prev) => [
           ...prev,
-          '[OPENCV] Multi-stage frame detection completed (HOG + Haar + MOG2).',
+          '[TRACEX] Neural vision & forensic detection completed.',
           '[CORRELATION] Correlating object tracks and temporal motion vectors.',
         ]);
 
@@ -198,7 +198,7 @@ export const ProcessingModal: React.FC<ProcessingModalProps> = ({
             {[
               { id: 1, label: 'Bitstream Ingest', icon: Shield },
               { id: 2, label: 'Stream Probe', icon: Cpu },
-              { id: 3, label: 'OpenCV Tracking', icon: Activity },
+              { id: 3, label: 'TraceX Tracking', icon: Activity },
               { id: 4, label: 'Reconstruction', icon: FileText },
             ].map(({ id, label, icon: Icon }) => (
               <div

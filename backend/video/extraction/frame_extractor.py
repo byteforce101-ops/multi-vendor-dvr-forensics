@@ -22,7 +22,7 @@ def iter_frames(
     video_path: str | Path,
     sample_fps: float | None = None,
 ) -> Iterator[FrameSample]:
-    """Iterate sampled frames using OpenCV VideoCapture with fallback to PyAV."""
+    """Iterate sampled frames using fast stream decoder with fallback to PyAV."""
     video_path = Path(video_path)
 
     if not video_path.exists():
@@ -30,7 +30,7 @@ def iter_frames(
             f"Video file does not exist: {video_path}"
         )
 
-    # 1. Primary decoder: OpenCV VideoCapture (robust, fast, matches DVR-Scan)
+    # 1. Primary stream decoder (robust, high-throughput, matches DVR-Scan)
     cap = cv2.VideoCapture(str(video_path))
     if cap.isOpened():
         try:

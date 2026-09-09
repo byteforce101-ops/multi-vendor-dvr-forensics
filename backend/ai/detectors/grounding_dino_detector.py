@@ -174,7 +174,7 @@ class GroundingDINODetector:
             except Exception as exc:
 
                 # A failed DINO query must NEVER destroy
-                # the complete YOLO analysis.
+                # the complete TraceX vision analysis.
                 print(
                     "[GroundingDINO] "
                     f"Skipping label group {chunk}: {exc}"

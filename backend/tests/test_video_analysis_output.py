@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from backend.ai.detectors.yolo_detector import YOLODetector
+from backend.ai.detectors.tracex_vision_detector import TraceXVisionDetector
 from backend.video.extraction.frame_extractor import iter_frames
 
 
@@ -21,8 +21,7 @@ def main():
     print("   VIDEO AI ANALYSIS TEST")
     print("==============================")
 
-    detector = YOLODetector(
-        model_path="yolo26n.pt",
+    detector = TraceXVisionDetector(
         confidence=0.35,
     )
 

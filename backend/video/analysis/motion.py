@@ -24,7 +24,7 @@ class MotionEvent:
 
 
 class DVRScanMotionDetector:
-    """OpenCV MOG2 background-subtraction motion detector inspired by Breakthrough/DVR-Scan."""
+    """MOG2 background-subtraction motion detector inspired by DVR-Scan."""
 
     def __init__(
         self,

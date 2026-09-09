@@ -38,8 +38,8 @@ def test_cli_analyze_with_dd_image():
     assert "hikvision" in result.stdout.lower()
 
 
-def test_opencv_dvrscan_motion_detector():
-    """Test DVRScanMotionDetector OpenCV MOG2 background subtraction."""
+def test_dvrscan_motion_detector():
+    """Test DVRScanMotionDetector MOG2 background subtraction."""
     detector = DVRScanMotionDetector(history=10, var_threshold=16.0)
 
     # Frame 1: solid black background
@@ -60,7 +60,7 @@ def test_opencv_dvrscan_motion_detector():
 
 
 def test_detect_motion_with_frames():
-    """Test detect_motion pipeline with OpenCV MOG2."""
+    """Test detect_motion pipeline with MOG2."""
     frames = [
         FrameSample(frame_number=0, timestamp_seconds=0.0, image=np.zeros((100, 100, 3), dtype=np.uint8)),
         FrameSample(frame_number=1, timestamp_seconds=1.0, image=np.zeros((100, 100, 3), dtype=np.uint8)),

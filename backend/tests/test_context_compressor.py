@@ -110,7 +110,7 @@ def test_build_compact_forensic_context_budget_and_relevance():
             start_time=base_time,
             end_time=base_time + timedelta(seconds=100),
             headline="Surveillance Scene: 1 Person, 1 Vehicle",
-            summary="OpenCV forensic reconstruction tracked 2 active entities.",
+            summary="TraceX forensic reconstruction tracked 2 active entities.",
             key_events=["Person loitered for 10s", "Vehicle transited Northbound"],
         )
     ]

@@ -4,12 +4,12 @@ from datetime import datetime, timezone, timedelta
 import numpy as np
 import pytest
 
-from backend.ai.detectors.opencv_forensic_detector import (
-    OpenCVForensicDetector,
-    OpenCVForensicDetection,
+from backend.ai.detectors.tracex_forensic_detector import (
+    TraceXForensicDetector,
+    TraceXForensicDetection,
 )
-from backend.video.reconstruction.opencv_reconstructor import (
-    OpenCVForensicReconstructor,
+from backend.video.reconstruction.tracex_reconstructor import (
+    TraceXForensicReconstructor,
     _direction_from_vector,
 )
 from backend.video.analysis.models import Detection, VideoEvent
@@ -34,13 +34,13 @@ def test_direction_from_vector():
     assert _direction_from_vector(50.0, -50.0) == "North-East (↗)"
 
 
-def test_opencv_tracker_moving_vehicle():
-    """Verify OpenCVForensicDetector tracks moving vehicle across frames and estimates velocity."""
-    detector = OpenCVForensicDetector()
+def test_tracex_tracker_moving_vehicle():
+    """Verify TraceXForensicDetector tracks moving vehicle across frames and estimates velocity."""
+    detector = TraceXForensicDetector()
     detector.reset_tracks()
 
     # Frame 1: Vehicle at (100, 200, 300, 300) -> center (200, 250)
-    det1 = OpenCVForensicDetection(
+    det1 = TraceXForensicDetection(
         class_name="vehicle",
         confidence=0.85,
         bbox=(100.0, 200.0, 300.0, 300.0),
@@ -52,7 +52,7 @@ def test_opencv_tracker_moving_vehicle():
     assert res1[0].velocity == (0.0, 0.0)
 
     # Frame 2 (0.5s later): Vehicle moved right by 100px -> center (300, 250)
-    det2 = OpenCVForensicDetection(
+    det2 = TraceXForensicDetection(
         class_name="vehicle",
         confidence=0.88,
         bbox=(200.0, 200.0, 400.0, 300.0),
@@ -66,8 +66,8 @@ def test_opencv_tracker_moving_vehicle():
 
 
 def test_reconstructor_velocity_and_heading():
-    """Verify OpenCVForensicReconstructor calculates speed and direction from tracked detections."""
-    reconstructor = OpenCVForensicReconstructor()
+    """Verify TraceXForensicReconstructor calculates speed and direction from tracked detections."""
+    reconstructor = TraceXForensicReconstructor()
     base_time = datetime(2026, 9, 4, 12, 0, 0, tzinfo=timezone.utc)
 
     # Simulate 3 observations of a moving car moving Eastbound
@@ -117,7 +117,7 @@ def test_event_builder_and_context_compressor():
             confidence=0.85,
             bbox=(100.0, 200.0, 300.0, 300.0),
             track_id=42,
-            metadata={"source": "opencv", "velocity": (0.0, 0.0)},
+            metadata={"source": "tracex", "velocity": (0.0, 0.0)},
         ),
         Detection(
             video_id="vid1",
@@ -128,7 +128,7 @@ def test_event_builder_and_context_compressor():
             confidence=0.90,
             bbox=(250.0, 200.0, 450.0, 300.0),
             track_id=42,
-            metadata={"source": "opencv", "velocity": (300.0, 0.0)},
+            metadata={"source": "tracex", "velocity": (300.0, 0.0)},
         ),
     ]
 
@@ -157,7 +157,7 @@ def test_event_builder_and_context_compressor():
 
 def test_robbery_and_theft_reconstruction_rules():
     """Verify robbery, theft, fleeing, and suspect-vehicle coordination events."""
-    reconstructor = OpenCVForensicReconstructor()
+    reconstructor = TraceXForensicReconstructor()
     base_time = datetime(2026, 9, 4, 23, 30, 0, tzinfo=timezone.utc)  # Off-hours (11:30 PM)
 
     class MockDet:
@@ -209,7 +209,7 @@ def test_robbery_and_theft_reconstruction_rules():
 
 def test_vehicle_collision_and_crash_detection():
     """Verify detection of vehicle-to-vehicle physical impact and collision."""
-    reconstructor = OpenCVForensicReconstructor()
+    reconstructor = TraceXForensicReconstructor()
     base_time = datetime(2026, 9, 4, 14, 0, 0, tzinfo=timezone.utc)
 
     class MockDet:

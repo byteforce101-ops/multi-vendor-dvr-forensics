@@ -34,7 +34,7 @@ def print_pipeline_architecture_banner(
     duration_sec: float = 0.0,
     resolution: str = "N/A",
     fps: float | str = "N/A",
-    detector_engine: str = "Pure OpenCV (HOG + Morphometrics)",
+    detector_engine: str = "TraceX Forensic Vision (HOG + Morphometrics)",
 ) -> None:
     """Displays the 4-phase forensic pipeline architecture and evidence profile."""
     section_header(console, "TraceX Forensic Pipeline Architecture & Evidence Profile")

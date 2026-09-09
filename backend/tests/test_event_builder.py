@@ -70,7 +70,7 @@ def main():
             bbox=bbox,
             track_id=item.get("track_id"),
             metadata={
-                "source": "opencv",
+                "source": "tracex",
             },
         )
 

@@ -1,5 +1,10 @@
+import logging
+import os
 import sys
 from typing import Optional
+
+os.environ["OPENCV_LOG_LEVEL"] = "OFF"
+os.environ["OPENCV_VIDEOIO_DEBUG"] = "0"
 
 if sys.platform == "win32":
     try:
@@ -7,6 +12,21 @@ if sys.platform == "win32":
         sys.stderr.reconfigure(encoding="utf-8", errors="replace")
     except Exception:
         pass
+
+try:
+    import cv2
+    if hasattr(cv2, "utils") and hasattr(cv2.utils, "logging"):
+        cv2.utils.logging.setLogLevel(cv2.utils.logging.LOG_LEVEL_SILENT)
+except Exception:
+    pass
+
+class _TraceXLogFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        msg = record.getMessage().lower()
+        return not ("gmc failed" in msg or "opencv" in msg)
+
+logging.getLogger().addFilter(_TraceXLogFilter())
+logging.getLogger("ultralytics").addFilter(_TraceXLogFilter())
 
 import typer
 

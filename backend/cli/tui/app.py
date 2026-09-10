@@ -18,12 +18,31 @@ Clean, uncluttered, highly readable 50/50 split forensic workspace:
 
 from __future__ import annotations
 
+import logging
 import math
 import os
 import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+os.environ["OPENCV_LOG_LEVEL"] = "OFF"
+os.environ["OPENCV_VIDEOIO_DEBUG"] = "0"
+
+try:
+    import cv2
+    if hasattr(cv2, "utils") and hasattr(cv2.utils, "logging"):
+        cv2.utils.logging.setLogLevel(cv2.utils.logging.LOG_LEVEL_SILENT)
+except Exception:
+    pass
+
+class _TraceXLogFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        msg = record.getMessage().lower()
+        return not ("gmc failed" in msg or "opencv" in msg)
+
+logging.getLogger().addFilter(_TraceXLogFilter())
+logging.getLogger("ultralytics").addFilter(_TraceXLogFilter())
 
 from rich.text import Text
 from textual import work

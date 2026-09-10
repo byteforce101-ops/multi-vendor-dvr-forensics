@@ -10,10 +10,37 @@ for forensic investigations.
 
 from __future__ import annotations
 
+import logging
 import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
+
+# Suppress raw low-level logging from OpenCV and video modules
+os.environ["OPENCV_LOG_LEVEL"] = "OFF"
+os.environ["OPENCV_VIDEOIO_DEBUG"] = "0"
+
+try:
+    import cv2
+    if hasattr(cv2, "utils") and hasattr(cv2.utils, "logging"):
+        cv2.utils.logging.setLogLevel(cv2.utils.logging.LOG_LEVEL_SILENT)
+except Exception:
+    pass
+
+
+class _TraceXLogFilter(logging.Filter):
+    """Filter out third-party warnings mentioning OpenCV or GMC."""
+    def filter(self, record: logging.LogRecord) -> bool:
+        msg = record.getMessage().lower()
+        if "gmc failed" in msg or "opencv" in msg:
+            return False
+        return True
+
+
+# Apply filter to root logger and ultralytics logger
+_log_filter = _TraceXLogFilter()
+logging.getLogger().addFilter(_log_filter)
+logging.getLogger("ultralytics").addFilter(_log_filter)
 
 try:
     _ultra_mod = __import__("ultralytics")
@@ -114,7 +141,7 @@ class TraceXVisionDetector:
     # =========================================================
 
     def track(self, frame) -> list[TraceXVisionDetection]:
-        """Run persistent multi-frame tracking."""
+        """Run persistent multi-frame tracking using deterministic ByteTrack without GMC optical flow."""
         if self.model is None:
             return []
 
@@ -125,6 +152,7 @@ class TraceXVisionDetector:
             device=self.device,
             persist=True,
             verbose=False,
+            tracker="bytetrack.yaml",
         )
 
         return self._parse_results(results)

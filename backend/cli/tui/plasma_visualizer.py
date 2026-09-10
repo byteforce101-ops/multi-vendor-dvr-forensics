@@ -193,9 +193,6 @@ class GenerativePatternEngine:
             for _ in range(40)
         ]
 
-        # Initialize to idle stage
-        self.set_process_stage("idle")
-
     @property
     def current_pattern_name(self) -> str:
         return PATTERNS[self.pattern_index % len(PATTERNS)][0]
@@ -492,9 +489,17 @@ class LivePlasmaWidget(Static):
     def next_pattern(self) -> None:
         """Switch to next generative pattern when prompted by user."""
         self.engine.next_pattern()
-        self.update(self.engine.render_frame())
+        if self.is_mounted:
+            try:
+                self.update(self.engine.render_frame())
+            except Exception:
+                pass
 
     def set_process_stage(self, stage: str, custom_label: str | None = None) -> None:
         """Update visualizer animation pattern, speed, and status in sync with current process."""
         self.engine.set_process_stage(stage, custom_label)
-        self.update(self.engine.render_frame())
+        if self.is_mounted:
+            try:
+                self.update(self.engine.render_frame())
+            except Exception:
+                pass

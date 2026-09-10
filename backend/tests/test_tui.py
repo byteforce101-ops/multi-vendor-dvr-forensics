@@ -171,10 +171,10 @@ def test_plasma_process_phase_synchronization():
 
     engine = GenerativePatternEngine(width=34, height=11)
     assert engine.current_stage == "idle"
-    assert engine.current_pattern_name == "Pulse"
+    assert engine.current_pattern_name == "Checkerboard"
 
     # Transition through pipeline stages
-    for stage in ["detect", "parse", "extract", "vision", "integrity", "reconstruct", "query", "complete"]:
+    for stage in ["idle", "detect", "parse", "extract", "vision", "integrity", "reconstruct", "query", "complete"]:
         engine.set_process_stage(stage)
         assert engine.current_stage == stage
         phase = PROCESS_PHASES[stage]

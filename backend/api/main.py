@@ -329,9 +329,21 @@ def _probe_uploaded_video(video_path: Path) -> dict:
 
 def _normalize_uploaded_video(source_path: Path, output_path: Path) -> dict:
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    completed = _run_video_command(["ffmpeg", "-y", "-i", str(source_path), "-map", "0:v:0", "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-map", "0:a:0?", "-c:a", "aac", "-b:a", "192k", str(output_path)], 1800)
-    if completed.returncode != 0:
-        raise RuntimeError("Video normalization failed: " + (completed.stderr.strip() or "FFmpeg failed to create the MP4."))
+    completed = _run_video_command([
+        "ffmpeg", "-y", "-fflags", "+genpts", "-i", str(source_path),
+        "-map", "0:v:0", "-c:v", "libx264", "-preset", "veryfast", "-crf", "18",
+        "-pix_fmt", "yuv420p", "-movflags", "+faststart",
+        "-map", "0:a:0?", "-c:a", "aac", "-b:a", "192k",
+        str(output_path)
+    ], 1800)
+    if completed.returncode != 0 or not output_path.is_file() or output_path.stat().st_size <= 0:
+        # Fallback simple transcode without strict stream mapping
+        completed = _run_video_command([
+            "ffmpeg", "-y", "-fflags", "+genpts", "-i", str(source_path),
+            "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
+            "-pix_fmt", "yuv420p", "-movflags", "+faststart",
+            str(output_path)
+        ], 1800)
     if not output_path.is_file() or output_path.stat().st_size <= 0:
         raise RuntimeError("FFmpeg did not create a valid normalized MP4.")
     return _probe_uploaded_video(output_path)
@@ -1108,7 +1120,8 @@ async def analyze_video(file: UploadFile = File(...), user: AuthenticatedUser | 
     if not file.filename:
         raise HTTPException(status_code=400, detail="No filename supplied")
     analysis_id = str(uuid.uuid4())
-    directory = Path("backend") / "storage" / "video_analysis" / analysis_id
+    settings = get_settings()
+    directory = settings.working_copy_root / "video_analysis" / analysis_id
     directory.mkdir(parents=True, exist_ok=True)
     original_name = Path(file.filename).name
     extension = Path(original_name).suffix.lower() or ".bin"
@@ -1577,26 +1590,52 @@ def query_video(payload: VideoQueryRequest):
 @app.get("/video/{analysis_id}/stream")
 def stream_analysis_video(analysis_id: str):
     """Stream normalized or extracted MP4 video for frontend preview and playback."""
-    base_dir = Path("backend") / "storage" / "video_analysis" / analysis_id
-    if not base_dir.is_dir():
+    settings = get_settings()
+    candidate_dirs = [
+        settings.working_copy_root / "video_analysis" / analysis_id,
+        Path("backend/storage/working_copies/video_analysis") / analysis_id,
+        Path("backend/storage/video_analysis") / analysis_id,
+        settings.extracted_media_root / analysis_id,
+        settings.extracted_media_root / "video_analysis" / analysis_id,
+    ]
+    base_dir = None
+    for d in candidate_dirs:
+        if d.is_dir():
+            base_dir = d
+            break
+
+    if not base_dir:
         raise HTTPException(status_code=404, detail="Analysis session not found")
 
     normalized = base_dir / "normalized.mp4"
     if normalized.is_file() and normalized.stat().st_size > 0:
-        return FileResponse(str(normalized), media_type="video/mp4")
+        return FileResponse(str(normalized), media_type="video/mp4", headers={"Accept-Ranges": "bytes"})
 
     # Check extracted directory
     extracted_dir = base_dir / "extracted"
+    raw_video = None
     if extracted_dir.is_dir():
-        for ext in ("*.mp4", "*.h264", "*.avi", "*.mov", "*.mkv"):
+        for ext in ("*.mp4", "*.h264", "*.avi", "*.mov", "*.mkv", "*.ps", "*.ts", "*.264"):
             matches = list(extracted_dir.glob(ext))
-            if matches and matches[0].is_file():
-                return FileResponse(str(matches[0]), media_type="video/mp4")
+            if matches and matches[0].is_file() and matches[0].stat().st_size > 0:
+                raw_video = matches[0]
+                break
 
-    # Check original if it's a standard web-compatible format
-    for ext in ("original.mp4", "original.mov", "original.m4v"):
-        orig = base_dir / ext
-        if orig.is_file() and orig.stat().st_size > 0:
-            return FileResponse(str(orig), media_type="video/mp4")
+    if not raw_video:
+        # Check original video
+        for ext in ("original.mp4", "original.mov", "original.m4v", "original.webm", "original.avi"):
+            orig = base_dir / ext
+            if orig.is_file() and orig.stat().st_size > 0:
+                raw_video = orig
+                break
+
+    if raw_video:
+        try:
+            _normalize_uploaded_video(raw_video, normalized)
+            if normalized.is_file() and normalized.stat().st_size > 0:
+                return FileResponse(str(normalized), media_type="video/mp4", headers={"Accept-Ranges": "bytes"})
+        except Exception:
+            pass
+        return FileResponse(str(raw_video), media_type="video/mp4", headers={"Accept-Ranges": "bytes"})
 
     raise HTTPException(status_code=404, detail="No streamable video found for this analysis")

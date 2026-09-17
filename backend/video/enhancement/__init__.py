@@ -2,6 +2,7 @@
 
 from backend.video.enhancement.preprocessor import (
     enhance_surveillance_frame,
+    enhance_video_file,
     apply_clahe,
     auto_gamma_correction,
     unsharp_mask,
@@ -9,7 +10,9 @@ from backend.video.enhancement.preprocessor import (
 
 __all__ = [
     "enhance_surveillance_frame",
+    "enhance_video_file",
     "apply_clahe",
     "auto_gamma_correction",
     "unsharp_mask",
 ]
+

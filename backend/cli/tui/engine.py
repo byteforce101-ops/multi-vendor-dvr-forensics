@@ -138,7 +138,9 @@ class TraceXPipelineEngine:
         # =====================================================
         _emit_progress(f"Step 2 / 4 — Parsing evidence ({parser.vendor_name})...", stage="parse")
 
-        out_dir = Path("./tracex_output") / path.stem
+        from backend.config.settings import get_settings
+        settings = get_settings()
+        out_dir = settings.extracted_media_root / path.stem
         out_dir.mkdir(parents=True, exist_ok=True)
 
         parse_result = manager.parse(str(path), str(out_dir))

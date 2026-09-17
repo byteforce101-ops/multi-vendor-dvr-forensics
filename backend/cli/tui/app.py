@@ -61,25 +61,25 @@ from backend.cli.tui.engine import (
 
 from backend.cli.tui.plasma_visualizer import LivePlasmaWidget
 
-# Original TraceX ASCII logo from attached specification
-ORIGINAL_ASCII_LOGO = r"""        .                                                                   
-      -===-=-                .                                              
-    :=::=+**++-:             +                                              
-    =+==----=*==-.           +                                              
-    :---.=--=:=:===.         +    *@@@@@@@@=:@@@@@@@@=    #@@@=    *@@@@@@%. #@@@@@@@+.%@%. #@@:
-    ===+=::===:-*++          +       =@@-   :@@+   #@@.  *@%-@@-  #@@.   *#+ #@@.       *@@@@#  
-    .==+*+:=:-=+.+=-.        +       =@@-   :@@@@@@@#   -@@=:%@@. %@@        #@@%%%%:   :@@@@-  
-     .-=:=+--+-==+++-.       +       =@@-   :@@+  =@@* -@@@@@@@@%.=@@#=-#@@+ #@@*++++- +@@+=@@# 
-      --+=-=+*-=.---=-       +       -%%-   :%%=   -%%=%%*    .%%*  -%@@%+   *%%%%%%%+%%%:  .%%%.
-       .+-++*=-:=:-::        +                                              
-         .====--:..          +                                              
-           . :.:."""
+# Original TraceX ASCII logo from attached specification (Flush Left)
+ORIGINAL_ASCII_LOGO = r"""    .                                                                   
+  -===-=-                .                                              
+:=::=+**++-:             +                                              
+=+==----=*==-.           +                                              
+:---.=--=:=:===.         +    *@@@@@@@@=:@@@@@@@@=    #@@@=    *@@@@@@%. #@@@@@@@+.%@%. #@@:
+===+=::===:-*++          +       =@@-   :@@+   #@@.  *@%-@@-  #@@.   *#+ #@@.       *@@@@#  
+.==+*+:=:-=+.+=-.        +       =@@-   :@@@@@@@#   -@@=:%@@. %@@        #@@%%%%:   :@@@@-  
+ .-=:=+--+-==+++-.       +       =@@-   :@@+  =@@* -@@@@@@@@%.=@@#=-#@@+ #@@*++++- +@@+=@@# 
+  --+=-=+*-=.---=-       +       -%%-   :%%=   -%%=%%*    .%%*  -%@@%+   *%%%%%%%+%%%:  .%%%.
+   .+-++*=-:=:-::        +                                              
+     .====--:..          +                                              
+       . :.:."""
 
-COMPACT_LOGO = r"""  ██████ ██████   █████   ██████ ███████ ██   ██
-    ██   ██   ██ ██   ██ ██      ██       ██ ██ 
-    ██   ██████  ███████ ██      █████     ███  
-    ██   ██   ██ ██   ██ ██      ██       ██ ██ 
-    ██   ██   ██ ██   ██  ██████ ███████ ██   ██"""
+COMPACT_LOGO = r"""██████ ██████   █████   ██████ ███████ ██   ██
+  ██   ██   ██ ██   ██ ██      ██       ██ ██ 
+  ██   ██████  ███████ ██      █████     ███  
+  ██   ██   ██ ██   ██ ██      ██       ██ ██ 
+  ██   ██   ██ ██   ██  ██████ ███████ ██   ██"""
 
 
 def _rule(length: int = 50) -> str:
@@ -104,7 +104,7 @@ Screen {
     height: 13;
     layout: horizontal;
     align: left middle;
-    padding: 0 1;
+    padding: 0 1 0 0;
     margin-bottom: 0;
 }
 
@@ -113,6 +113,8 @@ Screen {
     height: 100%;
     color: #58a6ff;
     content-align: left middle;
+    padding: 0;
+    margin: 0;
 }
 
 #plasma-widget {
@@ -448,6 +450,12 @@ class TraceXApp(App):
         Binding("bracket_left", "video_seek_prev_second", "Rewind 1s", show=False),
         Binding("bracket_right", "video_seek_next_second", "Forward 1s", show=False),
         Binding("r", "video_restart", "Restart Video", show=False),
+        Binding("plus", "video_speed_up", "Speed Up", show=False),
+        Binding("equal", "video_speed_up", "Speed Up", show=False),
+        Binding("minus", "video_speed_down", "Speed Down", show=False),
+        Binding("greater_than", "video_speed_up", "Speed Up", show=False),
+        Binding("less_than", "video_speed_down", "Speed Down", show=False),
+        Binding("e", "video_toggle_enhance", "Toggle Enhancement", show=False),
         Binding("m", "video_toggle_mode", "Toggle Color Mode", show=False),
         Binding("p", "next_plasma_pattern", "Cycle Animation Pattern", show=False),
         Binding("escape", "clear_or_focus_search", "Clear / Focus", show=True),
@@ -509,7 +517,7 @@ class TraceXApp(App):
                     id="ascii-video-screen",
                 )
                 yield Static(
-                    "[bold dim]Controls: [SPACE] Play/Pause  [ [ / ] ] Seek 1s  [← / →] Step  [R] Restart  [M] Mode  [1-3,0] Switch Tabs[/bold dim]",
+                    "[bold dim]Controls: [SPACE] Play/Pause  [+/-] Speed  [E] Enhance  [M] Mode  [ [ / ] ] Seek 1s  [← / →] Step  [R] Restart  [1-3,0] Switch Tabs[/bold dim]",
                     id="ascii-video-status",
                 )
 
@@ -535,8 +543,8 @@ class TraceXApp(App):
         v_panel.border_title = "CARVED VIDEO (ASCII PLAYER)"
         self.query_one("#search-input", PasteableInput).focus()
 
-        # Start background 15 FPS playback ticker
-        self._playback_timer = self.set_interval(0.066, self._on_playback_tick)
+        # Start background 30 FPS playback ticker
+        self._playback_timer = self.set_interval(0.033, self._on_playback_tick)
 
         if self.default_file_path:
             inp = self.query_one("#search-input", PasteableInput)
@@ -697,11 +705,41 @@ class TraceXApp(App):
             self._render_video_frame()
 
     def action_video_toggle_mode(self) -> None:
-        """Toggle between TrueColor half-blocks and monochrome ASCII characters."""
+        """Cycle through available video playback rendering modes."""
         if self.playback_session is not None:
-            self.playback_session.color_mode = (
-                "ascii" if self.playback_session.color_mode == "half_blocks" else "half_blocks"
-            )
+            self.playback_session.cycle_mode()
+            self._render_video_frame()
+
+    def action_video_toggle_enhance(self) -> None:
+        """Toggle forensic CLAHE and unsharp enhancement."""
+        if self.playback_session is not None:
+            self.playback_session.toggle_enhancement()
+            self._render_video_frame()
+
+    def action_video_speed_up(self) -> None:
+        """Increase video playback speed."""
+        if self.playback_session is not None:
+            speeds = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 3.0]
+            curr = self.playback_session.playback_speed
+            for s in speeds:
+                if s > curr + 0.05:
+                    self.playback_session.playback_speed = s
+                    break
+            else:
+                self.playback_session.playback_speed = speeds[-1]
+            self._render_video_frame()
+
+    def action_video_speed_down(self) -> None:
+        """Decrease video playback speed."""
+        if self.playback_session is not None:
+            speeds = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 3.0]
+            curr = self.playback_session.playback_speed
+            for s in reversed(speeds):
+                if s < curr - 0.05:
+                    self.playback_session.playback_speed = s
+                    break
+            else:
+                self.playback_session.playback_speed = speeds[0]
             self._render_video_frame()
 
     def action_next_plasma_pattern(self) -> None:
@@ -715,7 +753,12 @@ class TraceXApp(App):
     def _on_playback_tick(self) -> None:
         """Timer callback advancing video playback when active."""
         if self.playback_session is not None and self.playback_session.is_playing:
-            self.playback_session.next_frame()
+            spd = self.playback_session.playback_speed
+            step = max(1, int(round(spd))) if spd >= 2.0 else 1
+            if step > 1:
+                self.playback_session.read_frame(self.playback_session.current_frame_idx + step)
+            else:
+                self.playback_session.next_frame()
             if self.view_mode in ("video", "split"):
                 self._render_video_frame()
 
@@ -737,7 +780,7 @@ class TraceXApp(App):
             status_line = self.playback_session.get_status_line()
             status_widget.update(
                 f"[bold bright_cyan]{status_line}[/bold bright_cyan]\n"
-                f"[dim]Controls: [SPACE] Play/Pause  [ [ / ] ] Seek 1s  [← / →] Step  [R] Restart  [M] Mode  [1-3,0] Switch Tabs[/dim]"
+                f"[dim]Controls: [SPACE] Play/Pause  [+/-] Speed ({self.playback_session.playback_speed:.2f}x)  [E] Enhance  [M] Mode  [ [ / ] ] Seek 1s  [← / →] Step  [R] Restart[/dim]"
             )
         except Exception as exc:
             logger.debug(f"Render ASCII frame notice: {exc}")

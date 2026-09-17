@@ -412,6 +412,13 @@ main { padding:30px; max-width:1660px; margin:0 auto; }.page-title { display:fle
   opacity: 0.8;
 }
 
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+
 /* ==========================================================================
    ENHANCED FORENSIC WORKSTATION BUTTON DESIGN SYSTEM
    Visual Identity: Deep Royal Indigo / Midnight Navy to Violet with Neon Cyan/Teal Accents

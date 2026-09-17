@@ -1,15 +1,20 @@
-backend/storage/original/*
+backend/storage/*
+!backend/storage/.gitkeep
 !backend/storage/original/.gitkeep
-backend/storage/working_copies/*
 !backend/storage/working_copies/.gitkeep
-backend/storage/extracted/*
 !backend/storage/extracted/.gitkeep
 backend/forensics.db
 .env
+.env.local
 __pycache__/
 *.pyc
 node_modules/
 output/
+test_output/
+tracex_output/
+tmp/
+tmp_out/
 .venv/
 .venv-wsl/
+
 

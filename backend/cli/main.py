@@ -33,6 +33,7 @@ import typer
 from backend.cli import interactive
 from backend.cli.commands import case, detect, evidence
 from backend.cli.commands.analyze import analyze
+from backend.cli.commands.enhance import enhance_cmd
 from backend.cli.commands.extract import extract_evidence
 from backend.cli.commands.parse import parse_evidence
 from backend.cli.commands.search import search
@@ -174,6 +175,13 @@ app.command(
     help="Run video analysis, AI event reconstruction and forensic summary.",
 )(
     analyze
+)
+
+app.command(
+    "enhance",
+    help="Enhance low-light, grainy, or low-contrast video footage using TraceX Forensic Enhancement.",
+)(
+    enhance_cmd
 )
 
 app.command(

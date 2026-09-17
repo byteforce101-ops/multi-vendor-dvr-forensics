@@ -140,6 +140,90 @@ function formatSeconds(secs: number): string {
   return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
 }
 
+function getEventTimestampSeconds(
+  item: any,
+  baseTimeStr?: string | null,
+  fps: number = 25,
+  maxDuration: number = 60
+): number {
+  if (!item) return 0;
+
+  // 1. Direct seconds properties
+  if (typeof item.start_seconds === 'number' && !isNaN(item.start_seconds) && item.start_seconds >= 0) {
+    return Math.min(maxDuration, item.start_seconds);
+  }
+  if (typeof item.timestamp_seconds === 'number' && !isNaN(item.timestamp_seconds) && item.timestamp_seconds >= 0) {
+    return Math.min(maxDuration, item.timestamp_seconds);
+  }
+  if (typeof item.seconds === 'number' && !isNaN(item.seconds) && item.seconds >= 0) {
+    return Math.min(maxDuration, item.seconds);
+  }
+
+  // 2. Metadata first_frame / frame_idx / start_seconds
+  if (item.metadata && typeof item.metadata === 'object') {
+    if (typeof item.metadata.start_seconds === 'number' && !isNaN(item.metadata.start_seconds) && item.metadata.start_seconds >= 0) {
+      return Math.min(maxDuration, item.metadata.start_seconds);
+    }
+    const frame = item.metadata.first_frame ?? item.metadata.frame_idx ?? item.metadata.frame_number ?? item.metadata.frame;
+    if (typeof frame === 'number' && !isNaN(frame) && fps > 0 && frame >= 0) {
+      return Math.min(maxDuration, frame / fps);
+    }
+  }
+
+  // 3. String / ISO timestamps (disappearance_time, start_time, first_seen, last_seen)
+  const timeStr =
+    item.disappearance_time ||
+    item.start_time ||
+    item.first_seen ||
+    item.last_seen ||
+    (typeof item === 'string' ? item : null);
+
+  if (timeStr && typeof timeStr === 'string') {
+    // A) Numeric string (e.g., "12.5")
+    const asNum = parseFloat(timeStr);
+    if (!isNaN(asNum) && !timeStr.includes(':') && !timeStr.includes('-') && !timeStr.includes('T')) {
+      return Math.min(maxDuration, Math.max(0, asNum));
+    }
+
+    // B) HH:MM:SS or MM:SS format without date
+    const timeRegex = /(?:(\d{1,2}):)?(\d{1,2}):(\d{1,2})(?:\.(\d+))?/;
+    if (!timeStr.includes('T') && !timeStr.includes('-')) {
+      const timeMatch = timeStr.match(timeRegex);
+      if (timeMatch) {
+        const h = timeMatch[1] ? parseInt(timeMatch[1], 10) : 0;
+        const m = parseInt(timeMatch[2], 10);
+        const s = parseInt(timeMatch[3], 10);
+        const ms = timeMatch[4] ? parseFloat('0.' + timeMatch[4]) : 0;
+        const total = h * 3600 + m * 60 + s + ms;
+        return Math.min(maxDuration, Math.max(0, total));
+      }
+    }
+
+    // C) ISO / Datetime strings (e.g. "2026-03-29T14:30:15.200Z")
+    try {
+      const parsedTime = new Date(timeStr).getTime();
+      if (!isNaN(parsedTime)) {
+        if (baseTimeStr) {
+          const baseTime = new Date(baseTimeStr).getTime();
+          if (!isNaN(baseTime)) {
+            const diffSec = (parsedTime - baseTime) / 1000;
+            if (diffSec >= 0 && diffSec <= maxDuration * 1.5) {
+              return Math.min(maxDuration, Math.max(0, diffSec));
+            }
+          }
+        }
+        // Fallback relative modulo if baseTime isn't aligned
+        const modSec = (parsedTime / 1000) % (maxDuration || 60);
+        return Math.max(0, Math.min(maxDuration, modSec));
+      }
+    } catch {
+      // fallback
+    }
+  }
+
+  return 0;
+}
+
 // ---------------------------------------------------------------------------
 // Reusable UI Components
 // ---------------------------------------------------------------------------
@@ -1684,8 +1768,28 @@ export default function App() {
 
   // TIMELINE COMPONENT
   const renderTimeline = ({ full = false }: { full?: boolean }) => {
-    const totalDuration = duration || 60;
+    const totalDuration = duration || analysisResult?.metadata?.duration_seconds || 60;
+    const fps = analysisResult?.metadata?.fps || 25;
+    const baseTimeStr =
+      analysisResult?.forensic_summary?.start_time ||
+      analysisResult?.events?.[0]?.start_time ||
+      null;
+
     const events = analysisResult?.events || [];
+    const reconstructed = analysisResult?.reconstructed_events || [];
+    const dispAnalysis = getDisappearanceAnalysis();
+    const disappearances = dispAnalysis?.disappearances || [];
+
+    const handleTrackClick = (e: React.MouseEvent<HTMLDivElement>) => {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const pct = Math.max(0, Math.min(1, clickX / rect.width));
+      const targetSec = pct * totalDuration;
+      seekVideo(targetSec);
+      if (view === 'Timeline') {
+        setView('Investigation Detail');
+      }
+    };
 
     return (
       <div className={`timeline-card panel ${full ? 'timeline-full' : ''}`}>
@@ -1698,7 +1802,10 @@ export default function App() {
             <Button
               variant="secondary"
               icon={RotateCcw}
-              onClick={() => seekVideo(0)}
+              onClick={() => {
+                seekVideo(0);
+                if (view === 'Timeline') setView('Investigation Detail');
+              }}
             >
               Reset 00:00
             </Button>
@@ -1726,20 +1833,32 @@ export default function App() {
           {/* Track 1: Detections & Objects */}
           <div className="track">
             <label>DETECTIONS</label>
-            <div className="track-line">
+            <div
+              className="track-line"
+              onClick={handleTrackClick}
+              style={{ cursor: 'pointer' }}
+              title="Click anywhere on track to seek timeline"
+            >
               <div
                 className="video-progress"
                 style={{ width: `${Math.min(100, (currentTime / totalDuration) * 100)}%` }}
               />
-              {events.slice(0, 25).map((ev, i) => {
-                const pos = ((i * 3.7 + 5) % 92).toFixed(1);
+              {events.map((ev, i) => {
+                const sec = getEventTimestampSeconds(ev, baseTimeStr, fps, totalDuration);
+                const pos = Math.max(0, Math.min(100, (sec / totalDuration) * 100)).toFixed(2);
                 return (
                   <button
                     key={i}
                     className="event-mark"
-                    style={{ left: `${pos}%` }}
-                    onClick={() => seekVideo((parseFloat(pos) / 100) * totalDuration)}
-                    title={`${ev.event_type} (${ev.object_type || 'target'})`}
+                    style={{ left: `${pos}%`, cursor: 'pointer', zIndex: 2 }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      seekVideo(sec);
+                      if (view === 'Timeline') {
+                        setView('Investigation Detail');
+                      }
+                    }}
+                    title={`Jump to ${formatSeconds(sec)}: ${ev.event_type} (${ev.object_type || 'target'}${ev.track_id != null ? ` #${ev.track_id}` : ''})`}
                   />
                 );
               })}
@@ -1749,7 +1868,12 @@ export default function App() {
           {/* Track 2: Motion / Incidents */}
           <div className="track">
             <label>INCIDENTS</label>
-            <div className="track-line">
+            <div
+              className="track-line"
+              onClick={handleTrackClick}
+              style={{ cursor: 'pointer' }}
+              title="Click anywhere on track to seek timeline"
+            >
               <div
                 className="video-progress"
                 style={{
@@ -1757,20 +1881,74 @@ export default function App() {
                   background: 'linear-gradient(90deg, #fed7aa, #f97316)',
                 }}
               />
-              {(analysisResult?.reconstructed_events || []).map((rev, i) => {
-                const pos = ((i * 18 + 12) % 88).toFixed(1);
+              {reconstructed.map((rev, i) => {
+                const sec = getEventTimestampSeconds(rev, baseTimeStr, fps, totalDuration);
+                const pos = Math.max(0, Math.min(100, (sec / totalDuration) * 100)).toFixed(2);
                 return (
                   <button
                     key={i}
                     className="event-mark mark-1"
-                    style={{ left: `${pos}%` }}
-                    onClick={() => seekVideo((parseFloat(pos) / 100) * totalDuration)}
-                    title={rev.title}
+                    style={{ left: `${pos}%`, cursor: 'pointer', zIndex: 2 }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      seekVideo(sec);
+                      if (view === 'Timeline') {
+                        setView('Investigation Detail');
+                      }
+                    }}
+                    title={`Jump to ${formatSeconds(sec)}: ${rev.title || rev.event_type || 'Incident'}`}
                   />
                 );
               })}
             </div>
           </div>
+
+          {/* Track 3: Disappearances */}
+          {disappearances.length > 0 && (
+            <div className="track">
+              <label>DISAPPEAR</label>
+              <div
+                className="track-line"
+                onClick={handleTrackClick}
+                style={{ cursor: 'pointer' }}
+                title="Click anywhere on track to seek timeline"
+              >
+                <div
+                  className="video-progress"
+                  style={{
+                    width: `${Math.min(100, (currentTime / totalDuration) * 100)}%`,
+                    background: 'linear-gradient(90deg, #fecdd3, #e11d48)',
+                  }}
+                />
+                {disappearances.map((d, i) => {
+                  const sec = getEventTimestampSeconds(d, baseTimeStr, fps, totalDuration);
+                  const pos = Math.max(0, Math.min(100, (sec / totalDuration) * 100)).toFixed(2);
+                  return (
+                    <button
+                      key={i}
+                      className="event-mark"
+                      style={{
+                        left: `${pos}%`,
+                        background: '#e11d48',
+                        borderColor: '#ffffff',
+                        boxShadow: '0 0 6px rgba(225,29,72,0.8)',
+                        cursor: 'pointer',
+                        zIndex: 2,
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        seekVideo(sec);
+                        if (view === 'Timeline') {
+                          setView('Investigation Detail');
+                        }
+                      }}
+                      title={`Jump to ${formatSeconds(sec)}: ${d.object_type} disappeared (Camera ${d.camera_id})`}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="timeline-footer">
@@ -1780,11 +1958,13 @@ export default function App() {
           <span>
             <i className="legend amber" /> Narrative Incidents
           </span>
-          <span>
-            <i className="legend coral" /> Disappearances
-          </span>
+          {disappearances.length > 0 && (
+            <span>
+              <i className="legend coral" style={{ background: '#e11d48' }} /> Disappearances
+            </span>
+          )}
           <span className="frame-readout">
-            Current: <b>{formatSeconds(currentTime)}</b> (Frame {Math.floor(currentTime * 25)})
+            Current: <b>{formatSeconds(currentTime)}</b> (Frame {Math.floor(currentTime * fps)})
           </span>
         </div>
       </div>
@@ -1793,6 +1973,13 @@ export default function App() {
 
   // TABBED SECTION BELOW SYNCHRONIZED ANALYSIS TIMELINE
   const renderTimelineTabsSection = () => {
+    const totalDuration = duration || analysisResult?.metadata?.duration_seconds || 60;
+    const fps = analysisResult?.metadata?.fps || 25;
+    const baseTimeStr =
+      analysisResult?.forensic_summary?.start_time ||
+      analysisResult?.events?.[0]?.start_time ||
+      null;
+
     const events = analysisResult?.events || [];
     const reconstructed = analysisResult?.reconstructed_events || [];
 
@@ -2049,32 +2236,29 @@ export default function App() {
 
                     {msg.events && msg.events.length > 0 && (
                       <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        {msg.events.map((ev, evIdx) => (
-                          <button
-                            key={evIdx}
-                            className="btn-chip"
-                            style={{
-                              fontSize: '10px',
-                              padding: '3px 10px',
-                              justifyContent: 'flex-start',
-                              height: '24px',
-                            }}
-                            onClick={() => {
-                              if (ev.start_time) {
-                                try {
-                                  const sec = (new Date(ev.start_time).getTime() / 1000) % (duration || 60);
-                                  seekVideo(sec);
-                                } catch {
-                                  seekVideo(evIdx * 2);
-                                }
-                              } else {
-                                seekVideo(evIdx * 2);
-                              }
-                            }}
-                          >
-                            Jump to {ev.event_type} ({ev.start_time || '00:00'})
-                          </button>
-                        ))}
+                        {msg.events.map((ev, evIdx) => {
+                          const evSec = getEventTimestampSeconds(ev, baseTimeStr, fps, totalDuration);
+                          return (
+                            <button
+                              key={evIdx}
+                              className="btn-chip"
+                              style={{
+                                fontSize: '10px',
+                                padding: '3px 10px',
+                                justifyContent: 'flex-start',
+                                height: '24px',
+                                cursor: 'pointer',
+                              }}
+                              onClick={() => {
+                                seekVideo(evSec);
+                                if (view === 'Timeline') setView('Investigation Detail');
+                              }}
+                              title={`Jump video to ${formatSeconds(evSec)}`}
+                            >
+                              Jump to {ev.event_type} ({formatSeconds(evSec)})
+                            </button>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
@@ -2137,38 +2321,42 @@ export default function App() {
                 </thead>
                 <tbody>
                   {events.length > 0 ? (
-                    events.slice(0, 30).map((ev, i) => (
-                      <tr key={i}>
-                        <td className="mono" style={{ color: '#0f766e', fontWeight: 600 }}>
-                          {ev.start_time ? new Date(ev.start_time).toISOString().slice(11, 23) : `00:00:${(i * 2).toString().padStart(2, '0')}.00`}
-                        </td>
-                        <td>
-                          <b>{ev.object_type || ev.event_type}</b>
-                        </td>
-                        <td className="mono">TRK-{ev.track_id ?? i + 101}</td>
-                        <td>{Math.round((ev.confidence || 0.85) * 100)}%</td>
-                        <td style={{ textAlign: 'right' }}>
-                          <Button
-                            variant="action"
-                            icon={Play}
-                            onClick={() => {
-                              if (ev.start_time) {
-                                try {
-                                  const sec = (new Date(ev.start_time).getTime() / 1000) % (duration || 60);
-                                  seekVideo(sec);
-                                } catch {
-                                  seekVideo((i * 1.8) % (duration || 60));
-                                }
-                              } else {
-                                seekVideo((i * 1.8) % (duration || 60));
-                              }
-                            }}
-                          >
-                            Seek
-                          </Button>
-                        </td>
-                      </tr>
-                    ))
+                    events.slice(0, 50).map((ev, i) => {
+                      const evSec = getEventTimestampSeconds(ev, baseTimeStr, fps, totalDuration);
+                      return (
+                        <tr
+                          key={i}
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => {
+                            seekVideo(evSec);
+                            if (view === 'Timeline') setView('Investigation Detail');
+                          }}
+                          title={`Click row to jump to ${formatSeconds(evSec)}`}
+                        >
+                          <td className="mono" style={{ color: '#0f766e', fontWeight: 600 }}>
+                            {formatSeconds(evSec)}
+                          </td>
+                          <td>
+                            <b>{ev.object_type || ev.event_type}</b>
+                          </td>
+                          <td className="mono">TRK-{ev.track_id ?? i + 101}</td>
+                          <td>{Math.round((ev.confidence || 0.85) * 100)}%</td>
+                          <td style={{ textAlign: 'right' }}>
+                            <Button
+                              variant="action"
+                              icon={Play}
+                              onClick={(e) => {
+                                e?.stopPropagation?.();
+                                seekVideo(evSec);
+                                if (view === 'Timeline') setView('Investigation Detail');
+                              }}
+                            >
+                              Seek
+                            </Button>
+                          </td>
+                        </tr>
+                      );
+                    })
                   ) : (
                     <tr>
                       <td colSpan={5} style={{ textAlign: 'center', color: '#94a3b8', padding: '20px' }}>
@@ -2184,39 +2372,50 @@ export default function App() {
           {timelineSubTab === 'incidents' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '280px', overflowY: 'auto' }}>
               {reconstructed.length > 0 ? (
-                reconstructed.map((rev, i) => (
-                  <div
-                    key={i}
-                    style={{
-                      padding: '10px 12px',
-                      border: '1px solid #e2e8f0',
-                      borderRadius: '6px',
-                      background: '#fff',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                    }}
-                  >
-                    <div>
-                      <b style={{ color: '#172554', fontSize: '12px' }}>{rev.title}</b>
-                      <p style={{ margin: '3px 0 0', color: '#64748b', fontSize: '11px' }}>{rev.description}</p>
-                    </div>
-                    <Button
-                      variant="secondary"
-                      icon={Play}
-                      onClick={() => {
-                        if (rev.start_time) {
-                          try {
-                            const sec = (new Date(rev.start_time).getTime() / 1000) % (duration || 60);
-                            seekVideo(sec);
-                          } catch {}
-                        }
+                reconstructed.map((rev, i) => {
+                  const revSec = getEventTimestampSeconds(rev, baseTimeStr, fps, totalDuration);
+                  return (
+                    <div
+                      key={i}
+                      style={{
+                        padding: '10px 12px',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '6px',
+                        background: '#fff',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        cursor: 'pointer',
                       }}
+                      onClick={() => {
+                        seekVideo(revSec);
+                        if (view === 'Timeline') setView('Investigation Detail');
+                      }}
+                      title={`Jump to ${formatSeconds(revSec)}: ${rev.title}`}
                     >
-                      Seek
-                    </Button>
-                  </div>
-                ))
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <b style={{ color: '#172554', fontSize: '12px' }}>{rev.title}</b>
+                          <span className="mono" style={{ fontSize: '10px', color: '#d97706', fontWeight: 600 }}>
+                            {formatSeconds(revSec)}
+                          </span>
+                        </div>
+                        <p style={{ margin: '3px 0 0', color: '#64748b', fontSize: '11px' }}>{rev.description}</p>
+                      </div>
+                      <Button
+                        variant="secondary"
+                        icon={Play}
+                        onClick={(e) => {
+                          e?.stopPropagation?.();
+                          seekVideo(revSec);
+                          if (view === 'Timeline') setView('Investigation Detail');
+                        }}
+                      >
+                        Seek
+                      </Button>
+                    </div>
+                  );
+                })
               ) : (
                 <div style={{ textAlign: 'center', color: '#94a3b8', padding: '20px' }}>
                   No reconstructed narrative incidents detected.
@@ -2285,86 +2484,105 @@ export default function App() {
                           </tr>
                         </thead>
                         <tbody>
-                          {disp.disappearances.map((cand, i) => (
-                            <tr key={i}>
-                              <td>
-                                <b style={{ textTransform: 'capitalize', color: '#0f172a' }}>{cand.object_type}</b>
-                              </td>
-                              <td className="mono" style={{ fontSize: '11px' }}>{cand.camera_id}</td>
-                              <td className="mono" style={{ fontSize: '11px' }}>
-                                {new Date(cand.first_seen).toISOString().slice(11, 19)}
-                              </td>
-                              <td className="mono" style={{ fontSize: '11px' }}>
-                                {new Date(cand.last_seen).toISOString().slice(11, 19)}
-                              </td>
-                              <td className="mono" style={{ fontSize: '11px', color: '#b91c1c', fontWeight: 700 }}>
-                                {new Date(cand.disappearance_time).toISOString().slice(11, 19)}
-                              </td>
-                              <td>
-                                <span className="hash-pill" style={{ fontSize: '10px', background: '#f1f5f9' }}>
-                                  {cand.observation_count} frames
-                                </span>
-                              </td>
-                              <td style={{ textAlign: 'right' }}>
-                                <Button
-                                  variant="action"
-                                  icon={Play}
-                                  onClick={() => {
-                                    try {
-                                      const sec = (new Date(cand.disappearance_time).getTime() / 1000) % (duration || 60);
-                                      seekVideo(sec);
-                                    } catch {}
-                                  }}
-                                >
-                                  Seek Point
-                                </Button>
-                              </td>
-                            </tr>
-                          ))}
+                          {disp.disappearances.map((cand, i) => {
+                            const candSec = getEventTimestampSeconds(cand, baseTimeStr, fps, totalDuration);
+                            return (
+                              <tr
+                                key={i}
+                                style={{ cursor: 'pointer' }}
+                                onClick={() => {
+                                  seekVideo(candSec);
+                                  if (view === 'Timeline') setView('Investigation Detail');
+                                }}
+                                title={`Click row to jump to disappearance at ${formatSeconds(candSec)}`}
+                              >
+                                <td>
+                                  <b style={{ textTransform: 'capitalize', color: '#0f172a' }}>{cand.object_type}</b>
+                                </td>
+                                <td className="mono" style={{ fontSize: '11px' }}>{cand.camera_id}</td>
+                                <td className="mono" style={{ fontSize: '11px' }}>
+                                  {new Date(cand.first_seen).toISOString().slice(11, 19)}
+                                </td>
+                                <td className="mono" style={{ fontSize: '11px' }}>
+                                  {new Date(cand.last_seen).toISOString().slice(11, 19)}
+                                </td>
+                                <td className="mono" style={{ fontSize: '11px', color: '#b91c1c', fontWeight: 700 }}>
+                                  {new Date(cand.disappearance_time).toISOString().slice(11, 19)}
+                                </td>
+                                <td>
+                                  <span className="hash-pill" style={{ fontSize: '10px', background: '#f1f5f9' }}>
+                                    {cand.observation_count} frames
+                                  </span>
+                                </td>
+                                <td style={{ textAlign: 'right' }}>
+                                  <Button
+                                    variant="action"
+                                    icon={Play}
+                                    onClick={(e) => {
+                                      e?.stopPropagation?.();
+                                      seekVideo(candSec);
+                                      if (view === 'Timeline') setView('Investigation Detail');
+                                    }}
+                                  >
+                                    Seek Point
+                                  </Button>
+                                </td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
 
                     {/* Candidate Panels matching CLI */}
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '10px' }}>
-                      {disp.disappearances.map((cand, idx) => (
-                        <div
-                          key={idx}
-                          style={{
-                            padding: '12px',
-                            borderRadius: '6px',
-                            background: '#fffbeb',
-                            border: '1px solid #fde68a',
-                          }}
-                        >
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                            <span style={{ fontSize: '11px', fontWeight: 700, color: '#92400e' }}>
-                              OBJECT DISAPPEARANCE #{idx + 1}
-                            </span>
-                            <span className="hash-pill" style={{ background: '#fef08a', color: '#713f12', border: '1px solid #facc15' }}>
-                              {cand.object_type}
-                            </span>
-                          </div>
-                          <div style={{ fontSize: '11px', lineHeight: 1.5, color: '#451a03' }}>
-                            <div><b>Camera:</b> {cand.camera_id}</div>
-                            <div><b>First Seen:</b> <span className="mono">{new Date(cand.first_seen).toISOString().slice(11, 19)}</span></div>
-                            <div><b>Last Seen:</b> <span className="mono">{new Date(cand.last_seen).toISOString().slice(11, 19)}</span></div>
-                            <div><b>No Longer Seen:</b> <span className="mono" style={{ color: '#b91c1c', fontWeight: 700 }}>{new Date(cand.disappearance_time).toISOString().slice(11, 19)}</span></div>
-                          </div>
-                          {cand.related_activity && cand.related_activity.length > 0 && (
-                            <div style={{ marginTop: '6px', paddingTop: '6px', borderTop: '1px solid #fef3c7' }}>
-                              <small style={{ fontWeight: 700, color: '#78350f', display: 'block', marginBottom: '2px' }}>
-                                Related activity after disappearance:
-                              </small>
-                              {cand.related_activity.map((act, actIdx) => (
-                                <div key={actIdx} style={{ fontSize: '10px', color: '#57534e' }}>
-                                  • {act}
-                                </div>
-                              ))}
+                      {disp.disappearances.map((cand, idx) => {
+                        const candSec = getEventTimestampSeconds(cand, baseTimeStr, fps, totalDuration);
+                        return (
+                          <div
+                            key={idx}
+                            style={{
+                              padding: '12px',
+                              borderRadius: '6px',
+                              background: '#fffbeb',
+                              border: '1px solid #fde68a',
+                              cursor: 'pointer',
+                            }}
+                            onClick={() => {
+                              seekVideo(candSec);
+                              if (view === 'Timeline') setView('Investigation Detail');
+                            }}
+                            title={`Click card to jump to ${formatSeconds(candSec)}`}
+                          >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                              <span style={{ fontSize: '11px', fontWeight: 700, color: '#92400e' }}>
+                                OBJECT DISAPPEARANCE #{idx + 1} ({formatSeconds(candSec)})
+                              </span>
+                              <span className="hash-pill" style={{ background: '#fef08a', color: '#713f12', border: '1px solid #facc15' }}>
+                                {cand.object_type}
+                              </span>
                             </div>
-                          )}
-                        </div>
-                      ))}
+                            <div style={{ fontSize: '11px', lineHeight: 1.5, color: '#451a03' }}>
+                              <div><b>Camera:</b> {cand.camera_id}</div>
+                              <div><b>First Seen:</b> <span className="mono">{new Date(cand.first_seen).toISOString().slice(11, 19)}</span></div>
+                              <div><b>Last Seen:</b> <span className="mono">{new Date(cand.last_seen).toISOString().slice(11, 19)}</span></div>
+                              <div><b>No Longer Seen:</b> <span className="mono" style={{ color: '#b91c1c', fontWeight: 700 }}>{new Date(cand.disappearance_time).toISOString().slice(11, 19)}</span></div>
+                            </div>
+                            {cand.related_activity && cand.related_activity.length > 0 && (
+                              <div style={{ marginTop: '6px', paddingTop: '6px', borderTop: '1px solid #fef3c7' }}>
+                                <small style={{ fontWeight: 700, color: '#78350f', display: 'block', marginBottom: '2px' }}>
+                                  Related activity after disappearance:
+                                </small>
+                                {cand.related_activity.map((act, actIdx) => (
+                                  <div key={actIdx} style={{ fontSize: '10px', color: '#57534e' }}>
+                                    • {act}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </>
                 ) : (
@@ -2479,40 +2697,45 @@ export default function App() {
                     KEY FORENSIC EVENTS ({analysisResult.reconstruction_count || 0})
                   </p>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '180px', overflowY: 'auto' }}>
-                    {(analysisResult.reconstructed_events || []).slice(0, 5).map((rev, i) => (
-                      <div
-                        key={i}
-                        style={{
-                          padding: '8px 10px',
-                          border: '1px solid #e2e8f0',
-                          borderRadius: '4px',
-                          background: '#fff',
-                          cursor: 'pointer',
-                        }}
-                        onClick={() => {
-                          if (rev.start_time) {
-                            try {
-                              const sec = (new Date(rev.start_time).getTime() / 1000) % (duration || 60);
-                              seekVideo(sec);
-                            } catch {}
-                          }
-                        }}
-                      >
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <b style={{ fontSize: '11px', color: '#172554' }}>{rev.title}</b>
-                          <span style={{ fontSize: '9px', color: '#047857' }}>
-                            {Math.round((rev.confidence || 0.85) * 100)}%
-                          </span>
+                    {(analysisResult.reconstructed_events || []).slice(0, 5).map((rev, i) => {
+                      const revSec = getEventTimestampSeconds(
+                        rev,
+                        analysisResult?.forensic_summary?.start_time || analysisResult?.events?.[0]?.start_time,
+                        analysisResult?.metadata?.fps || 25,
+                        duration || analysisResult?.metadata?.duration_seconds || 60
+                      );
+                      return (
+                        <div
+                          key={i}
+                          style={{
+                            padding: '8px 10px',
+                            border: '1px solid #e2e8f0',
+                            borderRadius: '4px',
+                            background: '#fff',
+                            cursor: 'pointer',
+                          }}
+                          onClick={() => seekVideo(revSec)}
+                          title={`Jump to ${formatSeconds(revSec)}: ${rev.title}`}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <b style={{ fontSize: '11px', color: '#172554' }}>{rev.title}</b>
+                            <span style={{ fontSize: '9px', color: '#047857' }}>
+                              {Math.round((rev.confidence || 0.85) * 100)}%
+                            </span>
+                          </div>
+                          <small style={{ color: '#64748b', fontSize: '10px' }}>{rev.description}</small>
                         </div>
-                        <small style={{ color: '#64748b', fontSize: '10px' }}>{rev.description}</small>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
 
                 {/* Object Disappearances Context */}
                 {(() => {
                   const disp = getDisappearanceAnalysis();
+                  const baseTimeStr = analysisResult?.forensic_summary?.start_time || analysisResult?.events?.[0]?.start_time;
+                  const fps = analysisResult?.metadata?.fps || 25;
+                  const totalDur = duration || analysisResult?.metadata?.duration_seconds || 60;
                   return (
                     <div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
@@ -2534,37 +2757,35 @@ export default function App() {
                       </div>
                       {disp.disappearances.length > 0 ? (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '150px', overflowY: 'auto' }}>
-                          {disp.disappearances.map((d, i) => (
-                            <div
-                              key={i}
-                              style={{
-                                padding: '8px 10px',
-                                border: '1px solid #fecdd3',
-                                borderRadius: '4px',
-                                background: '#fff1f2',
-                                cursor: 'pointer',
-                              }}
-                              onClick={() => {
-                                try {
-                                  const sec = (new Date(d.disappearance_time).getTime() / 1000) % (duration || 60);
-                                  seekVideo(sec);
-                                } catch {}
-                              }}
-                              title={`Jump to disappearance timestamp: ${new Date(d.disappearance_time).toISOString().slice(11, 19)}`}
-                            >
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <b style={{ fontSize: '11px', color: '#9f1239', textTransform: 'capitalize' }}>
-                                  {d.object_type} Disappeared
-                                </b>
-                                <span className="mono" style={{ fontSize: '9.5px', color: '#be123c', fontWeight: 600 }}>
-                                  {new Date(d.disappearance_time).toISOString().slice(11, 19)}
-                                </span>
+                          {disp.disappearances.map((d, i) => {
+                            const dSec = getEventTimestampSeconds(d, baseTimeStr, fps, totalDur);
+                            return (
+                              <div
+                                key={i}
+                                style={{
+                                  padding: '8px 10px',
+                                  border: '1px solid #fecdd3',
+                                  borderRadius: '4px',
+                                  background: '#fff1f2',
+                                  cursor: 'pointer',
+                                }}
+                                onClick={() => seekVideo(dSec)}
+                                title={`Jump to disappearance timestamp: ${formatSeconds(dSec)}`}
+                              >
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <b style={{ fontSize: '11px', color: '#9f1239', textTransform: 'capitalize' }}>
+                                    {d.object_type} Disappeared
+                                  </b>
+                                  <span className="mono" style={{ fontSize: '9.5px', color: '#be123c', fontWeight: 600 }}>
+                                    {formatSeconds(dSec)}
+                                  </span>
+                                </div>
+                                <small style={{ color: '#475569', fontSize: '9.5px' }}>
+                                  Camera {d.camera_id} • {d.observation_count} frames observed
+                                </small>
                               </div>
-                              <small style={{ color: '#475569', fontSize: '9.5px' }}>
-                                Camera {d.camera_id} • {d.observation_count} frames observed
-                              </small>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       ) : (
                         <div style={{ padding: '8px 10px', border: '1px solid #bbf7d0', borderRadius: '4px', background: '#f0fdf4', fontSize: '10.5px', color: '#166534', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -2655,51 +2876,59 @@ export default function App() {
               </thead>
               <tbody>
                 {filteredEvents.length > 0 ? (
-                  filteredEvents.map((ev, i) => (
-                    <tr
-                      key={i}
-                      onClick={() => {
-                        seekVideo((i * 1.8) % (duration || 60));
-                        setView('Investigation Detail');
-                      }}
-                    >
-                      <td>
-                        <b className="mono">
-                          {ev.start_time
-                            ? new Date(ev.start_time).toISOString().slice(11, 23)
-                            : `00:00:${(i * 2).toString().padStart(2, '0')}.00`}
-                        </b>
-                      </td>
-                      <td>
-                        <b>{ev.object_type || ev.event_type}</b>
-                        <small>{ev.event_type}</small>
-                      </td>
-                      <td>
-                        <span className="mono">TRK-{ev.track_id ?? i + 101}</span>
-                      </td>
-                      <td>
-                        <div className="confidence">
-                          <span>{Math.round((ev.confidence || 0.8) * 100)}%</span>
-                          <i>
-                            <b style={{ width: `${Math.round((ev.confidence || 0.8) * 100)}%` }} />
-                          </i>
-                        </div>
-                      </td>
-                      <td>{ev.camera_id || 'CH-01'}</td>
-                      <td style={{ textAlign: 'right' }}>
-                        <Button
-                          variant="action"
-                          icon={Play}
-                          onClick={() => {
-                            seekVideo((i * 1.8) % (duration || 60));
-                            setView('Investigation Detail');
-                          }}
-                        >
-                          Jump to Frame
-                        </Button>
-                      </td>
-                    </tr>
-                  ))
+                  filteredEvents.map((ev, i) => {
+                    const evSec = getEventTimestampSeconds(
+                      ev,
+                      analysisResult?.forensic_summary?.start_time || analysisResult?.events?.[0]?.start_time,
+                      analysisResult?.metadata?.fps || 25,
+                      duration || analysisResult?.metadata?.duration_seconds || 60
+                    );
+                    return (
+                      <tr
+                        key={i}
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => {
+                          seekVideo(evSec);
+                          setView('Investigation Detail');
+                        }}
+                      >
+                        <td>
+                          <b className="mono">
+                            {formatSeconds(evSec)}
+                          </b>
+                        </td>
+                        <td>
+                          <b>{ev.object_type || ev.event_type}</b>
+                          <small>{ev.event_type}</small>
+                        </td>
+                        <td>
+                          <span className="mono">TRK-{ev.track_id ?? i + 101}</span>
+                        </td>
+                        <td>
+                          <div className="confidence">
+                            <span>{Math.round((ev.confidence || 0.8) * 100)}%</span>
+                            <i>
+                              <b style={{ width: `${Math.round((ev.confidence || 0.8) * 100)}%` }} />
+                            </i>
+                          </div>
+                        </td>
+                        <td>{ev.camera_id || 'CH-01'}</td>
+                        <td style={{ textAlign: 'right' }}>
+                          <Button
+                            variant="action"
+                            icon={Play}
+                            onClick={(e) => {
+                              e?.stopPropagation?.();
+                              seekVideo(evSec);
+                              setView('Investigation Detail');
+                            }}
+                          >
+                            Jump to Frame
+                          </Button>
+                        </td>
+                      </tr>
+                    );
+                  })
                 ) : (
                   <tr>
                     <td colSpan={6}>
@@ -2888,77 +3117,103 @@ export default function App() {
                         </tr>
                       </thead>
                       <tbody>
-                        {disp.disappearances.map((d, i) => (
-                          <tr key={i}>
-                            <td>
-                              <b style={{ textTransform: 'capitalize', color: '#0f172a' }}>{d.object_type}</b>
-                            </td>
-                            <td><span className="mono" style={{ fontSize: '11px' }}>{d.camera_id}</span></td>
-                            <td><span className="mono" style={{ fontSize: '11px' }}>{new Date(d.first_seen).toISOString().slice(11, 19)}</span></td>
-                            <td><span className="mono" style={{ fontSize: '11px' }}>{new Date(d.last_seen).toISOString().slice(11, 19)}</span></td>
-                            <td><b className="mono" style={{ fontSize: '11px', color: '#b91c1c' }}>{new Date(d.disappearance_time).toISOString().slice(11, 19)}</b></td>
-                            <td><span className="hash-pill" style={{ fontSize: '10px' }}>{d.observation_count} frames</span></td>
-                            <td style={{ textAlign: 'right' }}>
-                              <Button
-                                variant="action"
-                                icon={Play}
-                                onClick={() => {
-                                  try {
-                                    const sec = (new Date(d.disappearance_time).getTime() / 1000) % (duration || 60);
-                                    seekVideo(sec);
+                        {disp.disappearances.map((d, i) => {
+                          const dSec = getEventTimestampSeconds(
+                            d,
+                            analysisResult?.forensic_summary?.start_time || analysisResult?.events?.[0]?.start_time,
+                            analysisResult?.metadata?.fps || 25,
+                            duration || analysisResult?.metadata?.duration_seconds || 60
+                          );
+                          return (
+                            <tr
+                              key={i}
+                              style={{ cursor: 'pointer' }}
+                              onClick={() => {
+                                seekVideo(dSec);
+                                setView('Investigation Detail');
+                              }}
+                            >
+                              <td>
+                                <b style={{ textTransform: 'capitalize', color: '#0f172a' }}>{d.object_type}</b>
+                              </td>
+                              <td><span className="mono" style={{ fontSize: '11px' }}>{d.camera_id}</span></td>
+                              <td><span className="mono" style={{ fontSize: '11px' }}>{new Date(d.first_seen).toISOString().slice(11, 19)}</span></td>
+                              <td><span className="mono" style={{ fontSize: '11px' }}>{new Date(d.last_seen).toISOString().slice(11, 19)}</span></td>
+                              <td><b className="mono" style={{ fontSize: '11px', color: '#b91c1c' }}>{new Date(d.disappearance_time).toISOString().slice(11, 19)}</b></td>
+                              <td><span className="hash-pill" style={{ fontSize: '10px' }}>{d.observation_count} frames</span></td>
+                              <td style={{ textAlign: 'right' }}>
+                                <Button
+                                  variant="action"
+                                  icon={Play}
+                                  onClick={(e) => {
+                                    e?.stopPropagation?.();
+                                    seekVideo(dSec);
                                     setView('Investigation Detail');
-                                  } catch {}
-                                }}
-                              >
-                                Jump to Frame
-                              </Button>
-                            </td>
-                          </tr>
-                        ))}
+                                  }}
+                                >
+                                  Jump to Frame
+                                </Button>
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
 
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px', marginBottom: '12px' }}>
-                    {disp.disappearances.map((d, idx) => (
-                      <div
-                        key={idx}
-                        style={{
-                          padding: '12px 14px',
-                          borderRadius: '6px',
-                          background: '#fffbeb',
-                          border: '1px solid #fde68a',
-                        }}
-                      >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                          <span style={{ fontSize: '11px', fontWeight: 700, color: '#92400e' }}>
-                            OBJECT DISAPPEARANCE #{idx + 1}
-                          </span>
-                          <span className="hash-pill" style={{ background: '#fef08a', color: '#713f12', border: '1px solid #facc15' }}>
-                            {d.object_type}
-                          </span>
-                        </div>
-                        <div style={{ fontSize: '11px', lineHeight: 1.5, color: '#451a03' }}>
-                          <div><b>Camera:</b> {d.camera_id}</div>
-                          <div><b>First Seen:</b> <span className="mono">{new Date(d.first_seen).toISOString().slice(11, 19)}</span></div>
-                          <div><b>Last Seen:</b> <span className="mono">{new Date(d.last_seen).toISOString().slice(11, 19)}</span></div>
-                          <div><b>No Longer Seen:</b> <span className="mono" style={{ color: '#b91c1c', fontWeight: 700 }}>{new Date(d.disappearance_time).toISOString().slice(11, 19)}</span></div>
-                          <div><b>Observations:</b> {d.observation_count}</div>
-                        </div>
-                        {d.related_activity && d.related_activity.length > 0 && (
-                          <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid #fef3c7' }}>
-                            <small style={{ fontWeight: 700, color: '#78350f', display: 'block', marginBottom: '2px' }}>
-                              Related activity after disappearance:
-                            </small>
-                            {d.related_activity.map((act, actIdx) => (
-                              <div key={actIdx} style={{ fontSize: '10px', color: '#57534e' }}>
-                                • {act}
-                              </div>
-                            ))}
+                    {disp.disappearances.map((d, idx) => {
+                      const dSec = getEventTimestampSeconds(
+                        d,
+                        analysisResult?.forensic_summary?.start_time || analysisResult?.events?.[0]?.start_time,
+                        analysisResult?.metadata?.fps || 25,
+                        duration || analysisResult?.metadata?.duration_seconds || 60
+                      );
+                      return (
+                        <div
+                          key={idx}
+                          style={{
+                            padding: '12px 14px',
+                            borderRadius: '6px',
+                            background: '#fffbeb',
+                            border: '1px solid #fde68a',
+                            cursor: 'pointer',
+                          }}
+                          onClick={() => {
+                            seekVideo(dSec);
+                            setView('Investigation Detail');
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                            <span style={{ fontSize: '11px', fontWeight: 700, color: '#92400e' }}>
+                              OBJECT DISAPPEARANCE #{idx + 1} ({formatSeconds(dSec)})
+                            </span>
+                            <span className="hash-pill" style={{ background: '#fef08a', color: '#713f12', border: '1px solid #facc15' }}>
+                              {d.object_type}
+                            </span>
                           </div>
-                        )}
-                      </div>
-                    ))}
+                          <div style={{ fontSize: '11px', lineHeight: 1.5, color: '#451a03' }}>
+                            <div><b>Camera:</b> {d.camera_id}</div>
+                            <div><b>First Seen:</b> <span className="mono">{new Date(d.first_seen).toISOString().slice(11, 19)}</span></div>
+                            <div><b>Last Seen:</b> <span className="mono">{new Date(d.last_seen).toISOString().slice(11, 19)}</span></div>
+                            <div><b>No Longer Seen:</b> <span className="mono" style={{ color: '#b91c1c', fontWeight: 700 }}>{new Date(d.disappearance_time).toISOString().slice(11, 19)}</span></div>
+                            <div><b>Observations:</b> {d.observation_count}</div>
+                          </div>
+                          {d.related_activity && d.related_activity.length > 0 && (
+                            <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid #fef3c7' }}>
+                              <small style={{ fontWeight: 700, color: '#78350f', display: 'block', marginBottom: '2px' }}>
+                                Related activity after disappearance:
+                              </small>
+                              {d.related_activity.map((act, actIdx) => (
+                                <div key={actIdx} style={{ fontSize: '10px', color: '#57534e' }}>
+                                  • {act}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </>
               ) : (
@@ -3105,11 +3360,14 @@ export default function App() {
                             variant="action"
                             icon={Play}
                             onClick={() => {
-                              try {
-                                const sec = (new Date(cand.disappearance_time).getTime() / 1000) % (duration || 60);
-                                seekVideo(sec);
-                                setView('Investigation Detail');
-                              } catch {}
+                              const sec = getEventTimestampSeconds(
+                                cand,
+                                analysisResult?.forensic_summary?.start_time || analysisResult?.events?.[0]?.start_time,
+                                analysisResult?.metadata?.fps || 25,
+                                duration || analysisResult?.metadata?.duration_seconds || 60
+                              );
+                              seekVideo(sec);
+                              setView('Investigation Detail');
                             }}
                           >
                             Jump to Disappearance
@@ -3124,49 +3382,62 @@ export default function App() {
 
             {/* Candidate Breakdown Panels matching CLI format */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '16px', marginBottom: '20px' }}>
-              {disp.disappearances.map((cand, idx) => (
-                <div
-                  key={idx}
-                  className="panel"
-                  style={{
-                    padding: '16px',
-                    border: '1px solid #fde047',
-                    background: '#fffdf5',
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                    <span style={{ fontSize: '12px', fontWeight: 700, color: '#854d0e', textTransform: 'uppercase' }}>
-                      OBJECT DISAPPEARANCE #{idx + 1}
-                    </span>
-                    <span className="hash-pill" style={{ background: '#fef08a', color: '#713f12', border: '1px solid #facc15' }}>
-                      {cand.object_type}
-                    </span>
-                  </div>
-                  <div style={{ fontSize: '12px', lineHeight: 1.6, color: '#334155' }}>
-                    <div><b>Target Object:</b> {cand.object_type}</div>
-                    <div><b>Camera Stream:</b> {cand.camera_id}</div>
-                    <div><b>First observed:</b> <span className="mono">{new Date(cand.first_seen).toISOString().slice(11, 19)}</span></div>
-                    <div><b>Last observed:</b> <span className="mono">{new Date(cand.last_seen).toISOString().slice(11, 19)}</span></div>
-                    <div><b>No longer seen:</b> <span className="mono" style={{ color: '#b91c1c', fontWeight: 700 }}>{new Date(cand.disappearance_time).toISOString().slice(11, 19)}</span></div>
-                    <div><b>Sequential Observations:</b> {cand.observation_count} frames</div>
-                  </div>
-
-                  {cand.related_activity && cand.related_activity.length > 0 && (
-                    <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px solid #fef08a' }}>
-                      <b style={{ fontSize: '11px', color: '#78350f', display: 'block', marginBottom: '6px' }}>
-                        Related activity after disappearance:
-                      </b>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        {cand.related_activity.map((act, actIdx) => (
-                          <div key={actIdx} style={{ fontSize: '11px', color: '#475569' }}>
-                            • {act}
-                          </div>
-                        ))}
-                      </div>
+              {disp.disappearances.map((cand, idx) => {
+                const sec = getEventTimestampSeconds(
+                  cand,
+                  analysisResult?.forensic_summary?.start_time || analysisResult?.events?.[0]?.start_time,
+                  analysisResult?.metadata?.fps || 25,
+                  duration || analysisResult?.metadata?.duration_seconds || 60
+                );
+                return (
+                  <div
+                    key={idx}
+                    className="panel"
+                    style={{
+                      padding: '16px',
+                      border: '1px solid #fde047',
+                      background: '#fffdf5',
+                      cursor: 'pointer',
+                    }}
+                    onClick={() => {
+                      seekVideo(sec);
+                      setView('Investigation Detail');
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                      <span style={{ fontSize: '12px', fontWeight: 700, color: '#854d0e', textTransform: 'uppercase' }}>
+                        OBJECT DISAPPEARANCE #{idx + 1} ({formatSeconds(sec)})
+                      </span>
+                      <span className="hash-pill" style={{ background: '#fef08a', color: '#713f12', border: '1px solid #facc15' }}>
+                        {cand.object_type}
+                      </span>
                     </div>
-                  )}
-                </div>
-              ))}
+                    <div style={{ fontSize: '12px', lineHeight: 1.6, color: '#334155' }}>
+                      <div><b>Target Object:</b> {cand.object_type}</div>
+                      <div><b>Camera Stream:</b> {cand.camera_id}</div>
+                      <div><b>First observed:</b> <span className="mono">{new Date(cand.first_seen).toISOString().slice(11, 19)}</span></div>
+                      <div><b>Last observed:</b> <span className="mono">{new Date(cand.last_seen).toISOString().slice(11, 19)}</span></div>
+                      <div><b>No longer seen:</b> <span className="mono" style={{ color: '#b91c1c', fontWeight: 700 }}>{new Date(cand.disappearance_time).toISOString().slice(11, 19)}</span></div>
+                      <div><b>Sequential Observations:</b> {cand.observation_count} frames</div>
+                    </div>
+
+                    {cand.related_activity && cand.related_activity.length > 0 && (
+                      <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px solid #fef08a' }}>
+                        <b style={{ fontSize: '11px', color: '#78350f', display: 'block', marginBottom: '6px' }}>
+                          Related activity after disappearance:
+                        </b>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          {cand.related_activity.map((act, actIdx) => (
+                            <div key={actIdx} style={{ fontSize: '11px', color: '#475569' }}>
+                              • {act}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </>
         ) : (
@@ -3209,44 +3480,50 @@ export default function App() {
 
         {revs.length > 0 ? (
           <div className="event-list">
-            {revs.map((rev, i) => (
-              <div
-                key={i}
-                className="event-card panel"
-                onClick={() => {
-                  seekVideo(i * 5);
-                  setView('Investigation Detail');
-                }}
-              >
-                <div className={`event-icon ${i % 2 === 0 ? 'teal' : 'warning'}`}>
-                  <Activity size={18} />
-                </div>
-                <div className="event-main">
-                  <div>
-                    <b>{rev.title}</b>
-                    <StatusBadge tone={i % 2 === 0 ? 'teal' : 'warning'}>
-                      {rev.event_type}
-                    </StatusBadge>
+            {revs.map((rev, i) => {
+              const revSec = getEventTimestampSeconds(
+                rev,
+                analysisResult?.forensic_summary?.start_time || analysisResult?.events?.[0]?.start_time,
+                analysisResult?.metadata?.fps || 25,
+                duration || analysisResult?.metadata?.duration_seconds || 60
+              );
+              return (
+                <div
+                  key={i}
+                  className="event-card panel"
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => {
+                    seekVideo(revSec);
+                    setView('Investigation Detail');
+                  }}
+                >
+                  <div className={`event-icon ${i % 2 === 0 ? 'teal' : 'warning'}`}>
+                    <Activity size={18} />
                   </div>
-                  <p>{rev.description}</p>
-                  <span>
-                    Camera: {rev.camera_id || 'CH-01'} • Timestamp:{' '}
-                    {rev.start_time
-                      ? new Date(rev.start_time).toISOString().slice(11, 23)
-                      : '00:00:00'}
-                  </span>
-                </div>
-                <div className="event-confidence">
-                  <div className="confidence">
-                    <span>{Math.round((rev.confidence || 0.85) * 100)}%</span>
-                    <i>
-                      <b style={{ width: `${Math.round((rev.confidence || 0.85) * 100)}%` }} />
-                    </i>
+                  <div className="event-main">
+                    <div>
+                      <b>{rev.title}</b>
+                      <StatusBadge tone={i % 2 === 0 ? 'teal' : 'warning'}>
+                        {rev.event_type}
+                      </StatusBadge>
+                    </div>
+                    <p>{rev.description}</p>
+                    <span>
+                      Camera: {rev.camera_id || 'CH-01'} • Timestamp: {formatSeconds(revSec)}
+                    </span>
                   </div>
-                  <small>Neural Verification</small>
+                  <div className="event-confidence">
+                    <div className="confidence">
+                      <span>{Math.round((rev.confidence || 0.85) * 100)}%</span>
+                      <i>
+                        <b style={{ width: `${Math.round((rev.confidence || 0.85) * 100)}%` }} />
+                      </i>
+                    </div>
+                    <small>Neural Verification</small>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <div className="panel">
@@ -3690,6 +3967,15 @@ export default function App() {
             eyebrow="TEMPORAL / CHRONOLOGY"
             title="Forensic Timeline Workspace"
             description="Synchronized multi-channel view of frame detections, motion vectors, and incidents."
+            action={
+              <Button
+                variant="primary"
+                icon={Play}
+                onClick={() => setView('Investigation Detail')}
+              >
+                Return to CCTV Viewer
+              </Button>
+            }
           />
           {renderTimeline({ full: true })}
           {renderTimelineTabsSection()}
@@ -3863,49 +4149,51 @@ export default function App() {
       <div className="app-main">
         {/* Top Header */}
         <header className="topbar">
-          <button
-            className="mobile-menu"
-            onClick={() => setSidebarOpen(true)}
-            aria-label="Open navigation"
-          >
-            <Menu size={18} />
-          </button>
-
-          <div className="crumb" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div className="topbar-left" style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             <button
-              type="button"
-              onClick={() => setView('Overview')}
-              className="flex items-center hover:opacity-80 transition-opacity cursor-pointer bg-transparent border-0 p-0 text-left"
-              title="Go to Overview"
+              className="mobile-menu"
+              onClick={() => setSidebarOpen(true)}
+              aria-label="Open navigation"
             >
-              <TraceXLogo variant="dark" className="h-8 max-h-9 w-auto object-contain" />
+              <Menu size={18} />
             </button>
 
-            <ChevronRight size={14} className="text-slate-400 shrink-0" />
+            <div className="crumb" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={() => setView('Overview')}
+                className="flex items-center hover:opacity-80 transition-opacity cursor-pointer bg-transparent border-0 p-0 text-left"
+                title="Go to Overview"
+              >
+                <TraceXLogo variant="dark" className="h-8 max-h-9 w-auto object-contain" />
+              </button>
 
-            <button
-              type="button"
-              onClick={() => setView(view)}
-              className="hover:text-blue-700 transition-colors cursor-pointer bg-transparent border-0 p-0 text-left font-semibold text-slate-800"
-              title={`Current view: ${view}`}
-            >
-              <b>{view}</b>
-            </button>
+              <ChevronRight size={14} className="text-slate-400 shrink-0" />
 
-            {selectedCase && (
-              <>
-                <ChevronRight size={14} className="text-slate-400 shrink-0" />
-                <button
-                  type="button"
-                  onClick={() => setView('Investigation Detail')}
-                  className="mono hover:text-teal-800 hover:underline transition-colors cursor-pointer bg-transparent border-0 p-0 text-left"
-                  style={{ color: '#0f766e', fontWeight: 600 }}
-                  title={`Open investigation ${selectedCase.case_number || selectedCase.name}`}
-                >
-                  {selectedCase.case_number || selectedCase.name}
-                </button>
-              </>
-            )}
+              <button
+                type="button"
+                onClick={() => setView(view)}
+                className="hover:text-blue-700 transition-colors cursor-pointer bg-transparent border-0 p-0 text-left font-semibold text-slate-800"
+                title={`Current view: ${view}`}
+              >
+                <b>{view}</b>
+              </button>
+
+              {selectedCase && (
+                <>
+                  <ChevronRight size={14} className="text-slate-400 shrink-0" />
+                  <button
+                    type="button"
+                    onClick={() => setView('Investigation Detail')}
+                    className="mono hover:text-teal-800 hover:underline transition-colors cursor-pointer bg-transparent border-0 p-0 text-left"
+                    style={{ color: '#0f766e', fontWeight: 600 }}
+                    title={`Open investigation ${selectedCase.case_number || selectedCase.name}`}
+                  >
+                    {selectedCase.case_number || selectedCase.name}
+                  </button>
+                </>
+              )}
+            </div>
           </div>
 
           <div className="header-actions">
@@ -4283,19 +4571,25 @@ export default function App() {
                     {msg.events && msg.events.length > 0 && (
                       <div style={{ marginTop: '8px', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                         {msg.events.map((ev: any, idx: number) => {
-                          const timeLabel = ev.start_time || `Event #${idx + 1}`;
+                          const evSec = getEventTimestampSeconds(
+                            ev,
+                            analysisResult?.forensic_summary?.start_time || analysisResult?.events?.[0]?.start_time,
+                            analysisResult?.metadata?.fps || 25,
+                            duration || analysisResult?.metadata?.duration_seconds || 60
+                          );
                           return (
                             <button
                               key={idx}
                               className="btn-chip"
-                              style={{ fontSize: '10px', padding: '3px 9px' }}
+                              style={{ fontSize: '10px', padding: '3px 9px', cursor: 'pointer' }}
                               onClick={() => {
-                                seekVideo(idx * 4);
+                                seekVideo(evSec);
                                 setIsQueryModalOpen(false);
                                 setView('Investigation Detail');
                               }}
+                              title={`Jump video to ${formatSeconds(evSec)}`}
                             >
-                              Jump to {ev.event_type || 'Event'} ({timeLabel})
+                              Jump to {ev.event_type || 'Event'} ({formatSeconds(evSec)})
                             </button>
                           );
                         })}

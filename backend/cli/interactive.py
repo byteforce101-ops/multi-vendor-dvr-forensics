@@ -1606,10 +1606,13 @@ def _run_pipeline_once(console) -> None:
         "Step 2 / 4 — Parse",
     )
 
+    from backend.config.settings import get_settings
+    settings = get_settings()
     out_dir = (
-        Path("./tracex_output")
+        settings.extracted_media_root
         / path.stem
     )
+    out_dir.mkdir(parents=True, exist_ok=True)
 
     with console.status(
         "[brand]Parsing evidence...[/brand]",

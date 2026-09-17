@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 from pathlib import Path
+from typing import Optional
 
 import typer
 from rich.console import Console
@@ -21,14 +24,16 @@ def parse_evidence(
         resolve_path=True,
         help="Path to the evidence file.",
     ),
-    output: Path = typer.Option(
-        Path("./output"),
+    output: Optional[Path] = typer.Option(
+        None,
         "--output",
         "-o",
-        help="Directory for parser output.",
+        help="Directory for parser output (defaults to backend/storage/extracted/parsed).",
     ),
 ):
-    output.mkdir(parents=True, exist_ok=True)
+    from backend.config.settings import get_settings
+    output_dir = output or (get_settings().extracted_media_root / "parsed")
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     console.print(
         Panel.fit(
@@ -39,7 +44,7 @@ def parse_evidence(
     )
 
     console.print(f"[bold cyan]Evidence:[/bold cyan] {evidence_path}")
-    console.print(f"[bold cyan]Output:[/bold cyan] {output.resolve()}")
+    console.print(f"[bold cyan]Output:[/bold cyan] {output_dir.resolve()}")
 
     console.print("\n[cyan]Detecting and parsing evidence...[/cyan]\n")
 
@@ -48,7 +53,7 @@ def parse_evidence(
     try:
         result = manager.parse(
             str(evidence_path),
-            str(output.resolve()),
+            str(output_dir.resolve()),
         )
     except Exception as exc:
         console.print(

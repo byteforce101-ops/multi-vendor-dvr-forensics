@@ -90,6 +90,8 @@ def enhance_surveillance_frame(
     enable_clahe: bool = True,
     auto_gamma: bool = True,
     enable_sharpen: bool = False,
+    clahe_clip_limit: float = 2.5,
+    sharpen_strength: float = 0.5,
 ) -> np.ndarray:
     """
     Main enhancement pipeline for surveillance CCTV frames.
@@ -106,9 +108,62 @@ def enhance_surveillance_frame(
         enhanced = auto_gamma_correction(enhanced)
 
     if enable_clahe:
-        enhanced = apply_clahe(enhanced)
+        enhanced = apply_clahe(enhanced, clip_limit=clahe_clip_limit)
 
     if enable_sharpen:
-        enhanced = unsharp_mask(enhanced)
+        enhanced = unsharp_mask(enhanced, strength=sharpen_strength)
 
     return enhanced
+
+
+def enhance_video_file(
+    input_path: str | Path,
+    output_path: str | Path,
+    enable_clahe: bool = True,
+    auto_gamma: bool = True,
+    enable_sharpen: bool = True,
+    clahe_clip_limit: float = 2.5,
+    sharpen_strength: float = 0.6,
+    codec: str = "mp4v",
+) -> Path:
+    """
+    Process an entire video file through the TraceX Forensic Enhancement Pipeline.
+    
+    Outputs an enhanced video with optimized exposure, normalized dynamic range,
+    and heightened edge detail.
+    """
+    in_p = Path(input_path)
+    out_p = Path(output_path)
+    out_p.parent.mkdir(parents=True, exist_ok=True)
+
+    cap = cv2.VideoCapture(str(in_p))
+    if not cap.isOpened():
+        raise ValueError(f"Could not open input video: {in_p}")
+
+    fps = cap.get(cv2.CAP_PROP_FPS) or 25.0
+    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH) or 640)
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT) or 480)
+
+    fourcc = cv2.VideoWriter_fourcc(*codec)
+    writer = cv2.VideoWriter(str(out_p), fourcc, fps, (width, height))
+
+    try:
+        while True:
+            ret, frame = cap.read()
+            if not ret or frame is None:
+                break
+            proc = enhance_surveillance_frame(
+                frame,
+                enable_clahe=enable_clahe,
+                auto_gamma=auto_gamma,
+                enable_sharpen=enable_sharpen,
+                clahe_clip_limit=clahe_clip_limit,
+                sharpen_strength=sharpen_strength,
+            )
+            writer.write(proc)
+    finally:
+        cap.release()
+        writer.release()
+
+    return out_p
+

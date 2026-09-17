@@ -1773,7 +1773,9 @@ def analyze(
             f"[brand]Detected forensic disk image:[/brand] "
             f"[ok]{parser.vendor_name}[/ok] ({confidence * 100:.0f}%)"
         )
-        out_dir = Path("./output") / resolved.stem
+        from backend.config.settings import get_settings
+        settings = get_settings()
+        out_dir = settings.extracted_media_root / resolved.stem
         out_dir.mkdir(parents=True, exist_ok=True)
         parse_result = manager.parse(str(resolved), str(out_dir))
         extract_result = manager.extract(str(resolved), str(out_dir), parse_result) if parse_result.success else parse_result

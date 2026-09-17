@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 from pathlib import Path
 import shutil
+from typing import Optional
 
 import typer
 from rich.console import Console
@@ -24,13 +27,15 @@ def extract_evidence(
         resolve_path=True,
         help="Path to the DVR evidence file.",
     ),
-    output: Path = typer.Option(
-        Path("./output/recovered"),
+    output: Optional[Path] = typer.Option(
+        None,
         "--output",
         "-o",
-        help="Directory where recovered recordings will be saved.",
+        help="Directory where recovered recordings will be saved (defaults to backend/storage/extracted/recovered).",
     ),
 ):
+    from backend.config.settings import get_settings
+    output_dir = output or (get_settings().extracted_media_root / "recovered")
     console.print(
         Panel.fit(
             "[bold cyan]DVR FORENSICS PLATFORM[/bold cyan]\n"
@@ -44,7 +49,7 @@ def extract_evidence(
     )
 
     console.print(
-        f"[bold cyan]Output:[/bold cyan] {output.resolve()}"
+        f"[bold cyan]Output:[/bold cyan] {output_dir.resolve()}"
     )
 
     if shutil.which("ffmpeg") is None:
@@ -59,7 +64,7 @@ def extract_evidence(
         )
         raise typer.Exit(code=ExitCode.MISSING_DEPENDENCY)
 
-    output.mkdir(parents=True, exist_ok=True)
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     manager = ParserManager()
 
@@ -77,7 +82,7 @@ def extract_evidence(
         try:
             parse_result = manager.parse(
                 str(evidence_path),
-                str(output),
+                str(output_dir),
             )
         except Exception as exc:
             console.print(
@@ -109,7 +114,7 @@ def extract_evidence(
         try:
             extraction_result = manager.extract(
                 str(evidence_path),
-                str(output),
+                str(output_dir),
                 parse_result,
             )
         except Exception as exc:
@@ -157,7 +162,7 @@ def extract_evidence(
 
     summary.add_row(
         "Output Directory",
-        str(output.resolve()),
+        str(output_dir.resolve()),
     )
 
     console.print()

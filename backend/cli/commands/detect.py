@@ -139,7 +139,7 @@ def detect(
 
         for c in candidates:
             if c.get("skipped"):
-                matched_str = "[dim]skipped[/dim]"
+                matched_str = f"[dim]skipped ({c['skipped']})[/dim]"
                 conf_str = "-"
                 details = f"[dim]{c['skipped']}[/dim]"
             else:

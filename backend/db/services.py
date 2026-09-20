@@ -71,6 +71,7 @@ def persist_parse_result(
         return None, []
 
     info = device_info or (result.detection_info.get("info") if result.detection_info else {}) or {}
+    device_info_clean = {k: v for k, v in info.items() if k not in ("evidence_path", "file_size", "mtime_ns")}
     device = db.query(Device).filter(
         Device.evidence_id == evidence.id, Device.vendor == result.vendor
     ).one_or_none()
@@ -82,7 +83,7 @@ def persist_parse_result(
     )
     device.serial_number = info.get("serial_number")
     device.firmware_version = info.get("version") or info.get("firmware_version")
-    device.raw_metadata = _json_safe(info)
+    device.raw_metadata = _json_safe(device_info_clean)
     db.flush()
 
     stored: list[Recording] = []

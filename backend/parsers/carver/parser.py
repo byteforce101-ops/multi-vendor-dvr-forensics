@@ -14,7 +14,7 @@ import shutil
 import struct
 import subprocess
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -127,53 +127,67 @@ def _parse_timestamp_string(ts_str: str) -> Optional[datetime]:
 
 def _extract_container_timestamp(
     stream_type: str, probe_raw: dict
-) -> tuple[Optional[datetime], Optional[str], Optional[str], Optional[bool]]:
+) -> tuple[Optional[datetime], Optional[str], Optional[str], Optional[bool], Optional[str]]:
     """
     Extract and validate container-level creation timestamp for MP4/MOV, MKV, and AVI.
-    Returns (original_timestamp, timestamp_source, timestamp_confidence, timestamp_tz_known).
+    Uses only creation_time (MP4/MKV) and IDIT (AVI).
+    Returns (original_timestamp, timestamp_source, timestamp_confidence, timestamp_tz_known, timestamp_tag).
     """
-    if stream_type not in ("mp4", "mkv", "avi"):
-        return None, None, None, None
+    if stream_type in ("mp4", "mkv"):
+        allowed_tags = {"creation_time"}
+    elif stream_type == "avi":
+        allowed_tags = {"idit"}
+    else:
+        return None, None, None, None, None
 
     tags = probe_raw.get("format", {}).get("tags", {})
     ts_str = None
+    matched_tag = None
     for k, v in tags.items():
-        if k.lower() in ("creation_time", "idit", "date"):
+        if k.lower() in allowed_tags:
             ts_str = v
+            matched_tag = k
             break
 
     if not ts_str:
         for st in probe_raw.get("streams", []):
             st_tags = st.get("tags", {})
             for k, v in st_tags.items():
-                if k.lower() in ("creation_time", "idit", "date"):
+                if k.lower() in allowed_tags:
                     ts_str = v
+                    matched_tag = k
                     break
             if ts_str:
                 break
 
     if not ts_str:
-        return None, None, None, None
+        return None, None, None, None, None
 
     dt = _parse_timestamp_string(ts_str)
     if dt is None:
-        return None, None, None, None
+        return None, None, None, None, None
 
     # Sanity checks per design doc:
     # 1. Reject epoch-zero baselines (1904-01-01, 1970-01-01, 2001-01-01)
     if (dt.year, dt.month, dt.day) in ((1904, 1, 1), (1970, 1, 1), (2001, 1, 1)):
-        return None, None, None, None
+        return None, None, None, None, None
 
     # 2. Reject ancient dates before 2000
     if dt.year < 2000:
-        return None, None, None, None
+        return None, None, None, None, None
 
     # 3. Reject future dates later than now
     now = datetime.now(dt.tzinfo) if dt.tzinfo is not None else datetime.now()
     if dt > now:
-        return None, None, None, None
+        return None, None, None, None, None
 
-    return dt, "container_creation_time", "low", False
+    # Align timezone convention with HikvisionParser (UTC timezone-aware)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    else:
+        dt = dt.astimezone(timezone.utc)
+
+    return dt, "container_creation_time", "low", False, matched_tag
 
 
 def scan_carved_streams(data: bytes | mmap.mmap) -> list[CarvedStreamInfo]:
@@ -610,7 +624,7 @@ class ForensicDiskCarverParser(BaseDVRParser):
                             meta = raw_meta
 
                         probe_dict = raw_meta.get("raw") or meta.get("raw", {})
-                        dt, ts_source, ts_conf, ts_tz = _extract_container_timestamp(
+                        dt, ts_source, ts_conf, ts_tz, ts_tag = _extract_container_timestamp(
                             s.stream_type, probe_dict
                         )
 
@@ -638,6 +652,7 @@ class ForensicDiskCarverParser(BaseDVRParser):
                                 "timestamp_source": ts_source,
                                 "timestamp_confidence": ts_conf,
                                 "timestamp_tz_known": ts_tz,
+                                "timestamp_tag": ts_tag,
                             },
                         ))
 

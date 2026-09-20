@@ -665,4 +665,112 @@ class TestParserPerformanceAndShortCircuit:
         finally:
             get_settings.cache_clear()
 
+    def test_parse_cli_on_hikvision_normal_shows_skipped_not_nomatch(self):
+        normal_dd = self.FIXTURES_DIR / "hikvision_normal.dd"
+        if not normal_dd.exists():
+            pytest.skip("hikvision_normal.dd not found")
+
+        runner = CliRunner()
+        res = runner.invoke(cli_app, ["parse", str(normal_dd)])
+        assert res.exit_code == 0
+        assert "generic_dvr_carver: skipped" in res.output
+        assert "generic_dvr_carver: no-match" not in res.output
+
+    def test_precomputed_detection_mismatch_re_detects_and_logs_warning(self, tmp_path, monkeypatch, caplog):
+        normal_dd = self.FIXTURES_DIR / "hikvision_normal.dd"
+        synthetic_dd = self.FIXTURES_DIR / "hikvision_synthetic.dd"
+        if not normal_dd.exists() or not synthetic_dd.exists():
+            pytest.skip("fixtures not found")
+
+        manager = ParserManager()
+        # Precompute detection result on normal_dd
+        parser_norm, conf_norm, info_norm = manager.detect(str(normal_dd))
+
+        out_dir = tmp_path / "out"
+        out_dir.mkdir()
+
+        # Pass normal_dd's precomputed detection info while parsing synthetic_dd
+        import logging
+        with caplog.at_level(logging.WARNING):
+            res = manager.parse(
+                str(synthetic_dd),
+                str(out_dir),
+                detection_result=(parser_norm, conf_norm, info_norm),
+            )
+
+        # Mismatch warning logged
+        assert any("Precomputed detection result does not match evidence file" in r.message for r in caplog.records)
+        # Parse succeeded by re-detecting
+        assert res.success is True
+        assert res.detection_info["evidence_path"] == str(synthetic_dd.resolve())
+
+    def test_cli_analyze_performs_single_detection_pass(self, monkeypatch):
+        synthetic_dd = self.FIXTURES_DIR / "hikvision_synthetic.dd"
+        if not synthetic_dd.exists():
+            pytest.skip("hikvision_synthetic.dd not found")
+
+        calls = 0
+        orig_detect_candidates = ParserManager.detect_candidates
+
+        def spy_detect_candidates(self, *args, **kwargs):
+            nonlocal calls
+            calls += 1
+            return orig_detect_candidates(self, *args, **kwargs)
+
+        monkeypatch.setattr(ParserManager, "detect_candidates", spy_detect_candidates)
+
+        runner = CliRunner()
+        res = runner.invoke(cli_app, ["analyze", str(synthetic_dd)])
+        assert res.exit_code == 0
+        assert calls == 1
+
+    def test_interactive_wizard_performs_single_detection_pass(self, monkeypatch):
+        import io
+        from rich.console import Console
+        from rich.prompt import Prompt
+        from backend.cli.theme import _THEME
+        import backend.cli.interactive as interactive
+
+        synthetic_dd = self.FIXTURES_DIR / "hikvision_synthetic.dd"
+        if not synthetic_dd.exists():
+            pytest.skip("hikvision_synthetic.dd not found")
+
+        calls = 0
+        orig_detect_candidates = ParserManager.detect_candidates
+
+        def spy_detect_candidates(self, *args, **kwargs):
+            nonlocal calls
+            calls += 1
+            return orig_detect_candidates(self, *args, **kwargs)
+
+        monkeypatch.setattr(ParserManager, "detect_candidates", spy_detect_candidates)
+        monkeypatch.setattr(Prompt, "ask", lambda *args, **kwargs: str(synthetic_dd))
+
+        console = Console(theme=_THEME, file=io.StringIO())
+        interactive._run_pipeline_once(console)
+        assert calls == 1
+
+    def test_tui_engine_performs_single_detection_pass(self, monkeypatch):
+        from backend.cli.tui.engine import TraceXPipelineEngine
+
+        synthetic_dd = self.FIXTURES_DIR / "hikvision_synthetic.dd"
+        if not synthetic_dd.exists():
+            pytest.skip("hikvision_synthetic.dd not found")
+
+        calls = 0
+        orig_detect_candidates = ParserManager.detect_candidates
+
+        def spy_detect_candidates(self, *args, **kwargs):
+            nonlocal calls
+            calls += 1
+            return orig_detect_candidates(self, *args, **kwargs)
+
+        monkeypatch.setattr(ParserManager, "detect_candidates", spy_detect_candidates)
+
+        engine = TraceXPipelineEngine()
+        res = engine.run_pipeline(str(synthetic_dd))
+        assert res.vendor_name == "hikvision"
+        assert calls == 1
+
+
 

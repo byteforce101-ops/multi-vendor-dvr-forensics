@@ -103,7 +103,13 @@ def parse_evidence(
     if result.detection_info and "candidates" in result.detection_info:
         candidates = result.detection_info["candidates"]
         cand_str = ", ".join(
-            f"{c['vendor']}: {c['confidence']:.1%}" if c["matched"] else f"{c['vendor']}: no-match"
+            f"{c['vendor']}: skipped ({c['skipped']})"
+            if c.get("skipped")
+            else (
+                f"{c['vendor']}: {c['confidence']:.1%}"
+                if c.get("matched")
+                else f"{c['vendor']}: no-match"
+            )
             for c in candidates
         )
         summary.add_row("Candidates Evaluated", cand_str)

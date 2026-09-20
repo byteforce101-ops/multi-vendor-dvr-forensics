@@ -4,12 +4,15 @@ and dispatches to it. New vendors register themselves in PARSERS below —
 nothing else in the app should need to change to add one.
 """
 
+import logging
 from pathlib import Path
 from backend.parsers.common.base import BaseDVRParser, ParseResult, ParseError
 from backend.parsers.hikvision.parser import HikvisionParser
 from backend.parsers.heimvision.parser import HeimVisionParser
 from backend.parsers.carver.parser import ForensicDiskCarverParser
 from backend.parsers.generic.parser import GenericVideoParser
+
+logger = logging.getLogger(__name__)
 
 # Order matters: more specific/proprietary parsers should be tried before
 # disk carvers and generic fallbacks.
@@ -65,6 +68,16 @@ class ParserManager:
             if matched and confidence > best_confidence:
                 best_parser, best_confidence, best_info = parser, confidence, info
 
+        p = Path(evidence_path)
+        file_size = p.stat().st_size if p.exists() else None
+        mtime_ns = p.stat().st_mtime_ns if p.exists() else None
+        norm_path = str(p.resolve()) if p.exists() else str(evidence_path)
+
+        if best_info is not None and isinstance(best_info, dict):
+            best_info["evidence_path"] = norm_path
+            best_info["file_size"] = file_size
+            best_info["mtime_ns"] = mtime_ns
+
         return best_parser, best_confidence, best_info, candidates
 
     def detect(self, evidence_path: str) -> tuple[BaseDVRParser | None, float, dict]:
@@ -78,6 +91,36 @@ class ParserManager:
         output_directory: str,
         detection_result: tuple[BaseDVRParser | None, float, dict, list[dict]] | tuple[BaseDVRParser | None, float, dict] | None = None,
     ) -> ParseResult:
+        p = Path(evidence_path)
+        curr_size = p.stat().st_size if p.exists() else None
+        curr_mtime = p.stat().st_mtime_ns if p.exists() else None
+        curr_norm = str(p.resolve()) if p.exists() else str(evidence_path)
+
+        if detection_result is not None:
+            cand_info = None
+            if len(detection_result) >= 3 and isinstance(detection_result[2], dict):
+                cand_info = detection_result[2]
+
+            mismatch = False
+            if cand_info:
+                det_path = cand_info.get("evidence_path")
+                det_size = cand_info.get("file_size")
+                det_mtime = cand_info.get("mtime_ns")
+
+                if det_path is not None and (det_path != curr_norm and det_path != str(evidence_path)):
+                    mismatch = True
+                elif det_size is not None and det_size != curr_size:
+                    mismatch = True
+                elif det_mtime is not None and det_mtime != curr_mtime:
+                    mismatch = True
+
+            if mismatch:
+                logger.warning(
+                    f"Precomputed detection result does not match evidence file '{evidence_path}'. "
+                    "Ignoring precomputed detection result and re-detecting."
+                )
+                detection_result = None
+
         if detection_result is not None:
             if len(detection_result) == 4:
                 parser, confidence, info, candidates = detection_result
@@ -97,6 +140,9 @@ class ParserManager:
             parser, confidence, info, candidates = self.detect_candidates(evidence_path)
 
         detection_info = {
+            "evidence_path": curr_norm,
+            "file_size": curr_size,
+            "mtime_ns": curr_mtime,
             "selected_parser": parser.vendor_name if parser else None,
             "confidence": confidence,
             "info": info,
@@ -161,6 +207,36 @@ class ParserManager:
         parse_result: ParseResult,
         detection_result: tuple[BaseDVRParser | None, float, dict, list[dict]] | tuple[BaseDVRParser | None, float, dict] | None = None,
     ) -> ParseResult:
+        p = Path(evidence_path)
+        curr_size = p.stat().st_size if p.exists() else None
+        curr_mtime = p.stat().st_mtime_ns if p.exists() else None
+        curr_norm = str(p.resolve()) if p.exists() else str(evidence_path)
+
+        if detection_result is not None:
+            cand_info = None
+            if len(detection_result) >= 3 and isinstance(detection_result[2], dict):
+                cand_info = detection_result[2]
+
+            mismatch = False
+            if cand_info:
+                det_path = cand_info.get("evidence_path")
+                det_size = cand_info.get("file_size")
+                det_mtime = cand_info.get("mtime_ns")
+
+                if det_path is not None and (det_path != curr_norm and det_path != str(evidence_path)):
+                    mismatch = True
+                elif det_size is not None and det_size != curr_size:
+                    mismatch = True
+                elif det_mtime is not None and det_mtime != curr_mtime:
+                    mismatch = True
+
+            if mismatch:
+                logger.warning(
+                    f"Precomputed detection result does not match evidence file '{evidence_path}'. "
+                    "Ignoring precomputed detection result."
+                )
+                detection_result = None
+
         parser = next((p for p in PARSERS if p.vendor_name == parse_result.vendor), None)
         if parser is None or not hasattr(parser, "extract_recordings"):
             conf = parse_result.detection_confidence
@@ -168,7 +244,13 @@ class ParserManager:
             if detection_result is not None:
                 if len(detection_result) == 4:
                     _, conf, _, cands = detection_result
-                    det_info = det_info or {"confidence": conf, "candidates": cands}
+                    det_info = det_info or {
+                        "evidence_path": curr_norm,
+                        "file_size": curr_size,
+                        "mtime_ns": curr_mtime,
+                        "confidence": conf,
+                        "candidates": cands,
+                    }
                 else:
                     _, conf, _ = detection_result[:3]
             return ParseResult(

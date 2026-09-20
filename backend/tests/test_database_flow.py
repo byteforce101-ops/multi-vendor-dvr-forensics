@@ -58,3 +58,40 @@ def test_case_evidence_parse_and_retrieve(tmp_path, monkeypatch):
     finally:
         app.dependency_overrides.clear()
         get_settings.cache_clear()
+
+
+def test_app_database_engine_is_isolated_sqlite():
+    """Verify that backend.db.database engine and SessionLocal bound URL are SQLite in a temp directory."""
+    import tempfile
+    from backend.db.database import engine, SessionLocal
+
+    engine_url_str = str(engine.url)
+    session_bind_url_str = str(SessionLocal.kw["bind"].url)
+    temp_dir = tempfile.gettempdir().lower()
+
+    assert engine_url_str.startswith("sqlite"), f"Expected engine to be sqlite, got: {engine_url_str}"
+    assert session_bind_url_str.startswith("sqlite"), f"Expected SessionLocal to be sqlite, got: {session_bind_url_str}"
+    assert (
+        temp_dir in engine_url_str.lower()
+        or "temp" in engine_url_str.lower()
+        or "tmp" in engine_url_str.lower()
+    ), f"Engine URL not in temp dir: {engine_url_str}"
+    assert (
+        temp_dir in session_bind_url_str.lower()
+        or "temp" in session_bind_url_str.lower()
+        or "tmp" in session_bind_url_str.lower()
+    ), f"SessionLocal bind URL not in temp dir: {session_bind_url_str}"
+
+
+def test_non_sqlite_connection_guard_raises():
+    """Verify that attempting to connect to a non-SQLite engine raises RuntimeError via the do_connect guard."""
+    import pytest
+    from sqlalchemy import create_engine
+
+    engine = create_engine("postgresql+psycopg://user:pass@localhost:5432/prohibited_db")
+    with pytest.raises(RuntimeError, match="Prohibited non-SQLite database connection during test run"):
+        with engine.connect():
+            pass
+
+
+

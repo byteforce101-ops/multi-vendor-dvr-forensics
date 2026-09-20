@@ -29,22 +29,48 @@ def _json_safe(value: Any) -> Any:
     return value
 
 
+def _detection_json_safe(value: Any) -> Any:
+    """Sanitizer used exclusively for detection_info and candidate evaluations."""
+    if dataclasses.is_dataclass(value):
+        return _detection_json_safe(dataclasses.asdict(value))
+    if isinstance(value, bytes):
+        return value.hex()
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, dict):
+        return {str(key): _detection_json_safe(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple, set)):
+        return [_detection_json_safe(item) for item in value]
+    return value
+
+
 def persist_parse_result(
     db: Session,
     evidence: Evidence,
     result: ParseResult,
     device_info: dict[str, Any] | None = None,
+    detection_confidence: float | None = None,
+    detection_info: dict[str, Any] | None = None,
 ) -> tuple[Device | None, list[Recording]]:
     """Persist a ParseResult idempotently; parsers themselves remain ORM-free."""
     evidence.vendor = result.vendor
     evidence.parser_version = result.parser_version
     evidence.parse_warnings = _json_safe(result.warnings)
     evidence.parse_errors = _json_safe(result.errors)
+
+    conf = detection_confidence if detection_confidence is not None else result.detection_confidence
+    if conf is not None:
+        evidence.detection_confidence = conf
+
+    det_info = detection_info or result.detection_info or ({"info": device_info} if device_info else None)
+    if det_info is not None:
+        evidence.detection_info = _detection_json_safe(det_info)
+
     if not result.success:
         db.commit()
         return None, []
 
-    info = device_info or {}
+    info = device_info or (result.detection_info.get("info") if result.detection_info else {}) or {}
     device = db.query(Device).filter(
         Device.evidence_id == evidence.id, Device.vendor == result.vendor
     ).one_or_none()
@@ -94,6 +120,7 @@ def persist_parse_result(
     for recording in stored:
         db.refresh(recording)
     return device, stored
+
 
 from backend.db.models import Event, Recording
 from backend.video.analysis.models import VideoEvent

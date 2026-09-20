@@ -770,10 +770,6 @@ def parse_evidence(
         / evidence_id
     )
 
-    _, _, device_info = parser_manager.detect(
-        evidence.working_copy_path
-    )
-
     result = parser_manager.parse(
         evidence.working_copy_path,
         output_dir,
@@ -783,7 +779,6 @@ def parse_evidence(
         db,
         evidence,
         result,
-        device_info,
     )
 
     db.refresh(evidence)
@@ -845,15 +840,10 @@ def extract_evidence(
         parse_result,
     )
 
-    _, _, device_info = parser_manager.detect(
-        evidence.working_copy_path
-    )
-
     persist_parse_result(
         db,
         evidence,
         extract_result,
-        device_info,
     )
 
     db.refresh(evidence)
@@ -1143,8 +1133,21 @@ async def analyze_video(file: UploadFile = File(...), user: AuthenticatedUser | 
     if is_disk_image and detected_parser is not None and detected_parser.vendor_name != "generic":
         extracted_dir = directory / "extracted"
         extracted_dir.mkdir(parents=True, exist_ok=True)
-        parse_result = parser_manager.parse(str(original_path), str(extracted_dir))
-        extract_result = parser_manager.extract(str(original_path), str(extracted_dir), parse_result) if parse_result.success else parse_result
+        parse_result = parser_manager.parse(
+            str(original_path),
+            str(extracted_dir),
+            detection_result=(detected_parser, confidence, info),
+        )
+        extract_result = (
+            parser_manager.extract(
+                str(original_path),
+                str(extracted_dir),
+                parse_result,
+                detection_result=(detected_parser, confidence, info),
+            )
+            if parse_result.success
+            else parse_result
+        )
 
         recovered = [
             r for r in extract_result.recordings

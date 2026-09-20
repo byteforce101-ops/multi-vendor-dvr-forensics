@@ -156,9 +156,12 @@ def _parse_hbtree_safe(mm, master: MasterBlock) -> list[HIKBTREEEntry]:
 class HikvisionParser(BaseDVRParser):
     vendor_name = "hikvision"
     parser_version = "0.1.0"
+    max_confidence = 0.90
 
     def detect(self, evidence_path: str) -> tuple[bool, float, dict]:
         try:
+            if not os.path.exists(evidence_path) or os.path.getsize(evidence_path) < 0x360:
+                return False, 0.0, {}
             with open(evidence_path, "rb") as f, \
                  mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as mm:
                 if len(mm) < 0x360:
@@ -168,12 +171,14 @@ class HikvisionParser(BaseDVRParser):
                     version = bytes(mm[0x230:0x23E])
                     return True, 0.9, {"vendor": "hikvision", "version": version.decode(errors="replace")}
                 return False, 0.0, {}
-        except (OSError, struct.error):
+        except (OSError, struct.error, ValueError):
             return False, 0.0, {}
 
     def validate(self, evidence_path: str) -> tuple[bool, list[str]]:
         warnings = []
         try:
+            if not os.path.exists(evidence_path) or os.path.getsize(evidence_path) < 0x360:
+                return False, ["Evidence file is empty or too small to be a valid Hikvision image"]
             with open(evidence_path, "rb") as f, \
                  mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as mm:
                 master = _parse_master_block(mm)
@@ -191,6 +196,12 @@ class HikvisionParser(BaseDVRParser):
         os.makedirs(output_directory, exist_ok=True)
 
         try:
+            if not os.path.exists(evidence_path) or os.path.getsize(evidence_path) < 0x360:
+                return ParseResult(
+                    vendor=self.vendor_name, parser_version=self.parser_version,
+                    success=False, error_code=ParseError.PARSE_FAILED,
+                    errors=["Evidence file is empty or too small to be a valid Hikvision image"],
+                )
             with open(evidence_path, "rb") as f, \
                  mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as mm:
                 master = _parse_master_block(mm)
@@ -272,6 +283,20 @@ class HikvisionParser(BaseDVRParser):
                 vendor=self.vendor_name, parser_version=self.parser_version,
                 success=False, error_code=ParseError.EXTRACTION_FAILED,
                 errors=["ffmpeg not found on PATH — required for muxing recordings"],
+            )
+
+        if not os.path.exists(evidence_path) or os.path.getsize(evidence_path) == 0:
+            return ParseResult(
+                vendor=self.vendor_name, parser_version=self.parser_version,
+                success=False, error_code=ParseError.EXTRACTION_FAILED,
+                errors=["Evidence file is empty or not found"],
+            )
+
+        if master is None:
+            return ParseResult(
+                vendor=self.vendor_name, parser_version=self.parser_version,
+                success=False, error_code=ParseError.EXTRACTION_FAILED,
+                errors=["Master block unavailable; cannot determine data block size"],
             )
 
         os.makedirs(output_directory, exist_ok=True)

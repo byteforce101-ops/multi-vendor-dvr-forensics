@@ -56,6 +56,8 @@ class EvidenceRead(BaseModel):
     acquired_at: datetime
     vendor: str | None
     parser_version: str | None
+    detection_confidence: float | None = None
+    detection_info: dict[str, Any] | None = None
     parse_warnings: list[str]
     parse_errors: list[str]
     devices: list[DeviceRead] = []

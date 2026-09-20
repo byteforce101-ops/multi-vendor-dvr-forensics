@@ -93,11 +93,20 @@ def parse_evidence(
 
     summary = Table(title="Parse Summary")
 
-    summary.add_column("Property", style="bold cyan")
-    summary.add_column("Value")
+    summary.add_column("Property", style="bold cyan", overflow="fold", no_wrap=False)
+    summary.add_column("Value", overflow="fold", no_wrap=False)
 
     summary.add_row("Vendor", result.vendor)
     summary.add_row("Parser Version", result.parser_version)
+    if result.detection_confidence is not None:
+        summary.add_row("Detection Confidence", f"{result.detection_confidence:.1%}")
+    if result.detection_info and "candidates" in result.detection_info:
+        candidates = result.detection_info["candidates"]
+        cand_str = ", ".join(
+            f"{c['vendor']}: {c['confidence']:.1%}" if c["matched"] else f"{c['vendor']}: no-match"
+            for c in candidates
+        )
+        summary.add_row("Candidates Evaluated", cand_str)
     summary.add_row(
         "Recordings Found",
         str(len(result.recordings)),
@@ -118,13 +127,13 @@ def parse_evidence(
             show_lines=True,
         )
 
-        table.add_column("Recording ID", style="cyan")
-        table.add_column("Camera ID")
-        table.add_column("Timestamp")
+        table.add_column("Recording ID", style="cyan", overflow="fold", no_wrap=False)
+        table.add_column("Camera ID", overflow="fold", no_wrap=False)
+        table.add_column("Timestamp", overflow="fold", no_wrap=False)
         table.add_column("Duration")
         table.add_column("Resolution")
         table.add_column("Codec")
-        table.add_column("Status")
+        table.add_column("Status", overflow="fold", no_wrap=False)
 
         for recording in result.recordings:
 

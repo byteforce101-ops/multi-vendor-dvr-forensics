@@ -1777,8 +1777,21 @@ def analyze(
         settings = get_settings()
         out_dir = settings.extracted_media_root / resolved.stem
         out_dir.mkdir(parents=True, exist_ok=True)
-        parse_result = manager.parse(str(resolved), str(out_dir))
-        extract_result = manager.extract(str(resolved), str(out_dir), parse_result) if parse_result.success else parse_result
+        parse_result = manager.parse(
+            str(resolved),
+            str(out_dir),
+            detection_result=(parser, confidence, info),
+        )
+        extract_result = (
+            manager.extract(
+                str(resolved),
+                str(out_dir),
+                parse_result,
+                detection_result=(parser, confidence, info),
+            )
+            if parse_result.success
+            else parse_result
+        )
         recovered = [
             r for r in extract_result.recordings
             if r.extracted_path and Path(r.extracted_path).is_file() and Path(r.extracted_path).stat().st_size > 0

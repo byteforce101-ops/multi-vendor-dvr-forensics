@@ -1,7 +1,11 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 export const API_BASE = (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_API_BASE_URL
-  || (typeof window !== 'undefined' ? `http://${window.location.hostname || 'localhost'}:8000` : 'http://localhost:8000');
+  || (typeof window !== 'undefined'
+      ? (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+          ? `http://${window.location.hostname}:8000`
+          : '/api')
+      : '/api');
 
 export async function getAuthHeaders(): Promise<HeadersInit> {
   if (!isSupabaseConfigured || !supabase) return {};

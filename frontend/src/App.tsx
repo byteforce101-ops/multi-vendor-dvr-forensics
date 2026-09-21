@@ -239,7 +239,7 @@ function Button({
   type = 'button',
 }: {
   children?: ReactNode;
-  onClick?: () => void;
+  onClick?: (e?: any) => void;
   variant?: 'primary' | 'secondary' | 'success' | 'ai' | 'danger' | 'action' | 'ghost';
   icon?: React.ComponentType<{ size?: number }>;
   className?: string;
@@ -773,7 +773,7 @@ export default function App() {
           action: 'SHA-256 Bitstream Seal & Automated Video Analysis',
           fileName: selectedUploadFile.name,
           caseId: selectedCase?.case_number || selectedCase?.id?.slice(0, 8) || 'STANDALONE',
-          hashSnippet: uploadHash || fileHash || 'CRYPTOGRAPHIC_SEAL_VALID',
+          hashSnippet: uploadHash || 'CRYPTOGRAPHIC_SEAL_VALID',
           operator: selectedCase?.investigator || 'Forensic Examiner',
           verified: true,
         };

@@ -330,19 +330,19 @@ def _normalize_uploaded_video(source_path: Path, output_path: Path) -> dict:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     completed = _run_video_command([
         "ffmpeg", "-y", "-fflags", "+genpts", "-i", str(source_path),
-        "-map", "0:v:0", "-c:v", "libx264", "-preset", "veryfast", "-crf", "18",
+        "-map", "0:v:0", "-c:v", "libx264", "-preset", "ultrafast", "-crf", "24",
         "-pix_fmt", "yuv420p", "-movflags", "+faststart",
-        "-map", "0:a:0?", "-c:a", "aac", "-b:a", "192k",
+        "-map", "0:a:0?", "-c:a", "aac", "-b:a", "128k",
         str(output_path)
-    ], 1800)
+    ], 300)
     if completed.returncode != 0 or not output_path.is_file() or output_path.stat().st_size <= 0:
         # Fallback simple transcode without strict stream mapping
         completed = _run_video_command([
             "ffmpeg", "-y", "-fflags", "+genpts", "-i", str(source_path),
-            "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
+            "-c:v", "libx264", "-preset", "ultrafast", "-crf", "26",
             "-pix_fmt", "yuv420p", "-movflags", "+faststart",
             str(output_path)
-        ], 1800)
+        ], 300)
     if not output_path.is_file() or output_path.stat().st_size <= 0:
         raise RuntimeError("FFmpeg did not create a valid normalized MP4.")
     return _probe_uploaded_video(output_path)
@@ -1168,7 +1168,7 @@ async def analyze_video(file: UploadFile = File(...), user: AuthenticatedUser | 
                     camera_id=recovered[0].camera_id or "camera_01",
                     video_path=normalized_path,
                     video_start_time=recovered[0].original_timestamp or datetime.now(timezone.utc),
-                    frame_sample_fps=5.0,
+                    frame_sample_fps=2.0,
                 )
                 fps = result.metadata.fps or 25.0
                 events = []
@@ -1309,7 +1309,7 @@ async def analyze_video(file: UploadFile = File(...), user: AuthenticatedUser | 
     except RuntimeError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     try:
-        result = video_analysis_service.analyze(video_id=analysis_id, camera_id="camera_01", video_path=normalized_path, video_start_time=datetime.now(timezone.utc), frame_sample_fps=5.0)
+        result = video_analysis_service.analyze(video_id=analysis_id, camera_id="camera_01", video_path=normalized_path, video_start_time=datetime.now(timezone.utc), frame_sample_fps=2.0)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Video analysis failed: {exc}") from exc
     fps = result.metadata.fps or 25.0

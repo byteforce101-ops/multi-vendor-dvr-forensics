@@ -4,8 +4,8 @@ export const API_BASE = (import.meta as unknown as { env?: Record<string, string
   || (typeof window !== 'undefined'
       ? (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
           ? `http://${window.location.hostname}:8000`
-          : '/api')
-      : '/api');
+          : 'https://tracex-backend-uq45.onrender.com')
+      : 'https://tracex-backend-uq45.onrender.com');
 
 export async function getAuthHeaders(): Promise<HeadersInit> {
   if (!isSupabaseConfigured || !supabase) return {};

@@ -715,8 +715,40 @@ export default function App() {
         `[DECODER] Extracting baseline frames & calculating temporal motion vectors.`,
       ]);
 
+      // Heartbeat timer for user diagnostic feedback during cloud processing & cold starts
+      let elapsedSeconds = 0;
+      const heartbeatTimer = setInterval(() => {
+        elapsedSeconds += 5;
+        if (elapsedSeconds === 10) {
+          setProcessingLogs((prev) => [
+            ...prev,
+            `[STATUS] Cloud AI Engine demuxing frames & calculating motion vectors...`,
+          ]);
+        } else if (elapsedSeconds === 25) {
+          setProcessingLogs((prev) => [
+            ...prev,
+            `[STATUS] Deep neural vision model running object detection (YOLO/PyTorch)...`,
+          ]);
+        } else if (elapsedSeconds === 45) {
+          setProcessingLogs((prev) => [
+            ...prev,
+            `[RENDER COLD-START] Render free tier instances take ~45s to wake up if idle. Processing...`,
+          ]);
+        } else if (elapsedSeconds % 30 === 0) {
+          setProcessingLogs((prev) => [
+            ...prev,
+            `[STATUS] Processing video payload (${elapsedSeconds}s elapsed)...`,
+          ]);
+        }
+      }, 5000);
+
       // Call backend /video/analyze
-      const result = await api.analyzeVideo(selectedUploadFile);
+      let result;
+      try {
+        result = await api.analyzeVideo(selectedUploadFile);
+      } finally {
+        clearInterval(heartbeatTimer);
+      }
 
       setProcessingProgress(70);
       setProcessingPhase(3);

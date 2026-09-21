@@ -489,6 +489,12 @@ export default function App() {
         authListener.subscription.unsubscribe();
       };
     } else {
+      const saved = localStorage.getItem('tracex_auth_user');
+      if (saved) {
+        try {
+          setCurrentUser(JSON.parse(saved));
+        } catch {}
+      }
       setAuthChecking(false);
     }
   }, []);

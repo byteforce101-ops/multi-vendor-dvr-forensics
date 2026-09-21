@@ -10,7 +10,10 @@
     },
     {
       "src": "api/index.py",
-      "use": "@vercel/python"
+      "use": "@vercel/python",
+      "config": {
+        "excludeFiles": "{.venv/**,node_modules/**,frontend/**,dataset/**,training_runs/**,tracex_output/**,test_output/**,scratch/**,tmp/**,*.dd,*.mp4,*.ps,*.jpg}"
+      }
     }
   ],
   "routes": [

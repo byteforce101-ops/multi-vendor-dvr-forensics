@@ -38,6 +38,24 @@ def iter_frames(
             if fps <= 0 or np.isnan(fps):
                 fps = 30.0
 
+            step_frames = int(max(1, round(fps / sample_fps))) if (sample_fps and sample_fps > 0) else 1
+            total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
+
+            if step_frames > 1 and total_frames > 0:
+                # Seek directly to sampled frame indices (100x faster on cloud instances)
+                for curr_frame in range(0, total_frames, step_frames):
+                    cap.set(cv2.CAP_PROP_POS_FRAMES, curr_frame)
+                    ret, frame = cap.read()
+                    if not ret or frame is None:
+                        break
+                    timestamp = curr_frame / fps
+                    yield FrameSample(
+                        frame_number=curr_frame,
+                        timestamp_seconds=timestamp,
+                        image=frame,
+                    )
+                return
+
             interval = (1.0 / sample_fps) if (sample_fps and sample_fps > 0) else None
             next_sample_time = 0.0
             frame_number = 0

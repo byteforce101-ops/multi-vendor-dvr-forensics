@@ -7,19 +7,12 @@
       "config": {
         "distDir": "dist"
       }
-    },
-    {
-      "src": "api/index.py",
-      "use": "@vercel/python",
-      "config": {
-        "excludeFiles": "{.venv/**,node_modules/**,frontend/**,dataset/**,training_runs/**,tracex_output/**,test_output/**,scratch/**,tmp/**,*.dd,*.mp4,*.ps,*.jpg}"
-      }
     }
   ],
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "/api/index.py"
+      "dest": "https://tracex-backend-uq45.onrender.com/$1"
     },
     {
       "handle": "filesystem"

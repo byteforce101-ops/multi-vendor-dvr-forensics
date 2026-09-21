@@ -1,4 +1,14 @@
-# TraceX — DVR Forensics Platform
+---
+title: TraceX DVR Forensics Engine
+emoji: 🎥
+colorFrom: blue
+colorTo: green
+sdk: docker
+app_port: 7860
+short_description: Multi-Vendor DVR Forensic Engine with PyAV, FFmpeg & PyTorch
+---
+
+# TraceX | DVR Forensics Platform
 
 TraceX is an end-to-end digital video forensics platform designed for recovering, parsing, analyzing, and reconstructing surveillance recordings from proprietary DVR filesystem formats and video streams.
 

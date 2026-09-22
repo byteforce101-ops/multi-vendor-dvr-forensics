@@ -13,23 +13,34 @@ export async function getAuthHeaders(): Promise<HeadersInit> {
   const token = data.session?.access_token;
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+async function request<T>(path: string, init: RequestInit = {}, timeoutMs = 180000): Promise<T> {
   const headers: HeadersInit = { ...(await getAuthHeaders()), ...(init.headers || {}) };
-  const res = await fetch(`${API_BASE}${path}`, { ...init, headers });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(`${API_BASE}${path}`, { ...init, headers, signal: controller.signal });
 
-  if (!res.ok) {
-    let detail = res.statusText;
-    try {
-      const body = await res.json();
-      detail = body.detail ? (typeof body.detail === 'string' ? body.detail : JSON.stringify(body.detail)) : detail;
-    } catch {
-      // response wasn't JSON — fall back to statusText
+    if (!res.ok) {
+      let detail = res.statusText;
+      try {
+        const body = await res.json();
+        detail = body.detail ? (typeof body.detail === 'string' ? body.detail : JSON.stringify(body.detail)) : detail;
+      } catch {
+        // response wasn't JSON — fall back to statusText
+      }
+      throw new Error(`${res.status}: ${detail}`);
     }
-    throw new Error(`${res.status}: ${detail}`);
-  }
 
-  if (res.status === 204) return undefined as T;
-  return res.json();
+    if (res.status === 204) return undefined as T;
+    return await res.json();
+  } catch (err: any) {
+    if (err.name === 'AbortError') {
+      throw new Error('Request timed out while waiting for server response. Please try refreshing or re-uploading.');
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 function jsonInit(method: string, body: unknown): RequestInit {

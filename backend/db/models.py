@@ -41,6 +41,8 @@ class Evidence(Base):
     acquired_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     vendor: Mapped[str | None] = mapped_column(String(100), nullable=True)
     parser_version: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    detection_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
+    detection_info: Mapped[dict | None] = mapped_column(JSON, nullable=True, default=dict)
     parse_warnings: Mapped[list[str]] = mapped_column(JSON, default=list)
     parse_errors: Mapped[list[str]] = mapped_column(JSON, default=list)
     case: Mapped["Case"] = relationship(back_populates="evidence_items")

@@ -143,7 +143,11 @@ class TraceXPipelineEngine:
         out_dir = settings.extracted_media_root / path.stem
         out_dir.mkdir(parents=True, exist_ok=True)
 
-        parse_result = manager.parse(str(path), str(out_dir))
+        parse_result = manager.parse(
+            str(path),
+            str(out_dir),
+            detection_result=(parser, confidence, info),
+        )
         res.warnings.extend(parse_result.warnings)
 
         if not parse_result.success:
@@ -181,7 +185,12 @@ class TraceXPipelineEngine:
                 res.warnings.append("ffmpeg not found on PATH — extraction skipped.")
                 recovered = already_usable
             else:
-                extract_result = manager.extract(str(path), str(out_dir), parse_result)
+                extract_result = manager.extract(
+                    str(path),
+                    str(out_dir),
+                    parse_result,
+                    detection_result=(parser, confidence, info),
+                )
                 res.warnings.extend(extract_result.warnings)
                 if not extract_result.success:
                     res.errors.extend(extract_result.errors)

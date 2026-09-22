@@ -14,6 +14,7 @@ import shutil
 import struct
 import subprocess
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -93,6 +94,100 @@ def probe_video_file(filepath: str) -> dict:
     except Exception as exc:
         logger.debug(f"ffprobe failed for {filepath}: {exc}")
         return {}
+
+
+def _parse_timestamp_string(ts_str: str) -> Optional[datetime]:
+    """Parse container timestamp string into a datetime object."""
+    if not isinstance(ts_str, str) or not ts_str.strip():
+        return None
+    val = ts_str.strip()
+    try:
+        iso_val = val
+        if iso_val.endswith("Z") or iso_val.endswith("z"):
+            iso_val = iso_val[:-1] + "+00:00"
+        return datetime.fromisoformat(iso_val)
+    except Exception:
+        pass
+
+    patterns = [
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%d %H:%M:%S.%f",
+        "%Y-%m-%dT%H:%M:%S",
+        "%Y-%m-%dT%H:%M:%S.%f",
+        "%Y-%m-%d",
+        "%a %b %d %H:%M:%S %Y",
+    ]
+    for fmt in patterns:
+        try:
+            return datetime.strptime(val, fmt)
+        except Exception:
+            continue
+    return None
+
+
+def _extract_container_timestamp(
+    stream_type: str, probe_raw: dict
+) -> tuple[Optional[datetime], Optional[str], Optional[str], Optional[bool], Optional[str]]:
+    """
+    Extract and validate container-level creation timestamp for MP4/MOV, MKV, and AVI.
+    Uses only creation_time (MP4/MKV) and IDIT (AVI).
+    Returns (original_timestamp, timestamp_source, timestamp_confidence, timestamp_tz_known, timestamp_tag).
+    """
+    if stream_type in ("mp4", "mkv"):
+        allowed_tags = {"creation_time"}
+    elif stream_type == "avi":
+        allowed_tags = {"idit"}
+    else:
+        return None, None, None, None, None
+
+    tags = probe_raw.get("format", {}).get("tags", {})
+    ts_str = None
+    matched_tag = None
+    for k, v in tags.items():
+        if k.lower() in allowed_tags:
+            ts_str = v
+            matched_tag = k
+            break
+
+    if not ts_str:
+        for st in probe_raw.get("streams", []):
+            st_tags = st.get("tags", {})
+            for k, v in st_tags.items():
+                if k.lower() in allowed_tags:
+                    ts_str = v
+                    matched_tag = k
+                    break
+            if ts_str:
+                break
+
+    if not ts_str:
+        return None, None, None, None, None
+
+    dt = _parse_timestamp_string(ts_str)
+    if dt is None:
+        return None, None, None, None, None
+
+    # Sanity checks per design doc:
+    # 1. Reject epoch-zero baselines (1904-01-01, 1970-01-01, 2001-01-01)
+    if (dt.year, dt.month, dt.day) in ((1904, 1, 1), (1970, 1, 1), (2001, 1, 1)):
+        return None, None, None, None, None
+
+    # 2. Reject ancient dates before 2000
+    if dt.year < 2000:
+        return None, None, None, None, None
+
+    # 3. Reject future dates later than now
+    now = datetime.now(dt.tzinfo) if dt.tzinfo is not None else datetime.now()
+    if dt > now:
+        return None, None, None, None, None
+
+    # Align timezone convention with HikvisionParser (UTC timezone-aware)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    else:
+        dt = dt.astimezone(timezone.utc)
+
+    return dt, "container_creation_time", "low", False, matched_tag
 
 
 def scan_carved_streams(data: bytes | mmap.mmap) -> list[CarvedStreamInfo]:
@@ -399,6 +494,7 @@ def scan_carved_streams(data: bytes | mmap.mmap) -> list[CarvedStreamInfo]:
 class ForensicDiskCarverParser(BaseDVRParser):
     vendor_name = "generic_dvr_carver"
     parser_version = "0.1.0"
+    max_confidence = 0.65
 
     def detect(self, evidence_path: str) -> tuple[bool, float, dict]:
         try:
@@ -521,21 +617,29 @@ class ForensicDiskCarverParser(BaseDVRParser):
                             if rc == 0 and mp4_output_path.exists() and mp4_output_path.stat().st_size > 0:
                                 extracted_video_path = str(mp4_output_path)
 
-                        # Probe stream info
-                        meta = probe_video_file(extracted_video_path)
+                        # Probe stream info (check raw carved stream for original container metadata)
+                        raw_meta = probe_video_file(str(raw_carved_path))
+                        meta = probe_video_file(extracted_video_path) if extracted_video_path != str(raw_carved_path) else raw_meta
+                        if not meta:
+                            meta = raw_meta
+
+                        probe_dict = raw_meta.get("raw") or meta.get("raw", {})
+                        dt, ts_source, ts_conf, ts_tz, ts_tag = _extract_container_timestamp(
+                            s.stream_type, probe_dict
+                        )
 
                         recordings.append(NormalizedRecording(
                             camera_id=f"CH-{cam_num:02d}",
                             recording_id=rec_id,
                             source_path=evidence_path,
                             extracted_path=extracted_video_path,
-                            original_timestamp=None,
+                            original_timestamp=dt,
                             normalized_timestamp=None,
-                            duration_seconds=meta.get("duration_seconds"),
-                            resolution=meta.get("resolution"),
-                            fps=meta.get("fps"),
-                            codec=meta.get("codec") or s.stream_type,
-                            file_size=meta.get("file_size") or s.size_bytes,
+                            duration_seconds=meta.get("duration_seconds") or raw_meta.get("duration_seconds"),
+                            resolution=meta.get("resolution") or raw_meta.get("resolution"),
+                            fps=meta.get("fps") or raw_meta.get("fps"),
+                            codec=meta.get("codec") or raw_meta.get("codec") or s.stream_type,
+                            file_size=meta.get("file_size") or raw_meta.get("file_size") or s.size_bytes,
                             recovery_status="RECOVERED",
                             device_model=s.description,
                             raw_metadata={
@@ -544,7 +648,11 @@ class ForensicDiskCarverParser(BaseDVRParser):
                                 "end_offset": s.end_offset,
                                 "size_bytes": s.size_bytes,
                                 "description": s.description,
-                                "probe": meta.get("raw", {}),
+                                "probe": probe_dict,
+                                "timestamp_source": ts_source,
+                                "timestamp_confidence": ts_conf,
+                                "timestamp_tz_known": ts_tz,
+                                "timestamp_tag": ts_tag,
                             },
                         ))
 

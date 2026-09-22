@@ -41,11 +41,14 @@ class ParseResult:
     errors: list[str] = field(default_factory=list)
     error_code: ParseError | None = None
     raw_master_block: object | None = None
+    detection_confidence: float | None = None
+    detection_info: dict | None = None
 
 
 class BaseDVRParser(ABC):
     vendor_name: str
     parser_version: str = "0.1.0"
+    max_confidence: float = 1.0
 
     @abstractmethod
     def detect(self, evidence_path: str) -> tuple[bool, float, dict]:

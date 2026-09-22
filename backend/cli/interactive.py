@@ -1622,6 +1622,7 @@ def _run_pipeline_once(console) -> None:
         parse_result = manager.parse(
             str(path),
             str(out_dir),
+            detection_result=(parser, confidence, info),
         )
 
     for warning_message in (
@@ -1763,6 +1764,7 @@ def _run_pipeline_once(console) -> None:
                 str(path),
                 str(out_dir),
                 parse_result,
+                detection_result=(parser, confidence, info),
             )
 
         for warning_message in (

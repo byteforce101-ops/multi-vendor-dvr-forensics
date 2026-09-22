@@ -23,6 +23,7 @@ def _parse_fps(rate_str: str) -> float | None:
 class GenericVideoParser(BaseDVRParser):
     vendor_name = "generic"
     parser_version = "0.1.0"
+    max_confidence = 0.30
 
     def detect(self, evidence_path: str) -> tuple[bool, float, dict]:
         ext = os.path.splitext(evidence_path)[1].lower()

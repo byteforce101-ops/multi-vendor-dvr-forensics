@@ -58,3 +58,44 @@ def test_case_evidence_parse_and_retrieve(tmp_path, monkeypatch):
     finally:
         app.dependency_overrides.clear()
         get_settings.cache_clear()
+
+
+def test_app_database_engine_is_isolated_sqlite():
+    """Verify that backend.db.database engine and SessionLocal bound URL are SQLite in tempfile.gettempdir()."""
+    import os
+    import tempfile
+    from pathlib import Path
+    from backend.db.database import engine, SessionLocal
+
+    engine_url_str = str(engine.url)
+    session_bind_url_str = str(SessionLocal.kw["bind"].url)
+    temp_dir_canonical = str(Path(tempfile.gettempdir()).resolve()).lower()
+
+    assert engine_url_str.startswith("sqlite"), f"Expected engine to be sqlite, got: {engine_url_str}"
+    assert session_bind_url_str.startswith("sqlite"), f"Expected SessionLocal to be sqlite, got: {session_bind_url_str}"
+
+    # Extract raw filesystem path from sqlite URL
+    engine_path = str(Path(engine_url_str.removeprefix("sqlite:///")).resolve()).lower()
+    session_path = str(Path(session_bind_url_str.removeprefix("sqlite:///")).resolve()).lower()
+
+    assert os.path.commonpath([temp_dir_canonical, engine_path]) == temp_dir_canonical, (
+        f"Engine path '{engine_path}' is not inside temp dir '{temp_dir_canonical}'"
+    )
+    assert os.path.commonpath([temp_dir_canonical, session_path]) == temp_dir_canonical, (
+        f"SessionLocal bound path '{session_path}' is not inside temp dir '{temp_dir_canonical}'"
+    )
+
+
+
+def test_non_sqlite_connection_guard_raises():
+    """Verify that attempting to connect to a non-SQLite engine raises RuntimeError via the do_connect guard."""
+    import pytest
+    from sqlalchemy import create_engine
+
+    engine = create_engine("postgresql+psycopg://user:pass@localhost:5432/prohibited_db")
+    with pytest.raises(RuntimeError, match="Prohibited non-SQLite database connection during test run"):
+        with engine.connect():
+            pass
+
+
+

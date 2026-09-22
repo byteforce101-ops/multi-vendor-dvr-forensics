@@ -177,6 +177,7 @@ def remux_to_mp4(input_file, output_file):
 class HeimVisionParser(BaseDVRParser):
     vendor_name = "heimvision"
     parser_version = "0.1.0"
+    max_confidence = 0.75
 
     def detect(self, evidence_path):
         try:

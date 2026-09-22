@@ -61,26 +61,30 @@ def test_case_evidence_parse_and_retrieve(tmp_path, monkeypatch):
 
 
 def test_app_database_engine_is_isolated_sqlite():
-    """Verify that backend.db.database engine and SessionLocal bound URL are SQLite in a temp directory."""
+    """Verify that backend.db.database engine and SessionLocal bound URL are SQLite in tempfile.gettempdir()."""
+    import os
     import tempfile
+    from pathlib import Path
     from backend.db.database import engine, SessionLocal
 
     engine_url_str = str(engine.url)
     session_bind_url_str = str(SessionLocal.kw["bind"].url)
-    temp_dir = tempfile.gettempdir().lower()
+    temp_dir_canonical = str(Path(tempfile.gettempdir()).resolve()).lower()
 
     assert engine_url_str.startswith("sqlite"), f"Expected engine to be sqlite, got: {engine_url_str}"
     assert session_bind_url_str.startswith("sqlite"), f"Expected SessionLocal to be sqlite, got: {session_bind_url_str}"
-    assert (
-        temp_dir in engine_url_str.lower()
-        or "temp" in engine_url_str.lower()
-        or "tmp" in engine_url_str.lower()
-    ), f"Engine URL not in temp dir: {engine_url_str}"
-    assert (
-        temp_dir in session_bind_url_str.lower()
-        or "temp" in session_bind_url_str.lower()
-        or "tmp" in session_bind_url_str.lower()
-    ), f"SessionLocal bind URL not in temp dir: {session_bind_url_str}"
+
+    # Extract raw filesystem path from sqlite URL
+    engine_path = str(Path(engine_url_str.removeprefix("sqlite:///")).resolve()).lower()
+    session_path = str(Path(session_bind_url_str.removeprefix("sqlite:///")).resolve()).lower()
+
+    assert os.path.commonpath([temp_dir_canonical, engine_path]) == temp_dir_canonical, (
+        f"Engine path '{engine_path}' is not inside temp dir '{temp_dir_canonical}'"
+    )
+    assert os.path.commonpath([temp_dir_canonical, session_path]) == temp_dir_canonical, (
+        f"SessionLocal bound path '{session_path}' is not inside temp dir '{temp_dir_canonical}'"
+    )
+
 
 
 def test_non_sqlite_connection_guard_raises():

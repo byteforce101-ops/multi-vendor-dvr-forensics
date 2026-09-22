@@ -1,4 +1,5 @@
 import os
+import shutil
 import tempfile
 from pathlib import Path
 import pytest
@@ -7,16 +8,20 @@ from sqlalchemy.engine import Engine
 from backend.config.settings import get_settings
 
 _GLOBAL_TEST_ROOT = Path(tempfile.gettempdir()) / "dvr_forensics_pytest_session"
-_GLOBAL_TEST_ROOT.mkdir(parents=True, exist_ok=True)
 
 
 def pytest_configure(config):
     """
     Hook executed before any test modules or application modules are imported.
+    Deletes and recreates the shared session temp root so each pytest run starts
+    with a fresh session_forensics.db and empty storage folders.
     Sets default environment variables to temporary paths so import-time singletons
     (like engine and SessionLocal in backend.db.database) bind to SQLite from the start.
     Also registers a session-wide guard against non-SQLite connections.
     """
+    shutil.rmtree(_GLOBAL_TEST_ROOT, ignore_errors=True)
+    _GLOBAL_TEST_ROOT.mkdir(parents=True, exist_ok=True)
+
     orig_root = _GLOBAL_TEST_ROOT / "storage" / "original"
     work_root = _GLOBAL_TEST_ROOT / "storage" / "working_copies"
     extr_root = _GLOBAL_TEST_ROOT / "storage" / "extracted"
@@ -39,6 +44,20 @@ def pytest_configure(config):
             raise RuntimeError(
                 f"Prohibited non-SQLite database connection during test run: dialect={dialect.name}"
             )
+
+
+def pytest_sessionfinish(session, exitstatus):
+    """
+    Hook executed at test session end. Disposes backend.db.database engine to release
+    Windows file locks before removing the session temp directory.
+    """
+    try:
+        from backend.db.database import engine
+        engine.dispose()
+    except Exception:
+        pass
+    shutil.rmtree(_GLOBAL_TEST_ROOT, ignore_errors=True)
+
 
 
 @pytest.fixture(autouse=True)

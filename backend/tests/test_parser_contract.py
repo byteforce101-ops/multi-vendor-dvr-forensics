@@ -578,9 +578,10 @@ class TestParserPerformanceAndShortCircuit:
         assert parser.vendor_name == "hikvision"
         assert conf == 0.90
 
-        # Assert skipped candidates
+        # Assert skipped candidates — all parsers after hikvision (which scored 0.90)
+        # that have max_confidence <= 0.90 are skipped without calling detect().
         skipped_cands = [c for c in candidates if c.get("skipped")]
-        assert len(skipped_cands) == 3
+        assert len(skipped_cands) == len(PARSERS) - 1
         for c in skipped_cands:
             assert c["matched"] is None
             assert c["confidence"] is None
@@ -607,8 +608,9 @@ class TestParserPerformanceAndShortCircuit:
         assert parser is not None
         assert parser.vendor_name == "hikvision"
         assert all(count == 1 for count in detect_counts.values())
-        assert len(candidates) == 4
+        assert len(candidates) == len(PARSERS)
         assert not any(c.get("skipped") for c in candidates)
+
 
     def test_wiped_master_block_falls_through_to_carver(self, tmp_path):
         normal_dd = self.FIXTURES_DIR / "hikvision_normal.dd"

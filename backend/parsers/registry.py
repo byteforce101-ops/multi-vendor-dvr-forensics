@@ -8,20 +8,39 @@ import logging
 from pathlib import Path
 from backend.parsers.common.base import BaseDVRParser, ParseResult, ParseError
 from backend.parsers.hikvision.parser import HikvisionParser
+from backend.parsers.dahua.parser import DahuaParser
+from backend.parsers.tplink.parser import TPLinkVigiParser
 from backend.parsers.heimvision.parser import HeimVisionParser
+from backend.parsers.uniview.parser import UnivewParser
+from backend.parsers.cpplus.parser import CPPlusParser
 from backend.parsers.carver.parser import ForensicDiskCarverParser
 from backend.parsers.generic.parser import GenericVideoParser
 
 logger = logging.getLogger(__name__)
 
 # Order matters: more specific/proprietary parsers should be tried before
-# disk carvers and generic fallbacks.
+# disk carvers and generic fallbacks. The max_confidence of each parser
+# controls short-circuit skipping once a high-confidence match is found.
+#
+#   HikvisionParser   max_confidence=0.90  — HIKVISION@HANGZHOU signature
+#   DahuaParser        max_confidence=0.90  — DHFS4.1 signature / DHAV frames
+#   TPLinkVigiParser   max_confidence=0.80  — DHAV + TP-Link brand strings
+#   HeimVisionParser   max_confidence=0.75  — HEVC VPS markers
+#   UnivewParser       max_confidence=0.75  — Uniview brand strings + NAL carving
+#   CPPlusParser       max_confidence=0.72  — Dahua OEM + CP Plus brand strings
+#   ForensicDiskCarver max_confidence=0.65  — generic MPEG-PS carver
+#   GenericVideoParser max_confidence=0.30  — last resort
 PARSERS: list[BaseDVRParser] = [
     HikvisionParser(),
+    DahuaParser(),
+    TPLinkVigiParser(),
     HeimVisionParser(),
+    UnivewParser(),
+    CPPlusParser(),
     ForensicDiskCarverParser(),
     GenericVideoParser(),
 ]
+
 
 SPLIT_OR_CONTAINER_EXTS = {".e01", ".ex01", ".001"}
 

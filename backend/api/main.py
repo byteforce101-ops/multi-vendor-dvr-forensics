@@ -28,8 +28,8 @@ from backend.core.acquisition.service import (
     verify_evidence,
 )
 
-from backend.db.database import get_db
-from backend.db.models import Case, Evidence, Event
+from backend.db.database import engine, get_db
+from backend.db.models import Base, Case, Evidence, Event
 from backend.db.repositories.events_repository import EventsRepository
 from backend.db.schemas import (
     CaseCreate,
@@ -54,6 +54,11 @@ from backend.cli.interactive import _run_video_integrity_analysis
 app = FastAPI(
     title="DVR Forensic Platform"
 )
+
+try:
+    Base.metadata.create_all(bind=engine)
+except Exception as _db_exc:
+    print(f"[DB] Initial table creation warning: {_db_exc}")
 
 _settings = get_settings()
 

@@ -348,10 +348,11 @@ class VideoPlaybackSession:
         cur_ts = self.current_frame_idx / max(0.1, self.fps)
         cur_ts_str = f"{int(cur_ts // 60):02d}:{cur_ts % 60:04.1f}"
         tot_ts_str = f"{int(self.duration_seconds // 60):02d}:{self.duration_seconds % 60:04.1f}"
-        state_tag = "▶ PLAYING" if self.is_playing else "⏸ PAUSED"
+        state_tag = "PLAYING" if self.is_playing else "PAUSED"
         enh_tag = "ON" if self.enhance_enabled else "OFF"
         return (
             f"[{state_tag}] Frame: {self.current_frame_idx + 1}/{self.total_frames} "
             f"({cur_ts_str} / {tot_ts_str}) • {self.fps:.1f} FPS • Mode: {self.color_mode.upper()} • Enhance: {enh_tag}"
         )
+
 

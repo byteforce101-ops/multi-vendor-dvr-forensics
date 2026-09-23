@@ -780,10 +780,17 @@ class TraceXApp(App):
             status_line = self.playback_session.get_status_line()
             status_widget.update(
                 f"[bold bright_cyan]{status_line}[/bold bright_cyan]\n"
-                f"[dim]Controls: [SPACE] Play/Pause  [+/-] Speed ({self.playback_session.playback_speed:.2f}x)  [E] Enhance  [M] Mode  [ [ / ] ] Seek 1s  [← / →] Step  [R] Restart[/dim]"
+                f"[dim]Controls: [bold bright_white]\\[SPACE][/bold bright_white] Play/Pause  "
+                f"[bold bright_white]\\[+/-][/bold bright_white] Speed ({self.playback_session.playback_speed:.2f}x)  "
+                f"[bold bright_white]\\[E][/bold bright_white] Enhance  "
+                f"[bold bright_white]\\[M][/bold bright_white] Mode  "
+                f"[bold bright_white]\\[\\[ / \\]][/bold bright_white] Seek 1s  "
+                f"[bold bright_white]\\[← / →][/bold bright_white] Step  "
+                f"[bold bright_white]\\[R][/bold bright_white] Restart[/dim]"
             )
         except Exception as exc:
             logger.debug(f"Render ASCII frame notice: {exc}")
+
 
     def action_switch_focus(self) -> None:
         focused = self.focused
@@ -866,6 +873,33 @@ class TraceXApp(App):
         if not val:
             return
 
+        # Check for video playback commands
+        cmd = val.lower()
+        if cmd in (":enhance", ":enh", ":e") and self.playback_session is not None:
+            self.action_video_toggle_enhance()
+            search_input.value = ""
+            return
+        elif cmd in (":play", ":pause", ":space") and self.playback_session is not None:
+            self.action_toggle_video_play()
+            search_input.value = ""
+            return
+        elif cmd in (":mode", ":m") and self.playback_session is not None:
+            self.action_video_toggle_mode()
+            search_input.value = ""
+            return
+        elif cmd in (":restart", ":r") and self.playback_session is not None:
+            self.action_video_restart()
+            search_input.value = ""
+            return
+        elif (cmd == ":speed+" or cmd == ":faster") and self.playback_session is not None:
+            self.action_video_speed_up()
+            search_input.value = ""
+            return
+        elif (cmd == ":speed-" or cmd == ":slower") and self.playback_session is not None:
+            self.action_video_speed_down()
+            search_input.value = ""
+            return
+
         # Check for explicit file reset command
         if val.startswith(":file ") or val.startswith(":load "):
             new_file = val.split(" ", 1)[1].strip()
@@ -883,6 +917,7 @@ class TraceXApp(App):
             self.query_one("#query-results-content", Static).update(self._get_file_prompt_text())
             self.query_one("#additional-analysis-content", Static).update(self._get_initial_analysis_placeholder_text())
             return
+
 
         if self.mode == "file":
             self._start_file_ingestion(val)

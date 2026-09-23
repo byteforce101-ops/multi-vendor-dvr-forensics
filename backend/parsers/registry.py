@@ -9,9 +9,12 @@ from pathlib import Path
 from backend.parsers.common.base import BaseDVRParser, ParseResult, ParseError
 from backend.parsers.hikvision.parser import HikvisionParser
 from backend.parsers.dahua.parser import DahuaParser
+from backend.parsers.honeywell.parser import HoneywellParser
+from backend.parsers.matrix.parser import MatrixParser
 from backend.parsers.tplink.parser import TPLinkVigiParser
 from backend.parsers.heimvision.parser import HeimVisionParser
 from backend.parsers.uniview.parser import UnivewParser
+from backend.parsers.godrej.parser import GodrejParser
 from backend.parsers.cpplus.parser import CPPlusParser
 from backend.parsers.carver.parser import ForensicDiskCarverParser
 from backend.parsers.generic.parser import GenericVideoParser
@@ -22,9 +25,12 @@ logger = logging.getLogger(__name__)
 # disk carvers and generic fallbacks. The max_confidence of each parser
 # controls short-circuit skipping once a high-confidence match is found.
 #
-#   HikvisionParser   max_confidence=0.90  — HIKVISION@HANGZHOU signature
-#   DahuaParser        max_confidence=0.90  — DHFS4.1 signature / DHAV frames
+#   HikvisionParser   max_confidence=0.90  — HIKVISION@HANGZHOU superblock
+#   DahuaParser        max_confidence=0.90  — DHFS4.1 superblock / DHAV frames
+#   HoneywellParser    max_confidence=0.85  — 20-byte NAL header + Sector 34 brand
+#   MatrixParser       max_confidence=0.82  — SATATYA brand / .stm/.mxs/.avs
 #   TPLinkVigiParser   max_confidence=0.80  — DHAV + TP-Link brand strings
+#   GodrejParser       max_confidence=0.80  — DHFS4.1/Xiongmai + Godrej brand
 #   HeimVisionParser   max_confidence=0.75  — HEVC VPS markers
 #   UnivewParser       max_confidence=0.75  — Uniview brand strings + NAL carving
 #   CPPlusParser       max_confidence=0.72  — Dahua OEM + CP Plus brand strings
@@ -33,13 +39,17 @@ logger = logging.getLogger(__name__)
 PARSERS: list[BaseDVRParser] = [
     HikvisionParser(),
     DahuaParser(),
+    HoneywellParser(),
+    MatrixParser(),
     TPLinkVigiParser(),
+    GodrejParser(),
     HeimVisionParser(),
     UnivewParser(),
     CPPlusParser(),
     ForensicDiskCarverParser(),
     GenericVideoParser(),
 ]
+
 
 
 SPLIT_OR_CONTAINER_EXTS = {".e01", ".ex01", ".001"}

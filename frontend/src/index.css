@@ -420,285 +420,315 @@ main { padding:30px; max-width:1660px; margin:0 auto; }.page-title { display:fle
 
 
 /* ==========================================================================
-   ENHANCED FORENSIC WORKSTATION BUTTON DESIGN SYSTEM
-   Visual Identity: Deep Royal Indigo / Midnight Navy to Violet with Neon Cyan/Teal Accents
+   FORENSIC WORKSTATION BUTTON SYSTEM
+   Restrained, instrument-grade controls: single-hue gradients, a fine
+   brushed texture, calm grounding depth, and a quiet sheen on activation.
+   No neon glow, no rainbow blends, no bouncy lift.
    ========================================================================== */
 
-/* Base Button: Dark Sleek Slate-Indigo Capsule */
+/* Shared machined sheen that glides once on hover for weighted actions */
+@keyframes btn-sheen {
+  0% { transform: translateX(-120%) skewX(-16deg); opacity: 0; }
+  18% { opacity: 1; }
+  100% { transform: translateX(240%) skewX(-16deg); opacity: 0; }
+}
+
+/* Base Button: quiet slate-navy control */
 .btn {
-  border: 1px solid #2b3967;
-  background: linear-gradient(180deg, #1d2752 0%, #151f42 100%);
-  color: #e2e8f0;
+  border: 1px solid #101a33;
+  background: linear-gradient(180deg, #24315a 0%, #1b2545 100%);
+  color: #e7ecf6;
   min-height: 35px;
-  padding: 0 14px;
+  padding: 0 15px;
   display: inline-flex;
   gap: 8px;
   align-items: center;
   justify-content: center;
-  border-radius: 7px;
+  border-radius: 8px;
   font-size: 11.5px;
   font-weight: 600;
   letter-spacing: -0.01em;
   white-space: nowrap;
   cursor: pointer;
   user-select: none;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  transition: background 0.22s ease, border-color 0.22s ease, color 0.22s ease, box-shadow 0.22s ease;
+  box-shadow: 0 1px 2px rgba(9, 14, 30, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.07);
   position: relative;
   overflow: hidden;
   outline: none;
 }
 
+/* Fine brushed hairline texture + soft top facet */
 .btn::before {
   content: '';
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 48%;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0) 100%);
-  border-radius: 6px 6px 0 0;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0) 42%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.03) 0 1px, transparent 1px 3px);
   pointer-events: none;
 }
 
 .btn:hover {
-  border-color: #38bdf8;
-  background: linear-gradient(180deg, #243368 0%, #1a2650 100%);
+  border-color: #0c1428;
+  background: linear-gradient(180deg, #2b3968 0%, #202b52 100%);
   color: #ffffff;
-  transform: translateY(-1.5px);
-  box-shadow: 0 4px 14px rgba(56, 189, 248, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  box-shadow: 0 2px 5px rgba(9, 14, 30, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
 .btn:active {
-  transform: translateY(1px) scale(0.99);
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.4);
+  transform: translateY(0.5px);
+  box-shadow: inset 0 2px 4px rgba(6, 10, 22, 0.5);
 }
 
 .btn:focus-visible {
-  outline: 2px solid #2dd4bf;
-  outline-offset: 2px;
+  box-shadow: 0 0 0 3px rgba(55, 48, 163, 0.4), 0 1px 2px rgba(9, 14, 30, 0.4);
 }
 
 .btn:disabled,
 .btn[disabled] {
-  opacity: 0.48 !important;
+  opacity: 0.5 !important;
   cursor: not-allowed !important;
   pointer-events: none !important;
   transform: none !important;
-  box-shadow: none !important;
-  filter: grayscale(0.5) !important;
+  filter: saturate(0.7) !important;
 }
 
-/* 1. Flagship Primary Action Button (Matches "Video Evidence" Active Nav Item) */
-/* Luminous Royal Indigo to Violet Gradient with Glowing Neon Cyan / Teal Accent */
+/* 1. Flagship Primary Action — confident single-hue indigo */
 .btn-primary,
 .btn-kinetic-primary,
 .btn-primary-navy {
-  background: linear-gradient(135deg, #182357 0%, #22327c 40%, #2e3592 75%, #3d35a5 100%) !important;
+  background: linear-gradient(180deg, #35409e 0%, #2a3486 55%, #232c78 100%) !important;
   color: #ffffff !important;
-  border: 1.5px solid #2dd4bf !important;
-  box-shadow: 0 3px 14px -1px rgba(45, 212, 191, 0.42), 0 2px 6px rgba(15, 23, 60, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
-  text-shadow: 0 1px 2px rgba(10, 16, 38, 0.5) !important;
+  border: 1px solid #1a2058 !important;
+  box-shadow: 0 1px 2px rgba(14, 18, 46, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+  text-shadow: 0 1px 1px rgba(12, 16, 40, 0.4) !important;
   font-weight: 650 !important;
 }
 
+/* Sheen element shared by weighted action buttons */
 .btn-primary::after,
 .btn-kinetic-primary::after,
-.btn-primary-navy::after {
+.btn-primary-navy::after,
+.btn-success::after,
+.btn-emerald::after,
+.btn-ai::after,
+.btn-danger::after {
   content: '';
   position: absolute;
-  inset: 0;
-  border-radius: 6px;
-  background: radial-gradient(circle at 50% 0%, rgba(45, 212, 191, 0.25), transparent 70%);
+  top: 0;
+  left: 0;
+  width: 55%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.16), transparent);
+  transform: translateX(-120%) skewX(-16deg);
+  opacity: 0;
   pointer-events: none;
-  transition: opacity 0.2s ease;
+}
+
+.btn-primary:hover::after,
+.btn-kinetic-primary:hover::after,
+.btn-primary-navy:hover::after,
+.btn-success:hover::after,
+.btn-emerald:hover::after,
+.btn-ai:hover::after,
+.btn-danger:hover::after {
+  animation: btn-sheen 0.7s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .btn-primary:hover,
 .btn-kinetic-primary:hover,
 .btn-primary-navy:hover {
-  background: linear-gradient(135deg, #1d2c6c 0%, #283b94 40%, #363ea8 75%, #473ebc 100%) !important;
-  border-color: #5eead4 !important;
-  box-shadow: 0 6px 22px -1px rgba(45, 212, 191, 0.65), 0 3px 8px rgba(15, 23, 60, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.45) !important;
-  transform: translateY(-1.5px) !important;
+  background: linear-gradient(180deg, #3d49ac 0%, #313c92 55%, #293285 100%) !important;
+  border-color: #151a4c !important;
+  box-shadow: 0 2px 6px rgba(14, 18, 46, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.28) !important;
   color: #ffffff !important;
 }
 
 .btn-primary:active,
 .btn-kinetic-primary:active,
 .btn-primary-navy:active {
-  background: linear-gradient(135deg, #151e4b 0%, #1e2c6f 40%, #272d7e 75%, #342d8d 100%) !important;
-  transform: translateY(1px) scale(0.99) !important;
-  box-shadow: 0 2px 8px rgba(45, 212, 191, 0.35) !important;
+  background: linear-gradient(180deg, #2a3486 0%, #232c78 100%) !important;
+  transform: translateY(0.5px) !important;
+  box-shadow: inset 0 2px 4px rgba(10, 14, 40, 0.55) !important;
 }
 
-/* 2. Secondary Surface (Contrasting Dark Slate-Navy Capsule matching "Timeline") */
+/* 2. Secondary Surface — muted slate-navy */
 .btn-secondary {
-  background: linear-gradient(180deg, #1e2850 0%, #151f40 100%) !important;
-  color: #e2e8f0 !important;
-  border: 1px solid #2d3d6e !important;
-  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+  background: linear-gradient(180deg, #232f56 0%, #1a2442 100%) !important;
+  color: #dde3f0 !important;
+  border: 1px solid #111a34 !important;
+  box-shadow: 0 1px 2px rgba(9, 14, 30, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
 }
 
 .btn-secondary:hover {
-  background: linear-gradient(180deg, #253467 0%, #1c2854 100%) !important;
-  border-color: #38bdf8 !important;
+  background: linear-gradient(180deg, #2a3865 0%, #202b52 100%) !important;
+  border-color: #0c1428 !important;
   color: #ffffff !important;
-  transform: translateY(-1.5px) !important;
-  box-shadow: 0 4px 14px rgba(56, 189, 248, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.18) !important;
+  box-shadow: 0 2px 5px rgba(9, 14, 30, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
 }
 
 .btn-secondary:active {
-  background: #141d3c !important;
-  transform: translateY(1px) scale(0.99) !important;
+  transform: translateY(0.5px) !important;
+  box-shadow: inset 0 2px 4px rgba(6, 10, 22, 0.5) !important;
 }
 
-/* 3. Certified Court Dossier / Success Seal (Deep Emerald-Teal Navy with Cyan Border) */
+/* 3. Certified / Success — deep teal-emerald seal */
 .btn-success,
 .btn-emerald {
-  background: linear-gradient(135deg, #072a26 0%, #0d5648 45%, #107261 80%, #14b8a6 100%) !important;
+  background: linear-gradient(180deg, #0f7a63 0%, #0c6553 55%, #0a5344 100%) !important;
   color: #ffffff !important;
-  border: 1.5px solid #2dd4bf !important;
-  box-shadow: 0 3px 14px -1px rgba(45, 212, 191, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.28) !important;
-  text-shadow: 0 1px 2px rgba(6, 40, 36, 0.5) !important;
+  border: 1px solid #063a30 !important;
+  box-shadow: 0 1px 2px rgba(6, 34, 28, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.18) !important;
+  text-shadow: 0 1px 1px rgba(5, 30, 26, 0.4) !important;
   font-weight: 650 !important;
 }
 
 .btn-success:hover,
 .btn-emerald:hover {
-  background: linear-gradient(135deg, #0b3833 0%, #0f6857 45%, #13826f 80%, #2dd4bf 100%) !important;
-  border-color: #5eead4 !important;
-  box-shadow: 0 6px 22px -1px rgba(45, 212, 191, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
-  transform: translateY(-1.5px) !important;
+  background: linear-gradient(180deg, #12896f 0%, #0f715c 55%, #0c5e4c 100%) !important;
+  border-color: #052f27 !important;
+  box-shadow: 0 2px 6px rgba(6, 34, 28, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.26) !important;
   color: #ffffff !important;
 }
 
 .btn-success:active,
 .btn-emerald:active {
-  background: #062420 !important;
-  transform: translateY(1px) scale(0.99) !important;
+  transform: translateY(0.5px) !important;
+  box-shadow: inset 0 2px 4px rgba(4, 24, 20, 0.55) !important;
 }
 
-/* 4. AI Neural Vision & Groq Intelligence (Cyber Aurora: Deep Cosmic Violet to Cyan) */
+/* 4. AI / Neural Analysis — distinguished cool indigo, not neon */
 .btn-ai {
-  background: linear-gradient(135deg, #1e1b4b 0%, #2e287a 35%, #3d35a5 70%, #0891b2 100%) !important;
+  background: linear-gradient(180deg, #2b3f97 0%, #26357f 55%, #202c6e 100%) !important;
   color: #ffffff !important;
-  border: 1.5px solid #22d3ee !important;
-  box-shadow: 0 3px 16px -1px rgba(34, 211, 238, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.32) !important;
-  text-shadow: 0 1px 2px rgba(15, 23, 42, 0.5) !important;
+  border: 1px solid #151d52 !important;
+  box-shadow: 0 1px 2px rgba(12, 18, 46, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.18) !important;
+  text-shadow: 0 1px 1px rgba(10, 16, 40, 0.4) !important;
   font-weight: 650 !important;
 }
 
 .btn-ai:hover {
-  background: linear-gradient(135deg, #2a1f63 0%, #372e96 35%, #483ebf 70%, #06b6d4 100%) !important;
-  border-color: #67e8f9 !important;
-  box-shadow: 0 6px 24px -1px rgba(34, 211, 238, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.45) !important;
-  transform: translateY(-1.5px) !important;
+  background: linear-gradient(180deg, #3245a6 0%, #2c3c8b 55%, #253177 100%) !important;
+  border-color: #111848 !important;
+  box-shadow: 0 2px 6px rgba(12, 18, 46, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.26) !important;
   color: #ffffff !important;
 }
 
 .btn-ai:active {
-  background: #18143f !important;
-  transform: translateY(1px) scale(0.99) !important;
+  transform: translateY(0.5px) !important;
+  box-shadow: inset 0 2px 4px rgba(8, 14, 38, 0.55) !important;
 }
 
-/* 5. Danger / Incident Revocation (Crimson Ruby Navy Gradient) */
+/* 5. Danger — muted crimson */
 .btn-danger {
-  background: linear-gradient(135deg, #3d0d14 0%, #6e1724 45%, #881b2c 80%, #9f1239 100%) !important;
+  background: linear-gradient(180deg, #a41d38 0%, #8c162c 55%, #761026 100%) !important;
   color: #ffffff !important;
-  border: 1.5px solid #f43f5e !important;
-  box-shadow: 0 3px 14px -1px rgba(244, 63, 94, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.22) !important;
-  text-shadow: 0 1px 2px rgba(20, 5, 8, 0.5) !important;
+  border: 1px solid #500a18 !important;
+  box-shadow: 0 1px 2px rgba(40, 6, 14, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.16) !important;
+  text-shadow: 0 1px 1px rgba(30, 4, 10, 0.4) !important;
+  font-weight: 650 !important;
 }
 
 .btn-danger:hover {
-  background: linear-gradient(135deg, #52131c 0%, #851c2d 45%, #a32236 80%, #e11d48 100%) !important;
-  border-color: #fb7185 !important;
-  box-shadow: 0 6px 22px -1px rgba(244, 63, 94, 0.65) !important;
-  transform: translateY(-1.5px) !important;
+  background: linear-gradient(180deg, #b62240 0%, #9c1a31 55%, #85132b 100%) !important;
+  border-color: #440813 !important;
+  box-shadow: 0 2px 6px rgba(40, 6, 14, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.24) !important;
   color: #ffffff !important;
 }
 
 .btn-danger:active {
-  background: #33080e !important;
-  transform: translateY(1px) scale(0.99) !important;
+  transform: translateY(0.5px) !important;
+  box-shadow: inset 0 2px 4px rgba(30, 4, 10, 0.55) !important;
 }
 
-/* 6. Interactive Table Action Pill (Deep Midnight with Glowing Cyan Accent) */
+/* 6. Table Action Pill — compact, quiet */
 .btn-action {
-  background: linear-gradient(180deg, #18244e 0%, #111a3b 100%) !important;
-  color: #5eead4 !important;
-  border: 1px solid #2b3a6b !important;
+  background: linear-gradient(180deg, #222e54 0%, #19233f 100%) !important;
+  color: #b7c4de !important;
+  border: 1px solid #101a33 !important;
   min-height: 29px !important;
   padding: 0 13px !important;
   font-size: 11px !important;
   font-weight: 650 !important;
-  border-radius: 6px !important;
-  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+  border-radius: 7px !important;
+  box-shadow: 0 1px 2px rgba(9, 14, 30, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
   display: inline-flex !important;
   align-items: center !important;
   gap: 5px !important;
-  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease !important;
 }
 
 .btn-action:hover {
-  background: linear-gradient(135deg, #1e2d67 0%, #2b3e8e 100%) !important;
+  background: linear-gradient(180deg, #29396a 0%, #1f2b4f 100%) !important;
   color: #ffffff !important;
-  border-color: #2dd4bf !important;
-  box-shadow: 0 4px 14px rgba(45, 212, 191, 0.45) !important;
-  transform: translateX(2px) !important;
+  border-color: #0c1428 !important;
+  box-shadow: 0 2px 5px rgba(9, 14, 30, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
 }
 
 .btn-action:active {
-  transform: scale(0.98) !important;
+  transform: translateY(0.5px) !important;
+  box-shadow: inset 0 2px 3px rgba(6, 10, 22, 0.5) !important;
 }
 
 /* 7. Ghost / Minimalist Action */
 .btn-ghost {
   background: transparent !important;
-  color: #94a3b8 !important;
+  color: #64748b !important;
   border: 1px solid transparent !important;
   box-shadow: none !important;
 }
 
 .btn-ghost:hover {
-  background: rgba(30, 41, 89, 0.45) !important;
-  color: #5eead4 !important;
-  border-color: rgba(45, 212, 191, 0.3) !important;
-  transform: translateY(-1px) !important;
+  background: rgba(35, 47, 86, 0.1) !important;
+  color: #334155 !important;
+  border-color: rgba(35, 47, 86, 0.16) !important;
 }
 
-/* 8. Interactive Chips / Quick Suggestion Pills */
+/* 8. Chips / Quick Suggestion Pills */
 .btn-chip,
 .chip-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: linear-gradient(180deg, #162044 0%, #101835 100%);
-  border: 1px solid #283764;
-  color: #cbd5e1;
-  padding: 5px 12px;
-  border-radius: 20px;
+  background: linear-gradient(180deg, #1e2a4e 0%, #16203c 100%);
+  border: 1px solid #101a33;
+  color: #c7d0e2;
+  padding: 6px 13px;
+  border-radius: 8px;
   font-size: 11px;
   font-weight: 550;
   cursor: pointer;
-  transition: all 0.18s ease;
+  transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
   user-select: none;
-  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.25);
+  box-shadow: 0 1px 2px rgba(9, 14, 30, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 .btn-chip:hover,
 .chip-btn:hover {
-  background: linear-gradient(180deg, #1e2a56 0%, #162248 100%);
-  border-color: #2dd4bf;
-  color: #5eead4;
-  transform: translateY(-1.5px);
-  box-shadow: 0 3px 12px rgba(45, 212, 191, 0.35);
+  background: linear-gradient(180deg, #26355f 0%, #1c294c 100%);
+  border-color: #0c1428;
+  color: #ffffff;
+  box-shadow: 0 2px 5px rgba(9, 14, 30, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .btn-chip:active,
 .chip-btn:active {
-  transform: translateY(1px);
+  transform: translateY(0.5px);
+  box-shadow: inset 0 2px 3px rgba(6, 10, 22, 0.45);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-primary:hover::after,
+  .btn-kinetic-primary:hover::after,
+  .btn-primary-navy:hover::after,
+  .btn-success:hover::after,
+  .btn-emerald:hover::after,
+  .btn-ai:hover::after,
+  .btn-danger:hover::after {
+    animation: none;
+  }
 }
 
 /* ==========================================================================

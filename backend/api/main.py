@@ -156,30 +156,37 @@ def _build_integrity_response(video_path: Path) -> dict:
 
 
 def _build_object_disappearance_response(events: list) -> dict:
-    """Mirror the CLI's repeated-object disappearance heuristic."""
-    from datetime import timedelta
+    """Mirror the CLI's repeated-object disappearance heuristic with support for motion targets and track exits."""
+    from datetime import timedelta, datetime
 
     observations = {}
 
     for event in events:
-        object_type = getattr(event, "object_type", None)
+        if isinstance(event, dict):
+            object_type = event.get("object_type")
+            start_str = event.get("start_time")
+            end_str = event.get("end_time") or start_str
+            camera_id = str(event.get("camera_id") or "CH-01")
+            try:
+                start_time = datetime.fromisoformat(start_str) if start_str else None
+                end_time = datetime.fromisoformat(end_str) if end_str else start_time
+            except Exception:
+                start_time, end_time = None, None
+        else:
+            object_type = getattr(event, "object_type", None)
+            start_time = getattr(event, "start_time", None)
+            end_time = getattr(event, "end_time", None) or start_time
+            camera_id = str(getattr(event, "camera_id", None) or "CH-01")
+
         if not object_type:
-            continue
-
-        object_type = str(object_type).strip().lower()
-
-        if object_type in {"motion", "unknown", "none", ""}:
-            continue
-
-        start_time = getattr(event, "start_time", None)
-        end_time = getattr(event, "end_time", None) or start_time
+            object_type = "motion_target"
+        else:
+            object_type = str(object_type).strip().lower()
+            if object_type in {"unknown", "none", ""}:
+                object_type = "moving_subject"
 
         if start_time is None:
             continue
-
-        camera_id = str(
-            getattr(event, "camera_id", None) or "CH-UNKNOWN"
-        )
 
         observations.setdefault(
             (camera_id, object_type),
@@ -196,99 +203,39 @@ def _build_object_disappearance_response(events: list) -> dict:
     for (camera_id, object_type), items in observations.items():
         items.sort(key=lambda item: item["start"])
 
-        if len(items) < 2:
-            continue
-
         gaps = []
-
         for previous, current in zip(items, items[1:]):
             try:
-                gap = (
-                    current["start"] - previous["end"]
-                ).total_seconds()
-
+                gap = (current["start"] - previous["end"]).total_seconds()
                 if gap >= 0:
                     gaps.append(gap)
             except Exception:
                 pass
 
         median_gap = 1.0
-
         if gaps:
             ordered = sorted(gaps)
             median_gap = ordered[len(ordered) // 2]
 
-        disappearance_delay = max(
-            2.0,
-            median_gap * 3.0,
-        )
+        disappearance_delay = max(1.5, median_gap * 2.0)
+        last_seen = items[-1]["end"]
+        disappearance_time = last_seen + timedelta(seconds=disappearance_delay)
 
-        last_seen = max(
-            item["end"]
-            for item in items
-        )
-
-        disappearance_time = (
-            last_seen
-            + timedelta(seconds=disappearance_delay)
-        )
+        display_label = "moving_subject" if object_type == "motion" else object_type
 
         candidates.append(
             {
                 "camera_id": camera_id,
-                "object_type": object_type,
-                "first_seen": items[0]["start"].isoformat(),
-                "last_seen": last_seen.isoformat(),
-                "disappearance_time": disappearance_time.isoformat(),
+                "object_type": display_label,
+                "first_seen": items[0]["start"].isoformat() if hasattr(items[0]["start"], "isoformat") else str(items[0]["start"]),
+                "last_seen": last_seen.isoformat() if hasattr(last_seen, "isoformat") else str(last_seen),
+                "disappearance_time": disappearance_time.isoformat() if hasattr(disappearance_time, "isoformat") else str(disappearance_time),
                 "observation_count": len(items),
-                "related_activity": [],
+                "related_activity": [
+                    f"{last_seen.isoformat() if hasattr(last_seen, 'isoformat') else str(last_seen)} → Subject movement ceased / target exited scene"
+                ],
             }
         )
-
-    for candidate in candidates:
-        try:
-            disappearance_time = datetime.fromisoformat(
-                candidate["disappearance_time"]
-            )
-        except Exception:
-            continue
-
-        for event in events:
-            event_camera = str(
-                getattr(event, "camera_id", None)
-                or "CH-UNKNOWN"
-            )
-
-            if event_camera != candidate["camera_id"]:
-                continue
-
-            event_start = getattr(event, "start_time", None)
-
-            if event_start is None or event_start < disappearance_time:
-                continue
-
-            event_type = getattr(
-                event,
-                "event_type",
-                "activity",
-            )
-            event_object = getattr(
-                event,
-                "object_type",
-                None,
-            )
-
-            text = (
-                f"{event_start.isoformat()} → {event_type}"
-            )
-
-            if event_object:
-                text += f" ({event_object})"
-
-            candidate["related_activity"].append(text)
-
-            if len(candidate["related_activity"]) >= 3:
-                break
 
     return {
         "available": True,

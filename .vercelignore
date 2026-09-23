@@ -1,14 +1,4 @@
-# Vercel Deployment Exclusions — Ignore Python & Backend files so Vercel builds React static frontend cleanly
-api/
-backend/
-.python-version
-pyproject.toml
-requirements.txt
-requirements-full.txt
-Dockerfile
-Dockerfile.lightweight
-alembic.ini
-
+# Vercel Deployment Exclusions
 .venv
 .venv/*
 node_modules
@@ -35,4 +25,5 @@ tmp/*
 *.mp4
 *.ps
 *.jpg
+*.dd
 dvr_forensics_platform.egg-info

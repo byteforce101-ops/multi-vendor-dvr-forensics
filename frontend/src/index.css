@@ -914,3 +914,152 @@ tbody tr.active-row {
   transform: rotate(15deg);
 }
 
+/* ==========================================================================
+   TRACE-X POLISH LAYER
+   Presentation-only refinements: motion, depth, hierarchy, states.
+   Additive — no markup, routing, data, or behavior is affected.
+   ========================================================================== */
+
+@keyframes tracex-fade-up {
+  from { opacity: 0; transform: translateY(9px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes tracex-modal-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.985); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes tracex-shimmer {
+  from { background-position: -180% 0; }
+  to   { background-position: 180% 0; }
+}
+@keyframes tracex-pulse-dot {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.45); }
+  50%      { box-shadow: 0 0 0 4px rgba(220, 38, 38, 0); }
+}
+@keyframes tracex-bob {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-4px); }
+}
+
+/* --- Section / page entrance ------------------------------------------------
+   Plays on mount and whenever a view swaps its top-level structure. */
+main > * {
+  animation: tracex-fade-up 0.36s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+main > *:nth-child(2) { animation-delay: 0.04s; }
+main > *:nth-child(3) { animation-delay: 0.08s; }
+main > *:nth-child(4) { animation-delay: 0.11s; }
+
+/* --- Panels: cleaner depth + calm hover elevation -------------------------- */
+.panel {
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.03);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.panel:hover {
+  box-shadow: 0 4px 16px -6px rgba(15, 23, 42, 0.12), 0 1px 3px rgba(15, 23, 42, 0.04);
+  border-color: #d3dae2;
+}
+/* Static / decorative panels shouldn't react to hover */
+.report-preview:hover,
+.viewer-wrap:hover,
+.timeline-card:hover,
+.timeline-full:hover {
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  border-color: var(--border);
+}
+
+/* --- Modals: refined entrance + sticky, layered chrome --------------------- */
+.modal-card {
+  animation: tracex-modal-in 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
+  box-shadow: 0 24px 60px -12px rgba(15, 23, 42, 0.4), 0 4px 12px rgba(15, 23, 42, 0.12);
+}
+.modal-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfcfd 100%);
+}
+.modal-head h3 { letter-spacing: -0.02em; }
+.modal-footer { position: sticky; bottom: 0; z-index: 2; }
+/* Close controls in modal headers */
+.modal-head .icon-btn:hover,
+.modal-head button:hover:not(.btn) {
+  color: #0f172a;
+  background: #eef2f6;
+  transform: none;
+}
+.drawer { box-shadow: -16px 0 44px -12px rgba(15, 23, 42, 0.28); }
+
+/* --- Status badges: crisper pills with subtle tone borders ----------------- */
+.status {
+  border: 1px solid transparent;
+  transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+}
+.status-success { border-color: #bbf7d0; }
+.status-warning { border-color: #fde68a; }
+.status-critical { border-color: #fecaca; }
+.status-teal { border-color: #99f6e4; }
+.status-critical::before {
+  content: '';
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: #dc2626;
+  display: inline-block;
+  animation: tracex-pulse-dot 1.8s ease-in-out infinite;
+}
+
+/* --- Empty states: warmer, more finished ----------------------------------- */
+.empty-state { animation: tracex-fade-up 0.4s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.empty-icon {
+  background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 1px 2px rgba(15, 23, 42, 0.05);
+  animation: tracex-bob 3.4s ease-in-out infinite;
+}
+
+/* --- Loading: reusable shimmer skeleton + smoother spinner ----------------- */
+.tracex-skeleton {
+  background: linear-gradient(100deg, #eef1f5 20%, #f6f8fa 42%, #eef1f5 64%);
+  background-size: 200% 100%;
+  animation: tracex-shimmer 1.4s ease-in-out infinite;
+  border-radius: 6px;
+}
+.step-spinner, .step-pending-spinner { will-change: transform; }
+
+/* --- Table rows: quiet left-accent reveal ---------------------------------- */
+tbody tr { border-left: 3px solid transparent; }
+
+/* --- Sidebar nav: icons breathe on hover/active ---------------------------- */
+.sidebar nav button svg,
+.sidebar-bottom button svg { transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
+.sidebar nav button:hover svg { transform: scale(1.08); }
+.sidebar nav button.active svg { transform: scale(1.06); }
+
+/* --- Professional custom scrollbars ---------------------------------------- */
+* { scrollbar-width: thin; scrollbar-color: #c3cbd6 transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: #c3cbd6;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover { background: #a7b2c1; background-clip: padding-box; }
+
+/* --- Chat query bubbles: gentle entrance ----------------------------------- */
+.query-bubble { animation: tracex-fade-up 0.28s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* --- Respect reduced-motion ------------------------------------------------ */
+@media (prefers-reduced-motion: reduce) {
+  main > *,
+  .modal-card,
+  .empty-state,
+  .empty-icon,
+  .query-bubble,
+  .status-critical::before,
+  .tracex-skeleton {
+    animation: none !important;
+  }
+  main > * { opacity: 1; transform: none; }
+}
+

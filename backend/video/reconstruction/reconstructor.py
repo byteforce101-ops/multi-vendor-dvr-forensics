@@ -13,7 +13,7 @@ from backend.video.reconstruction.rules import (
 )
 
 
-DEFAULT_ACTIVITY_GAP_SECONDS = 1.5
+DEFAULT_ACTIVITY_GAP_SECONDS = 3.0
 
 
 def reconstruct_events(
@@ -44,7 +44,7 @@ def reconstruct_events(
             - previous.end_time
         ).total_seconds()
 
-        if gap <= max_gap_seconds and len(current) < 3:
+        if gap <= max_gap_seconds:
 
             current.append(event)
 
@@ -61,13 +61,11 @@ def reconstruct_events(
         ReconstructedEvent
     ] = []
 
-    for idx, group in enumerate(groups, start=1):
+    for group in groups:
 
         event = reconstruct_activity(group)
 
         if event is not None:
-            if len(groups) > 1:
-                event.title = f"{event.title} (Phase {idx})"
             reconstructed.append(event)
 
     return sorted(

@@ -188,28 +188,15 @@ def detect_motion(
     active_start: float | None = None
     active_end: float | None = None
     peak_score = 0.0
-    max_continuous_seconds = 3.5
 
     for sample in samples:
+
         if sample.detected:
             if active_start is None:
                 active_start = sample.timestamp_seconds
 
             active_end = sample.timestamp_seconds
             peak_score = max(peak_score, sample.score)
-
-            # Segment long continuous motion into distinct temporal activity events
-            if (active_end - active_start) >= max_continuous_seconds:
-                events.append(
-                    MotionEvent(
-                        start_seconds=active_start,
-                        end_seconds=active_end,
-                        peak_score=peak_score,
-                    )
-                )
-                active_start = sample.timestamp_seconds
-                active_end = sample.timestamp_seconds
-                peak_score = sample.score
 
         elif active_start is not None:
             assert active_end is not None
@@ -237,7 +224,7 @@ def detect_motion(
             peak_score = 0.0
 
     if active_start is not None and active_end is not None:
-        if active_end - active_start >= min_event_seconds or not events:
+        if active_end - active_start >= min_event_seconds:
             events.append(
                 MotionEvent(
                     start_seconds=active_start,

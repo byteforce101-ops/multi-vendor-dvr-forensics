@@ -884,3 +884,157 @@ tbody tr.active-row {
   transform: rotate(15deg);
 }
 
+/* ==========================================================================
+   Trace-X Professional UI/UX Enhancement Polish Layer
+   ========================================================================== */
+
+/* Keyframe Animations */
+@keyframes modalEnter {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes fadeInSmooth {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(45, 212, 191, 0.4); }
+  50% { box-shadow: 0 0 0 6px rgba(45, 212, 191, 0); }
+}
+
+@keyframes progressGlow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Page & Section Entrance Animations */
+main {
+  animation: fadeInSmooth 0.28s cubic-bezier(0.16, 1, 0.3, 1) ease-out;
+}
+
+.panel, .metric, .timeline-card, .selected-panel, .entity-card, .event-card {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease;
+}
+
+.panel:hover {
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.05);
+}
+
+.metric:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.07);
+  border-color: #cbd5e1;
+}
+
+/* Modal Polish */
+.modal-backdrop {
+  background: rgba(10, 16, 30, 0.72) !important;
+  backdrop-filter: blur(6px) !important;
+  -webkit-backdrop-filter: blur(6px) !important;
+}
+
+.modal-card {
+  animation: modalEnter 0.24s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+  border: 1px solid rgba(226, 232, 240, 0.8) !important;
+  box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.35) !important;
+  border-radius: 12px !important;
+}
+
+.modal-head {
+  padding: 18px 24px !important;
+  background: #fafbfc !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+.modal-body {
+  padding: 24px !important;
+}
+
+.modal-footer {
+  padding: 16px 24px !important;
+  background: #f8fafc !important;
+  border-top: 1px solid #e2e8f0 !important;
+}
+
+/* Form Controls Polish */
+.form-group input,
+.form-group textarea,
+.form-group select {
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+  border-radius: 7px !important;
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+  border-color: #1d4ed8 !important;
+  box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.12) !important;
+}
+
+/* Dropzone Polish */
+.dropzone {
+  border-radius: 10px !important;
+  border-width: 2px !important;
+  transition: all 0.2s ease !important;
+}
+
+.dropzone:hover, .dropzone.dragging {
+  border-color: #0d9488 !important;
+  background: #f0fdfa !important;
+  transform: scale(1.005);
+}
+
+/* Table Polish */
+tbody tr {
+  transition: background-color 0.15s ease, transform 0.15s ease;
+}
+
+tbody tr:hover {
+  background: #f8fafc !important;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(241, 245, 249, 0.6);
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Status Badges Polish */
+.status {
+  transition: all 0.18s ease;
+  letter-spacing: 0.02em;
+}
+
+.status:hover {
+  transform: translateY(-1px);
+}
+
+/* Progress track glow */
+.progress-track i {
+  background-size: 200% 200%;
+  animation: progressGlow 3s ease infinite;
+}
+
+

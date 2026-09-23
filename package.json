@@ -1,12 +1,23 @@
 {
-  "name": "multi-vendor-dvr-forensics",
-  "private": true,
+  "name": "tracex-forensics",
+  "version": "0.1.0",
+  "description": "TraceX DVR Forensics Platform CLI Launcher",
+  "main": "bin/tracex.js",
+  "bin": {
+    "tracex": "./bin/tracex.js",
+    "dvrforensics": "./bin/tracex.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/byteforce101-ops/multi-vendor-dvr-forensics.git"
+  },
   "scripts": {
     "dev": "concurrently -k -c \"blue.bold,green.bold\" -n \"BACKEND,FRONTEND\" \"node run-backend.js\" \"npm --prefix frontend run dev:vite\"",
     "backend": "node run-backend.js",
     "frontend": "npm --prefix frontend run dev:vite",
     "build": "npm --prefix frontend run build",
-    "preview": "npm --prefix frontend run preview"
+    "preview": "npm --prefix frontend run preview",
+    "tracex": "node bin/tracex.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.4",
@@ -18,3 +29,4 @@
     "concurrently": "^10.0.5"
   }
 }
+

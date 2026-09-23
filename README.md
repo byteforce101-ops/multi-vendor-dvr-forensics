@@ -72,27 +72,66 @@ TraceX integrates a layered AI detection and analysis architecture:
 
 ---
 
-## Quick Start & Usage
+## Single-Command Public Access & Quick Start
 
-### Running the TraceX CLI / TUI
+### 🌐 Instant Public Access (Zero-Install Single Command)
+
+Anyone can immediately access and run the TraceX CLI from any terminal using **a single command**:
+
+#### ⚡ Option 1: Instant `npx` Command (Recommended)
+No cloning or manual setup required! Simply run:
+```bash
+npx tracex
+```
+*Or alias `npx dvrforensics`*
+
+---
+
+#### 🐍 Option 2: Direct Python `pip` / `pipx`
+```bash
+# Global pip install
+pip install git+https://github.com/byteforce101-ops/multi-vendor-dvr-forensics.git
+
+# Or zero-install with pipx
+pipx run --spec git+https://github.com/byteforce101-ops/multi-vendor-dvr-forensics.git tracex
+```
+
+#### 📜 Option 3: Shell & PowerShell One-Liners
+
+**Linux / macOS / WSL:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/byteforce101-ops/multi-vendor-dvr-forensics/main/scripts/install.sh | bash
+```
+
+**Windows (PowerShell):**
+```powershell
+iwr -useb https://raw.githubusercontent.com/byteforce101-ops/multi-vendor-dvr-forensics/main/scripts/install.ps1 | iex
+```
+
+---
+
+## Local Usage
 
 Launch the full-screen interactive Terminal User Interface (TUI):
 ```bash
-# Windows batch launcher
+# Global command (after single-command pip install)
+tracex
+
+# Or via Windows batch launcher
 .\tracex.bat
 
-# Python direct
+# Python direct module launch
 python -m backend.cli.main
 ```
 
 Analyze a specific video or evidence file directly:
 ```bash
-python -m backend.cli.main --file path/to/evidence.dd
+tracex --file path/to/evidence.dd
 ```
 
 Run automated CLI video analysis:
 ```bash
-python -m backend.cli.main analyze path/to/video.mp4
+tracex analyze path/to/video.mp4
 ```
 
 ### Running the Backend API Server

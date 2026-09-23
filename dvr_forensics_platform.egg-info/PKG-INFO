@@ -2,7 +2,7 @@ Metadata-Version: 2.4
 Name: dvr-forensics-platform
 Version: 0.1.0
 Summary: DVR Forensics Platform — backend, API, and dvrforensics CLI
-Requires-Python: >=3.11
+Requires-Python: <3.14,>=3.11
 Description-Content-Type: text/markdown
 Requires-Dist: fastapi<1.0,>=0.110
 Requires-Dist: uvicorn[standard]<1.0,>=0.27
@@ -28,4 +28,152 @@ Requires-Dist: Pillow>=10.0.0
 Provides-Extra: dev
 Requires-Dist: pytest<9.0,>=8.0; extra == "dev"
 
-hi lol
+---
+title: TraceX DVR Forensics Engine
+emoji: 🎥
+colorFrom: blue
+colorTo: green
+sdk: docker
+app_port: 7860
+short_description: Multi-Vendor DVR Forensic Engine with PyAV, FFmpeg & PyTorch
+---
+
+# TraceX | DVR Forensics Platform
+
+TraceX is an end-to-end digital video forensics platform designed for recovering, parsing, analyzing, and reconstructing surveillance recordings from proprietary DVR filesystem formats and video streams.
+
+TraceX features a dedicated **TraceX AI Engine** that orchestrates multi-model computer vision, forensic motion heuristics, kinematic event reconstruction, and conversational evidence Q&A.
+
+---
+
+## Architecture Overview
+
+```
+                            TRACEX APPLICATION LAYER
+                       (CLI / TUI / REST API / Frontend)
+                                       │
+                                       ▼
+                   TraceX Video Analysis Service Engine
+                 (backend.video.analysis.service.VideoAnalysisService)
+                                       │
+                                       ▼
+                              TRACEX AI ENGINE
+                 (backend.ai.pipeline.tracex_ai_engine.TraceXAIEngine)
+                                       │
+         ┌─────────────────────────────┼─────────────────────────────┐
+         ▼                             ▼                             ▼
+TraceX Deep Vision             TraceX Pure Forensic         TraceX Open Vocabulary
+    Detector                        Detector                       Detector
+(TraceXVisionDetector)       (TraceXForensicDetector)     (TraceXOpenVocabularyDetector)
+         │                             │                             │
+         └─────────────────────────────┼─────────────────────────────┘
+                                       ▼
+                             TraceX Detection Result
+                            (TraceXDetectionResult)
+                                       │
+         ┌─────────────────────────────┴─────────────────────────────┐
+         ▼                                                           ▼
+TraceX Event Builder                                      TraceX Incident Heuristics
+ (build_detection_events)                                  (detect_incident_candidates)
+                                       │
+                                       ▼
+                     TraceX Forensic Intelligence Summary
+```
+
+---
+
+## TraceX AI Engine Subsystem
+
+TraceX integrates a layered AI detection and analysis architecture:
+
+1. **TraceX AI Engine (`TraceXAIEngine`)**:
+   - Central application-level intelligence orchestrator located at `backend.ai.pipeline.tracex_ai_engine`.
+   - Coordinates video frame preprocessing, motion-guided ROI extraction, multi-model object detection, and cross-frame track association.
+
+2. **Detection Engines**:
+   - **TraceX Pure Forensic Detector (`TraceXForensicDetector`)**: 100% local, weightless pedestrian HOG, Haar body cascades, and MOG2 background morphometrics for rapid CPU-only forensic triage.
+   - **TraceX Deep Vision Detector (`TraceXVisionDetector`)**: High-speed semantic object detection and persistent multi-frame tracking.
+   - **TraceX Open-Vocabulary Detector (`TraceXOpenVocabularyDetector` / `GroundingDINODetector`)**: Transformer-based zero-shot discovery for domain-specific or uncommon forensic entities.
+
+3. **Forensic Intelligence & Event Reconstruction**:
+   - **TraceX Event Builder (`build_detection_events`)**: Aggregates per-frame bounding box detections into discrete spatio-temporal event sequences.
+   - **TraceX Incident Heuristics (`detect_incident_candidates`)**: Rule-based physics and kinematic heuristics detecting multi-vehicle proximity, collisions, optical looming, and sudden decelerations.
+   - **TraceX Forensic Intelligence Summary (`build_forensic_summary`)**: Generates structured investigative headlines, activity chronologies, and confidence ratings.
+
+---
+
+## Single-Command Public Access & Quick Start
+
+### 🌐 Instant Public Access (Zero-Install Single Command)
+
+Anyone can immediately access and run the TraceX CLI from any terminal using **a single command**:
+
+#### ⚡ Option 1: Instant `npx` Command (Recommended)
+No cloning or manual setup required! Simply run:
+```bash
+npx tracex
+```
+*Or alias `npx dvrforensics`*
+
+---
+
+#### 🐍 Option 2: Direct Python `pip` / `pipx`
+```bash
+# Global pip install
+pip install git+https://github.com/byteforce101-ops/multi-vendor-dvr-forensics.git
+
+# Or zero-install with pipx
+pipx run --spec git+https://github.com/byteforce101-ops/multi-vendor-dvr-forensics.git tracex
+```
+
+#### 📜 Option 3: Shell & PowerShell One-Liners
+
+**Linux / macOS / WSL:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/byteforce101-ops/multi-vendor-dvr-forensics/main/scripts/install.sh | bash
+```
+
+**Windows (PowerShell):**
+```powershell
+iwr -useb https://raw.githubusercontent.com/byteforce101-ops/multi-vendor-dvr-forensics/main/scripts/install.ps1 | iex
+```
+
+---
+
+## Local Usage
+
+Launch the full-screen interactive Terminal User Interface (TUI):
+```bash
+# Global command (after single-command pip install)
+tracex
+
+# Or via Windows batch launcher
+.\tracex.bat
+
+# Python direct module launch
+python -m backend.cli.main
+```
+
+Analyze a specific video or evidence file directly:
+```bash
+tracex --file path/to/evidence.dd
+```
+
+Run automated CLI video analysis:
+```bash
+tracex analyze path/to/video.mp4
+```
+
+### Running the Backend API Server
+
+Start the FastAPI backend server:
+```bash
+python run_backend.py
+```
+
+### Running Tests
+
+Execute the full automated test suite:
+```bash
+pytest
+```

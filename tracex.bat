@@ -1,4 +1,4 @@
-c@echo off
+@echo off
 setlocal
 set "PYTHONPATH=%~dp0"
 
@@ -8,19 +8,14 @@ if exist "%~dp0.venv\Scripts\python.exe" (
     goto :eof
 )
 
-:: 2. Check for Python 3.13 where packages are installed
-if exist "C:\Users\sarthak\AppData\Local\Programs\Python\Python313\python.exe" (
-    "C:\Users\sarthak\AppData\Local\Programs\Python\Python313\python.exe" -m backend.cli.main %*
-    goto :eof
-)
-
-:: 3. Try py -3.13 launcher
-py -3.13 -c "import sys" >nul 2>&1
+:: 2. Try py launcher
+py -3 -c "import sys" >nul 2>&1
 if %errorlevel% equ 0 (
-    py -3.13 -m backend.cli.main %*
+    py -3 -m backend.cli.main %*
     goto :eof
 )
 
-:: 4. Fallback to system default python
+:: 3. Fallback to system default python
 python -m backend.cli.main %*
 endlocal
+

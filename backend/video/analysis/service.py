@@ -17,6 +17,10 @@ from backend.ai.events.incident_heuristics import (
     detect_incident_candidates,
 )
 
+from backend.ai.events.anomaly_classifier import (
+    classify_anomalies,
+)
+
 from backend.video.analysis.models import (
     Detection,
     VideoEvent,
@@ -248,6 +252,9 @@ class VideoAnalysisService:
                 detections
             )
             + detect_incident_candidates(
+                detections
+            )
+            + classify_anomalies(          # UCF-Crime / XD-Violence anomaly classifier
                 detections
             )
         )

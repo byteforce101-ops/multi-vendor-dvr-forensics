@@ -2835,6 +2835,147 @@ export default function App() {
                   );
                 })()}
 
+                {/* DVR Evidence Panel — shows parsed vendor/parser data for all case evidence */}
+                {caseEvidence.length > 0 && (
+                  <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '12px' }}>
+                    <p className="eyebrow" style={{ marginBottom: '8px' }}>
+                      DVR EVIDENCE ({caseEvidence.length} item{caseEvidence.length !== 1 ? 's' : ''})
+                    </p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '280px', overflowY: 'auto' }}>
+                      {caseEvidence.map((ev) => {
+                        const vendorLabel = ev.vendor
+                          ? ev.vendor.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+                          : 'Unknown';
+                        const confPct = ev.detection_confidence != null
+                          ? Math.round(ev.detection_confidence * 100)
+                          : null;
+                        const confColor = confPct == null ? '#94a3b8'
+                          : confPct >= 80 ? '#16a34a'
+                          : confPct >= 60 ? '#d97706'
+                          : '#dc2626';
+                        const isParsed = ev.status === 'parsed' || ev.recordings.length > 0;
+                        return (
+                          <div
+                            key={ev.id}
+                            style={{
+                              padding: '10px 12px',
+                              border: `1px solid ${isParsed ? '#bbf7d0' : '#e2e8f0'}`,
+                              borderRadius: '6px',
+                              background: isParsed ? '#f0fdf4' : '#f8fafc',
+                              fontSize: '11px',
+                            }}
+                          >
+                            {/* File name + vendor badge */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '6px', marginBottom: '6px' }}>
+                              <b style={{ color: '#1e293b', fontSize: '11px', wordBreak: 'break-all', flex: 1 }}>
+                                {ev.original_filename}
+                              </b>
+                              {ev.vendor && (
+                                <span style={{
+                                  padding: '2px 7px',
+                                  borderRadius: '999px',
+                                  background: '#dbeafe',
+                                  color: '#1d4ed8',
+                                  fontSize: '9.5px',
+                                  fontWeight: 700,
+                                  letterSpacing: '0.03em',
+                                  whiteSpace: 'nowrap',
+                                  flexShrink: 0,
+                                }}>
+                                  {vendorLabel}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Confidence + hash */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', marginBottom: '6px' }}>
+                              {confPct != null && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  <span style={{ color: '#64748b', fontSize: '9.5px' }}>Confidence:</span>
+                                  <span style={{ color: confColor, fontWeight: 700, fontSize: '9.5px' }}>{confPct}%</span>
+                                  <div style={{ flex: 1, height: '3px', background: '#e2e8f0', borderRadius: '2px', overflow: 'hidden' }}>
+                                    <div style={{ width: `${confPct}%`, height: '100%', background: confColor, borderRadius: '2px' }} />
+                                  </div>
+                                </div>
+                              )}
+                              {!ev.vendor && (
+                                <div style={{ color: '#94a3b8', fontSize: '9.5px', fontStyle: 'italic' }}>
+                                  Not yet parsed — click Parse below
+                                </div>
+                              )}
+                              {ev.sha256 && (
+                                <div style={{ color: '#64748b', fontSize: '9px', fontFamily: 'monospace', wordBreak: 'break-all' }}>
+                                  SHA-256: {ev.sha256.slice(0, 16)}…
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Recordings count */}
+                            {ev.recordings.length > 0 && (
+                              <div style={{ marginBottom: '6px', color: '#16a34a', fontSize: '9.5px', fontWeight: 600 }}>
+                                ✓ {ev.recordings.length} recording{ev.recordings.length !== 1 ? 's' : ''} found
+                                {ev.recordings[0]?.resolution && ` • ${ev.recordings[0].resolution}`}
+                                {ev.recordings[0]?.codec && ` • ${ev.recordings[0].codec.toUpperCase()}`}
+                              </div>
+                            )}
+
+                            {/* Warnings */}
+                            {ev.parse_warnings.length > 0 && (
+                              <div style={{ marginBottom: '6px' }}>
+                                {ev.parse_warnings.slice(0, 2).map((w, wi) => (
+                                  <div key={wi} style={{ color: '#92400e', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '3px', padding: '3px 7px', fontSize: '9px', marginBottom: '2px' }}>
+                                    ⚠ {w}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Parse / Extract actions */}
+                            <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
+                              <button
+                                style={{
+                                  flex: 1, padding: '4px 8px', fontSize: '9.5px', fontWeight: 600,
+                                  background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer',
+                                }}
+                                onClick={async () => {
+                                  try {
+                                    const updated = await api.parseEvidence(ev.id);
+                                    setCaseEvidence(prev => prev.map(e => e.id === ev.id ? updated : e));
+                                  } catch (err: any) {
+                                    alert(`Parse failed: ${err.message}`);
+                                  }
+                                }}
+                              >
+                                Parse
+                              </button>
+                              <button
+                                style={{
+                                  flex: 1, padding: '4px 8px', fontSize: '9.5px', fontWeight: 600,
+                                  background: ev.recordings.length > 0 ? '#16a34a' : '#94a3b8',
+                                  color: '#fff', border: 'none', borderRadius: '4px',
+                                  cursor: ev.recordings.length > 0 ? 'pointer' : 'not-allowed',
+                                }}
+                                disabled={ev.recordings.length === 0}
+                                onClick={async () => {
+                                  if (ev.recordings.length === 0) return;
+                                  try {
+                                    const updated = await api.extractEvidence(ev.id);
+                                    setCaseEvidence(prev => prev.map(e => e.id === ev.id ? updated : e));
+                                  } catch (err: any) {
+                                    alert(`Extract failed: ${err.message}`);
+                                  }
+                                }}
+                              >
+                                Extract
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '12px' }}>
                   <Button
                     variant="secondary"

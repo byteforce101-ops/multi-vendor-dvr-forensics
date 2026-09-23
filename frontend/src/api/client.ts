@@ -86,6 +86,8 @@ export interface EvidenceSummary {
   acquired_at: string;
   vendor: string | null;
   parser_version: string | null;
+  detection_confidence: number | null;
+  detection_info: Record<string, unknown> | null;
   parse_warnings: string[];
   parse_errors: string[];
   recordings: RecordingSummary[];

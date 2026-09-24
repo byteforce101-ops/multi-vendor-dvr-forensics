@@ -40,6 +40,10 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   Sparkles,
+  Terminal,
+  Copy,
+  Check,
+  ExternalLink,
   Upload,
   UploadCloud,
   UserRound,
@@ -49,6 +53,7 @@ import {
   X,
   ZoomIn,
 } from 'lucide-react';
+
 
 import { api, API_BASE } from './api/client';
 import type { CaseSummary, EvidenceSummary, OverviewStats } from './api/client';
@@ -421,6 +426,16 @@ export default function App() {
 
   // Drawer / Inspection Detail
   const [selectedEntity, setSelectedEntity] = useState<any | null>(null);
+
+  // CLI Quick Install & Terminal state
+  const [cliTab, setCliTab] = useState<'npx' | 'pip' | 'powershell' | 'curl' | 'batch'>('npx');
+  const [copiedCli, setCopiedCli] = useState<string | null>(null);
+
+  const handleCopyCli = (text: string, tabKey: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedCli(tabKey);
+    setTimeout(() => setCopiedCli(null), 2500);
+  };
 
   // Authentication & User session state
   const [currentUser, setCurrentUser] = useState<SupabaseUser | null>(() => {
@@ -1423,9 +1438,166 @@ export default function App() {
             </table>
           </div>
         </div>
+
+        {/* CLI Quick Install & Terminal Command Center */}
+        <div className="panel" style={{ marginTop: '20px', padding: '20px', background: '#0f172a', color: '#f8fafc', borderRadius: '8px', border: '1px solid #1e293b' }}>
+          <div className="section-head" style={{ marginBottom: '14px', borderBottom: '1px solid #1e293b', paddingBottom: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ width: '32px', height: '32px', borderRadius: '6px', background: '#1e293b', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#38bdf8' }}>
+                <Terminal size={18} />
+              </div>
+              <div>
+                <p className="eyebrow" style={{ color: '#38bdf8', marginBottom: '2px' }}>TERMINAL COMMANDS &amp; SDK</p>
+                <h3 style={{ color: '#f8fafc', margin: 0, fontSize: '15px' }}>Install &amp; Run TraceX CLI Anywhere</h3>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <a
+                href={api.getDesktopExeUrl()}
+                download="TraceX-DVR-Forensics.exe"
+                className="btn btn-primary"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  background: '#2563eb',
+                  color: '#ffffff',
+                  border: 'none',
+                  textDecoration: 'none',
+                }}
+                title="Download Standalone Windows Desktop App (.exe)"
+              >
+                <Download size={13} />
+                <span>Download Windows .exe</span>
+              </a>
+              <a
+                href="https://github.com/byteforce101-ops/multi-vendor-dvr-forensics"
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  padding: '6px 10px',
+                  borderRadius: '6px',
+                  fontSize: '11px',
+                  color: '#94a3b8',
+                  background: '#1e293b',
+                  textDecoration: 'none',
+                  border: '1px solid #334155',
+                }}
+              >
+                <span>GitHub Repo</span>
+                <ExternalLink size={12} />
+              </a>
+            </div>
+          </div>
+
+          {/* Tab selector */}
+          <div style={{ display: 'flex', gap: '6px', marginBottom: '14px', flexWrap: 'wrap' }}>
+            {[
+              { id: 'npx', label: '⚡ npx (Zero Setup)' },
+              { id: 'pip', label: '🐍 Python pip' },
+              { id: 'powershell', label: '🪟 Windows PowerShell' },
+              { id: 'curl', label: '🐧 Linux / macOS' },
+              { id: 'batch', label: '📁 Windows Batch' },
+            ].map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setCliTab(t.id as any)}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: '5px',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  border: cliTab === t.id ? '1px solid #38bdf8' : '1px solid #334155',
+                  background: cliTab === t.id ? '#1e293b' : 'transparent',
+                  color: cliTab === t.id ? '#38bdf8' : '#94a3b8',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Active Tab Command Display */}
+          {(() => {
+            const tabs: Record<string, { cmd: string; desc: string; usage: string }> = {
+              npx: {
+                cmd: 'npx tracex',
+                desc: 'Runs the full TraceX terminal forensic studio immediately using Node/npx. Zero installation or cloning required.',
+                usage: 'Run in any terminal: npx tracex --file path/to/evidence.dd',
+              },
+              pip: {
+                cmd: 'pip install git+https://github.com/byteforce101-ops/multi-vendor-dvr-forensics.git',
+                desc: 'Installs the complete TraceX Python engine, all 8 DVR vendor parsers, OpenCV detectors, and the tracex CLI command globally.',
+                usage: 'After installation, launch anytime with: tracex or python -m backend.cli.main',
+              },
+              powershell: {
+                cmd: 'iwr -useb https://raw.githubusercontent.com/byteforce101-ops/multi-vendor-dvr-forensics/main/scripts/install.ps1 | iex',
+                desc: 'One-line automated PowerShell installer for Windows 10/11. Configures the environment and verifies FFmpeg.',
+                usage: 'Paste into PowerShell (Admin or User) and press Enter.',
+              },
+              curl: {
+                cmd: 'curl -fsSL https://raw.githubusercontent.com/byteforce101-ops/multi-vendor-dvr-forensics/main/scripts/install.sh | bash',
+                desc: 'Automated shell installer for Linux (Ubuntu, Debian, Fedora, Arch) and macOS / WSL.',
+                usage: 'Paste into your bash/zsh shell and press Enter.',
+              },
+              batch: {
+                cmd: '.\\run_tracex.bat',
+                desc: 'Interactive Windows batch launcher with options for TUI, Web Dashboard, and Standalone .exe compilation.',
+                usage: 'Included in the repository root or downloadable directly from the buttons above.',
+              },
+            };
+            const active = tabs[cliTab] || tabs.npx;
+            const isCopied = copiedCli === cliTab;
+
+            return (
+              <div style={{ background: '#020617', border: '1px solid #1e293b', borderRadius: '6px', padding: '14px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '6px' }}>
+                  <span style={{ fontSize: '11px', color: '#94a3b8' }}>{active.desc}</span>
+                  <button
+                    onClick={() => handleCopyCli(active.cmd, cliTab)}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      padding: '4px 9px',
+                      borderRadius: '4px',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      background: isCopied ? '#059669' : '#1e293b',
+                      color: isCopied ? '#ffffff' : '#e2e8f0',
+                      border: '1px solid ' + (isCopied ? '#10b981' : '#334155'),
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    {isCopied ? <Check size={12} /> : <Copy size={12} />}
+                    <span>{isCopied ? 'Copied!' : 'Copy Command'}</span>
+                  </button>
+                </div>
+                <div style={{ background: '#0f172a', padding: '10px 12px', borderRadius: '4px', fontFamily: 'monospace', fontSize: '12px', color: '#38bdf8', overflowX: 'auto', border: '1px solid #1e293b' }}>
+                  <span style={{ color: '#64748b', marginRight: '8px' }}>$</span>
+                  {active.cmd}
+                </div>
+                <div style={{ marginTop: '8px', fontSize: '10.5px', color: '#94a3b8' }}>
+                  💡 <span style={{ color: '#cbd5e1' }}>{active.usage}</span>
+                </div>
+              </div>
+            );
+          })()}
+        </div>
       </div>
     );
   };
+
 
   // INVESTIGATIONS VIEW
   const renderInvestigations = () => {

@@ -1189,11 +1189,27 @@ export default function App() {
           title="Forensic Investigation Overview"
           description="Enterprise digital video evidence acquisition, frame validation, and event reconstruction powered by TraceX's proprietary AI engine."
           action={
-            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-              <button
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <a
+                href={api.getDesktopExeUrl()}
+                download="TraceX-DVR-Forensics.exe"
                 className="buttonDownload"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '7px',
+                  textDecoration: 'none',
+                }}
+                title="Download Standalone Windows Desktop App (.exe) — 100% Independent & Portable, No Python or Node Required"
+              >
+                <Download size={15} />
+                <span>Download Standalone App (.exe)</span>
+              </a>
+              <button
+                className="buttonNewInvestigation"
                 onClick={() => setIsUploadModalOpen(true)}
               >
+                <UploadCloud size={15} />
                 Ingest Media
               </button>
               <button
@@ -1206,6 +1222,7 @@ export default function App() {
             </div>
           }
         />
+
 
         <div className="overview-cards">
           {metricCards.map((m) => {

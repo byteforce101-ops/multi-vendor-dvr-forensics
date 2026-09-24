@@ -47,11 +47,11 @@ echo Select launch mode:
 echo   [1] Interactive Forensic TUI Console (Real-time ASCII Player, Search, Dossier)
 echo   [2] Start Full Web Platform (FastAPI Backend + Web Dashboard)
 echo   [3] Run Step-by-Step Pipeline Wizard
-echo   [4] Run System Integrity & Parser Verification Tests
+echo   [4] Run System Integrity and Parser Verification Tests
 echo   [5] Build Standalone Windows .exe Executable
 echo   [0] Exit
 echo.
-set /p CHOICE="Enter choice [1-5]: "
+set /p CHOICE="Enter choice [0-5]: "
 
 if "%CHOICE%"=="1" goto :RUN_TUI
 if "%CHOICE%"=="2" goto :RUN_WEB
@@ -96,14 +96,10 @@ goto :END
 
 :BUILD_EXE
 cls
-echo Installing build dependencies...
-%PY_EXE% -m pip install pyinstaller
-echo Compiling standalone Windows .exe...
-%PY_EXE% -m PyInstaller --clean --onefile --name "TraceX-DVR-Forensics" --add-data "backend;backend" main.py
-echo.
-echo Build finished! Check the 'dist' directory for TraceX-DVR-Forensics.exe
+%PY_EXE% scripts\build_exe.py
 pause
 goto :END
+
 
 :END
 endlocal

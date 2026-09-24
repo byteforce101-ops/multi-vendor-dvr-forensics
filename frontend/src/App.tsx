@@ -1194,16 +1194,10 @@ export default function App() {
                 href={api.getDesktopExeUrl()}
                 download="TraceX-DVR-Forensics.exe"
                 className="buttonDownload"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '7px',
-                  textDecoration: 'none',
-                }}
+                style={{ textDecoration: 'none' }}
                 title="Download Standalone Windows Desktop App (.exe) — 100% Independent & Portable, No Python or Node Required"
               >
-                <Download size={15} />
-                <span>Download Standalone App (.exe)</span>
+                Download Standalone App (.exe)
               </a>
               <button
                 className="buttonNewInvestigation"

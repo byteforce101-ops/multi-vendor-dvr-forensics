@@ -442,8 +442,45 @@ def get_overview_stats(
 
 
 # =========================================================
+# DOWNLOADS (STANDALONE .EXE ONLY)
+# =========================================================
+
+@app.get("/download/desktop-exe")
+def download_desktop_exe():
+    """Serve ONLY the compiled standalone Windows .exe binary directly (or redirect to GitHub Releases)."""
+    exe_path = Path("dist/TraceX-DVR-Forensics.exe")
+    if exe_path.exists():
+        return FileResponse(
+            path=str(exe_path),
+            filename="TraceX-DVR-Forensics.exe",
+            media_type="application/vnd.microsoft.portable-executable",
+        )
+    # If binary is hosted on GitHub Releases, redirect directly to the .exe download asset
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(
+        url="https://github.com/byteforce101-ops/multi-vendor-dvr-forensics/releases/latest/download/TraceX-DVR-Forensics.exe",
+        status_code=307,
+    )
+
+
+
+@app.get("/download/launcher-bat")
+def download_launcher_bat():
+    """Serve the portable Windows batch launcher script."""
+    bat_path = Path("run_tracex.bat")
+    if bat_path.exists():
+        return FileResponse(
+            path=str(bat_path),
+            filename="run_tracex.bat",
+            media_type="application/x-bat",
+        )
+    raise HTTPException(status_code=404, detail="Batch launcher not found")
+
+
+# =========================================================
 # CASES
 # =========================================================
+
 
 @app.get(
     "/cases",

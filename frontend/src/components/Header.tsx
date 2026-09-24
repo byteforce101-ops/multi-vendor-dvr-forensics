@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Menu, User, ShieldCheck, ChevronDown } from 'lucide-react';
+import { Menu, User, ShieldCheck, ChevronDown, Download } from 'lucide-react';
 import { SupabaseUser } from '../types';
 import TraceXLogo from './TraceXLogo';
+import { api } from '../api/client';
 
 interface HeaderProps {
   user: SupabaseUser;
@@ -131,10 +132,11 @@ export const Header: React.FC<HeaderProps> = ({
             )}
           </div>
 
+
         </div>
       </div>
     </header>
   );
 };
 
-export default Header;
+export default Header;

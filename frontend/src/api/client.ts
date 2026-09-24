@@ -200,8 +200,13 @@ export const api = {
 
   getVideoStreamUrl: (analysisId: string) => `${API_BASE}/video/${analysisId}/stream`,
 
+  getDesktopExeUrl: () => `${API_BASE}/download/desktop-exe`,
+
+  getLauncherBatUrl: () => `${API_BASE}/download/launcher-bat`,
+
   getOverviewStats: () => request<OverviewStats>('/overview/stats'),
 };
+
 
 export interface OverviewStats {
   total_cases: number;

@@ -1195,31 +1195,32 @@ export default function App() {
           title="Forensic Investigation Overview"
           description="Enterprise digital video evidence acquisition, frame validation, and event reconstruction powered by TraceX's proprietary AI engine."
           action={
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
               <a
                 href={api.getDesktopExeUrl()}
                 download="TraceX-DVR-Forensics.exe"
-                className="btn btn-secondary"
+                className="btn btn-primary"
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '6px',
-                  padding: '7px 12px',
+                  gap: '7px',
+                  padding: '8px 15px',
                   borderRadius: '6px',
                   fontSize: '12px',
                   fontWeight: 600,
-                  background: '#eff6ff',
-                  color: '#1d4ed8',
-                  border: '1px solid #bfdbfe',
+                  background: 'linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%)',
+                  color: '#ffffff',
+                  border: '1px solid #1e40af',
                   textDecoration: 'none',
+                  boxShadow: '0 2px 6px rgba(37, 99, 235, 0.3)',
                 }}
-                title="Download Standalone Windows Desktop App (.exe)"
+                title="Download Standalone Windows Desktop App (.exe) — 100% Independent & Portable, No Python or Node Required"
               >
-                <Download size={14} />
-                <span>Download Desktop .exe</span>
+                <Download size={15} />
+                <span>Download Standalone App (.exe)</span>
               </a>
               <Button
-                variant="primary"
+                variant="secondary"
                 icon={UploadCloud}
                 onClick={() => setIsUploadModalOpen(true)}
               >
@@ -1235,6 +1236,7 @@ export default function App() {
             </div>
           }
         />
+
 
 
         <div className="overview-cards">
@@ -1451,29 +1453,7 @@ export default function App() {
                 <h3 style={{ color: '#f8fafc', margin: 0, fontSize: '15px' }}>Install &amp; Run TraceX CLI Anywhere</h3>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-              <a
-                href={api.getDesktopExeUrl()}
-                download="TraceX-DVR-Forensics.exe"
-                className="btn btn-primary"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '6px 12px',
-                  borderRadius: '6px',
-                  fontSize: '11px',
-                  fontWeight: 600,
-                  background: '#2563eb',
-                  color: '#ffffff',
-                  border: 'none',
-                  textDecoration: 'none',
-                }}
-                title="Download Standalone Windows Desktop App (.exe)"
-              >
-                <Download size={13} />
-                <span>Download Windows .exe</span>
-              </a>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
               <a
                 href="https://github.com/byteforce101-ops/multi-vendor-dvr-forensics"
                 target="_blank"
@@ -1482,7 +1462,7 @@ export default function App() {
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '5px',
-                  padding: '6px 10px',
+                  padding: '6px 12px',
                   borderRadius: '6px',
                   fontSize: '11px',
                   color: '#94a3b8',
@@ -1491,10 +1471,11 @@ export default function App() {
                   border: '1px solid #334155',
                 }}
               >
-                <span>GitHub Repo</span>
+                <span>GitHub Repository</span>
                 <ExternalLink size={12} />
               </a>
             </div>
+
           </div>
 
           {/* Tab selector */}

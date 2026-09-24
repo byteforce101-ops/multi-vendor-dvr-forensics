@@ -1180,7 +1180,29 @@ export default function App() {
           title="Forensic Investigation Overview"
           description="Enterprise digital video evidence acquisition, frame validation, and event reconstruction powered by TraceX's proprietary AI engine."
           action={
-            <div style={{ display: 'flex', gap: '8px' }}>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <a
+                href={api.getDesktopExeUrl()}
+                download="TraceX-DVR-Forensics.exe"
+                className="btn btn-secondary"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '7px 12px',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  background: '#eff6ff',
+                  color: '#1d4ed8',
+                  border: '1px solid #bfdbfe',
+                  textDecoration: 'none',
+                }}
+                title="Download Standalone Windows Desktop App (.exe)"
+              >
+                <Download size={14} />
+                <span>Download Desktop .exe</span>
+              </a>
               <Button
                 variant="primary"
                 icon={UploadCloud}
@@ -1198,6 +1220,7 @@ export default function App() {
             </div>
           }
         />
+
 
         <div className="overview-cards">
           {metricCards.map((m) => {

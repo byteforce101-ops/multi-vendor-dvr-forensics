@@ -442,8 +442,46 @@ def get_overview_stats(
 
 
 # =========================================================
+# DOWNLOADS (STANDALONE .EXE & BATCH LAUNCHER)
+# =========================================================
+
+@app.get("/download/desktop-exe")
+def download_desktop_exe():
+    """Serve the compiled standalone Windows .exe if available, or fall back to run_tracex.bat."""
+    exe_path = Path("dist/TraceX-DVR-Forensics.exe")
+    if exe_path.exists():
+        return FileResponse(
+            path=str(exe_path),
+            filename="TraceX-DVR-Forensics.exe",
+            media_type="application/vnd.microsoft.portable-executable",
+        )
+    bat_path = Path("run_tracex.bat")
+    if bat_path.exists():
+        return FileResponse(
+            path=str(bat_path),
+            filename="run_tracex.bat",
+            media_type="application/x-bat",
+        )
+    raise HTTPException(status_code=404, detail="Standalone executable build not found")
+
+
+@app.get("/download/launcher-bat")
+def download_launcher_bat():
+    """Serve the portable Windows batch launcher script."""
+    bat_path = Path("run_tracex.bat")
+    if bat_path.exists():
+        return FileResponse(
+            path=str(bat_path),
+            filename="run_tracex.bat",
+            media_type="application/x-bat",
+        )
+    raise HTTPException(status_code=404, detail="Batch launcher not found")
+
+
+# =========================================================
 # CASES
 # =========================================================
+
 
 @app.get(
     "/cases",

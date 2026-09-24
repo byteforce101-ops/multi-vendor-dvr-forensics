@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Menu, User, ShieldCheck, ChevronDown } from 'lucide-react';
+import { Menu, User, ShieldCheck, ChevronDown, Download } from 'lucide-react';
 import { SupabaseUser } from '../types';
 import TraceXLogo from './TraceXLogo';
+import { api } from '../api/client';
 
 interface HeaderProps {
   user: SupabaseUser;
@@ -53,6 +54,17 @@ export const Header: React.FC<HeaderProps> = ({
         {/* RIGHT: Quick Actions + User Profile */}
         <div className="flex items-center gap-2.5">
 
+          {/* Download Windows Desktop App (.exe) */}
+          <a
+            href={api.getDesktopExeUrl()}
+            download="TraceX-DVR-Forensics.exe"
+            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-700 hover:text-blue-900 bg-blue-50/90 hover:bg-blue-100 border border-blue-200/90 transition-all cursor-pointer shadow-xs active:scale-98"
+            title="Download Standalone Windows Desktop App (.exe)"
+          >
+            <Download className="w-3.5 h-3.5 text-blue-600" />
+            <span>Download .exe</span>
+          </a>
+
           {/* Chain of Custody */}
           <button
             onClick={onOpenActivityLog}
@@ -103,6 +115,17 @@ export const Header: React.FC<HeaderProps> = ({
                   </p>
                 </div>
 
+                {/* Download Desktop App */}
+                <a
+                  href={api.getDesktopExeUrl()}
+                  download="TraceX-DVR-Forensics.exe"
+                  onClick={() => setUserDropdownOpen(false)}
+                  className="w-full text-left px-3.5 py-2 text-blue-700 font-medium hover:bg-blue-50 flex items-center gap-2 cursor-pointer transition-colors"
+                >
+                  <Download className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Download Desktop .exe</span>
+                </a>
+
                 {/* Account Session */}
                 <button
                   onClick={() => {
@@ -137,4 +160,4 @@ export const Header: React.FC<HeaderProps> = ({
   );
 };
 
-export default Header;
+export default Header;

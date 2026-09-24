@@ -17,6 +17,8 @@ repomix-output.xml
 package - Copy.json
 *.dd
 !backend/tests/fixtures/*.dd
+build/
+dist/
 .venv/
 .venv-wsl/
 

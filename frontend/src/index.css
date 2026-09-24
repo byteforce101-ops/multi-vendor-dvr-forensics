@@ -1037,4 +1037,366 @@ tbody tr:hover {
   animation: progressGlow 3s ease infinite;
 }
 
+/* 3D Animated Folder Upload Button */
+.folder-upload-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 18px;
+}
+
+.folder-upload-container,
+.container.folder-upload-box {
+  --transition: 300ms;
+  --folder-W: 84px;
+  --folder-H: 54px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 8px 10px;
+  background: linear-gradient(135deg, #38bdf8, #172554);
+  border-radius: 12px;
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.22);
+  height: calc(var(--folder-H) * 1.6);
+  width: min(185px, 100%);
+  position: relative;
+  cursor: pointer;
+  perspective: 500px;
+  transition: transform var(--transition) ease, box-shadow var(--transition) ease;
+}
+
+.folder-upload-container:hover,
+.container.folder-upload-box:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.32);
+}
+
+.folder-upload-container .folder,
+.container.folder-upload-box .folder {
+  position: absolute;
+  top: -14px;
+  left: calc(50% - 42px);
+  animation: float 2.5s infinite ease-in-out;
+  transition: transform var(--transition) ease;
+}
+
+.folder-upload-container .folder:hover,
+.container.folder-upload-box .folder:hover {
+  transform: scale(1.05);
+}
+
+.folder-upload-container .folder .front-side,
+.folder-upload-container .folder .back-side,
+.container.folder-upload-box .folder .front-side,
+.container.folder-upload-box .folder .back-side {
+  position: absolute;
+  transition: transform var(--transition);
+  transform-origin: bottom center;
+}
+
+.folder-upload-container .folder .back-side::before,
+.folder-upload-container .folder .back-side::after,
+.container.folder-upload-box .folder .back-side::before,
+.container.folder-upload-box .folder .back-side::after {
+  content: "";
+  display: block;
+  background-color: white;
+  opacity: 0.5;
+  width: var(--folder-W);
+  height: var(--folder-H);
+  position: absolute;
+  transform-origin: bottom center;
+  border-radius: 15px;
+  transition: transform 350ms;
+  z-index: 0;
+}
+
+.folder-upload-container:hover .back-side::before,
+.container.folder-upload-box:hover .back-side::before {
+  transform: rotateX(-5deg) skewX(5deg);
+}
+
+.folder-upload-container:hover .back-side::after,
+.container.folder-upload-box:hover .back-side::after {
+  transform: rotateX(-15deg) skewX(12deg);
+}
+
+.folder-upload-container .folder .front-side,
+.container.folder-upload-box .folder .front-side {
+  z-index: 1;
+}
+
+.folder-upload-container:hover .front-side,
+.container.folder-upload-box:hover .front-side {
+  transform: rotateX(-40deg) skewX(15deg);
+}
+
+.folder-upload-container .folder .tip,
+.container.folder-upload-box .folder .tip {
+  background: linear-gradient(135deg, #ff9a56, #ff6f56);
+  width: 56px;
+  height: 14px;
+  border-radius: 8px 8px 0 0;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+  position: absolute;
+  top: -7px;
+  z-index: 2;
+}
+
+.folder-upload-container .folder .cover,
+.container.folder-upload-box .folder .cover {
+  background: linear-gradient(135deg, #ffe563, #ffc663);
+  width: var(--folder-W);
+  height: var(--folder-H);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.25);
+  border-radius: 8px;
+}
+
+.folder-upload-container .custom-file-upload,
+.container.folder-upload-box .custom-file-upload {
+  font-size: 0.82rem;
+  color: #ffffff;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 8px;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  transition: background var(--transition) ease, border-color var(--transition) ease;
+  display: inline-block;
+  width: 100%;
+  padding: 6px 16px;
+  position: relative;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.folder-upload-container:hover .custom-file-upload,
+.container.folder-upload-box:hover .custom-file-upload,
+.folder-upload-container .custom-file-upload:hover,
+.container.folder-upload-box .custom-file-upload:hover {
+  background: rgba(255, 255, 255, 0.32);
+  border-color: rgba(255, 255, 255, 0.45);
+}
+
+.folder-upload-container .custom-file-upload input[type="file"],
+.container.folder-upload-box .custom-file-upload input[type="file"] {
+  display: none;
+}
+
+@keyframes float {
+  0% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-8px);
+  }
+
+  100% {
+    transform: translateY(0px);
+  }
+}
+
+/* Animated Download/Upload Button */
+.buttonDownload {
+  display: inline-block;
+  position: relative;
+  padding: 8px 22px;
+  background-color: #172554;
+  color: white;
+  font-family: var(--font-sans), sans-serif;
+  text-decoration: none;
+  font-size: 0.85em;
+  text-align: center;
+  text-indent: 15px;
+  border: none;
+  border-radius: 2em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+  box-shadow: 0 4px 12px rgba(23, 37, 84, 0.25);
+}
+
+.buttonDownload:hover {
+  background-color: #1e3a8a;
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(30, 58, 138, 0.35);
+}
+
+.buttonDownload:before, .buttonDownload:after {
+  content: ' ';
+  display: block;
+  position: absolute;
+  left: 15px;
+  top: 52%;
+}
+
+.buttonDownload:before {
+  width: 10px;
+  height: 2px;
+  border-style: solid;
+  border-width: 0 2px 2px;
+  border-color: white;
+}
+
+.buttonDownload:after {
+  width: 0;
+  height: 0;
+  margin-left: 3px;
+  margin-top: -7px;
+  border-style: solid;
+  border-width: 4px 4px 0 4px;
+  border-color: transparent;
+  border-top-color: white;
+  animation: downloadArrow 1s linear infinite;
+  animation-play-state: paused;
+}
+
+.buttonDownload:hover:before {
+  border-color: #bdd3ef;
+}
+
+.buttonDownload:hover:after {
+  border-top-color: #eff1f7;
+  animation-play-state: running;
+}
+
+/* Matching Pill Shape for New Investigation Button */
+.buttonNewInvestigation {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  padding: 8px 22px;
+  background-color: #172554;
+  color: white;
+  font-family: var(--font-sans), sans-serif;
+  text-decoration: none;
+  font-size: 0.85em;
+  text-align: center;
+  border: none;
+  border-radius: 2em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+  box-shadow: 0 4px 12px rgba(23, 37, 84, 0.25);
+  gap: 6px;
+}
+
+.buttonNewInvestigation:hover {
+  background-color: #1e3a8a;
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(30, 58, 138, 0.35);
+}
+
+.buttonNewInvestigation:active,
+.buttonDownload:active {
+  transform: translateY(0);
+}
+
+/* Uiverse Animated Refresh Button */
+.button-refresh-slide {
+  --main-color: #172554;
+  --font-color: #172554;
+  --bg-color-sub: #172554;
+  --bg-color: #f8fafc;
+  position: relative;
+  width: 125px;
+  height: 34px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  border: 1.5px solid #172554;
+  box-shadow: 0 2px 6px rgba(23, 37, 84, 0.15);
+  background-color: var(--bg-color);
+  border-radius: 8px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  font-family: var(--font-sans), sans-serif;
+  font-size: 0.82rem;
+  padding: 0;
+}
+
+.button-refresh-slide .button__text {
+  transform: translateX(20px);
+  color: var(--font-color);
+  font-weight: 600;
+  transition: transform 0.3s ease, color 0.3s ease;
+}
+
+.button-refresh-slide .button__icon {
+  position: absolute;
+  transform: translateX(90px);
+  height: 100%;
+  width: 33px;
+  background-color: var(--bg-color-sub);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.3s ease, width 0.3s ease, background-color 0.3s ease;
+}
+
+.button-refresh-slide .svg {
+  width: 16px;
+  height: 16px;
+  fill: #ffffff;
+  transition: transform 0.4s ease, fill 0.3s ease;
+}
+
+.button-refresh-slide:hover {
+  background-color: #172554;
+  border-color: #172554;
+}
+
+.button-refresh-slide:hover .button__text {
+  color: transparent;
+}
+
+.button-refresh-slide:hover .button__icon {
+  width: 125px;
+  transform: translateX(0);
+  background-color: #172554;
+}
+
+.button-refresh-slide:hover .svg {
+  fill: #ffffff;
+  transform: rotate(180deg);
+}
+
+.button-refresh-slide:active {
+  transform: translate(1px, 1px);
+  box-shadow: 0px 0px var(--main-color);
+}
+
+.button-refresh-slide:active {
+  transform: translate(1px, 1px);
+  box-shadow: 0px 0px var(--main-color);
+}
+
+@keyframes downloadArrow {
+  0% {
+    margin-top: -7px;
+    opacity: 1;
+  }
+
+  0.001% {
+    margin-top: -15px;
+    opacity: 0.4;
+  }
+
+  50% {
+    opacity: 1;
+  }
+
+  100% {
+    margin-top: 0;
+    opacity: 0.4;
+  }
+}
+
 

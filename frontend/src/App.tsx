@@ -277,25 +277,33 @@ function EmptyState({
   action,
   onAction,
   icon: Icon = FolderSearch,
+  customAction,
+  hideIcon,
 }: {
   title: string;
   description: string;
   action?: string;
   onAction?: () => void;
   icon?: React.ComponentType<{ size?: number }>;
+  customAction?: ReactNode;
+  hideIcon?: boolean;
 }) {
   return (
     <div className="empty-state">
-      <div className="empty-icon">
-        <Icon size={24} />
-      </div>
+      {!hideIcon && (
+        <div className="empty-icon">
+          <Icon size={24} />
+        </div>
+      )}
       <h3>{title}</h3>
       <p>{description}</p>
-      {action && onAction && (
+      {customAction ? (
+        customAction
+      ) : action && onAction ? (
         <Button variant="primary" onClick={onAction} icon={Plus}>
           {action}
         </Button>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -1180,21 +1188,20 @@ export default function App() {
           title="Forensic Investigation Overview"
           description="Enterprise digital video evidence acquisition, frame validation, and event reconstruction powered by TraceX's proprietary AI engine."
           action={
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <Button
-                variant="primary"
-                icon={UploadCloud}
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+              <button
+                className="buttonDownload"
                 onClick={() => setIsUploadModalOpen(true)}
               >
-                Ingest Media / DVR Image
-              </Button>
-              <Button
-                variant="secondary"
-                icon={Plus}
+                Ingest Media
+              </button>
+              <button
+                className="buttonNewInvestigation"
                 onClick={() => setIsNewCaseModalOpen(true)}
               >
+                <Plus size={15} />
                 New Investigation
-              </Button>
+              </button>
             </div>
           }
         />
@@ -1299,8 +1306,33 @@ export default function App() {
             <EmptyState
               title="No media loaded for analysis"
               description="Upload a CCTV surveillance video (.mp4, .avi, .mov) or raw DVR disk image (.dd, .raw, .img) to initiate automated object detection, tampering verification, and event reconstruction."
-              action="Ingest Video or DVR Image"
-              onAction={() => setIsUploadModalOpen(true)}
+              customAction={
+                <div className="folder-upload-wrapper">
+                  <div className="container folder-upload-box">
+                    <div className="folder">
+                      <div className="front-side">
+                        <div className="tip"></div>
+                        <div className="cover"></div>
+                      </div>
+                      <div className="back-side cover"></div>
+                    </div>
+                    <label className="custom-file-upload">
+                      <input
+                        className="title"
+                        type="file"
+                        accept=".mp4,.avi,.mov,.mkv,.h264,.dd,.raw,.img,.bin,.001,.dat"
+                        onChange={(e) => {
+                          if (e.target.files && e.target.files[0]) {
+                            handleFileChosen(e.target.files[0]);
+                          }
+                        }}
+                      />
+                      Choose a file
+                    </label>
+                  </div>
+                </div>
+              }
+              hideIcon
               icon={Video}
             />
           </div>
@@ -1313,14 +1345,21 @@ export default function App() {
               <p className="eyebrow">ACTIVE DOSSIERS</p>
               <h3>Recent Case Files</h3>
             </div>
-            <Button
-              variant="secondary"
-              icon={RefreshCw}
+            <button
+              type="button"
+              className="button-refresh-slide"
               onClick={fetchCases}
               disabled={loadingCases}
+              title="Refresh Case Dossiers"
             >
-              Refresh
-            </Button>
+              <span className="button__text">Refresh</span>
+              <span className="button__icon">
+                <svg className="svg" height="48" viewBox="0 0 48 48" width="48" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M35.3 12.7c-2.89-2.9-6.88-4.7-11.3-4.7-8.84 0-15.98 7.16-15.98 16s7.14 16 15.98 16c7.45 0 13.69-5.1 15.46-12h-4.16c-1.65 4.66-6.07 8-11.3 8-6.63 0-12-5.37-12-12s5.37-12 12-12c3.31 0 6.28 1.38 8.45 3.55l-6.45 6.45h14v-14l-4.7 4.7z"></path>
+                  <path d="M0 0h48v48h-48z" fill="none"></path>
+                </svg>
+              </span>
+            </button>
           </div>
           <div className="table-scroll">
             <table>
@@ -1386,13 +1425,14 @@ export default function App() {
                   <tr>
                     <td colSpan={6} style={{ textAlign: 'center', padding: '30px' }}>
                       <p className="muted">No cases found in PostgreSQL database.</p>
-                      <Button
-                        variant="primary"
-                        icon={Plus}
+                      <button
+                        className="buttonNewInvestigation"
                         onClick={() => setIsNewCaseModalOpen(true)}
+                        style={{ marginTop: '8px' }}
                       >
-                        Create First Case
-                      </Button>
+                        <Plus size={15} />
+                        New Investigation
+                      </button>
                     </td>
                   </tr>
                 )}
@@ -1420,13 +1460,13 @@ export default function App() {
           title="Forensic Investigations"
           description="Browse, filter, and manage authorized video forensic investigation dossiers."
           action={
-            <Button
-              variant="primary"
-              icon={Plus}
+            <button
+              className="buttonNewInvestigation"
               onClick={() => setIsNewCaseModalOpen(true)}
             >
+              <Plus size={15} />
               New Investigation
-            </Button>
+            </button>
           }
         />
 
@@ -1440,9 +1480,21 @@ export default function App() {
             />
           </div>
           <Button icon={Filter}>Filter Status</Button>
-          <Button icon={RefreshCw} onClick={fetchCases} disabled={loadingCases}>
-            Refresh
-          </Button>
+          <button
+            type="button"
+            className="button-refresh-slide"
+            onClick={fetchCases}
+            disabled={loadingCases}
+            title="Refresh Workspace Cases"
+          >
+            <span className="button__text">Refresh</span>
+            <span className="button__icon">
+              <svg className="svg" height="48" viewBox="0 0 48 48" width="48" xmlns="http://www.w3.org/2000/svg">
+                <path d="M35.3 12.7c-2.89-2.9-6.88-4.7-11.3-4.7-8.84 0-15.98 7.16-15.98 16s7.14 16 15.98 16c7.45 0 13.69-5.1 15.46-12h-4.16c-1.65 4.66-6.07 8-11.3 8-6.63 0-12-5.37-12-12s5.37-12 12-12c3.31 0 6.28 1.38 8.45 3.55l-6.45 6.45h14v-14l-4.7 4.7z"></path>
+                <path d="M0 0h48v48h-48z" fill="none"></path>
+              </svg>
+            </span>
+          </button>
         </div>
 
         <div className="panel table-panel">
@@ -1612,13 +1664,12 @@ export default function App() {
                 <b>No Video Loaded</b>
                 <span>Ingest a CCTV file or DVR disk image to begin video forensics.</span>
                 <div style={{ marginTop: '12px' }}>
-                  <Button
-                    variant="primary"
-                    icon={UploadCloud}
+                  <button
+                    className="buttonDownload"
                     onClick={() => setIsUploadModalOpen(true)}
                   >
                     Ingest Media
-                  </Button>
+                  </button>
                 </div>
               </div>
             )}
@@ -2654,13 +2705,12 @@ export default function App() {
           description={selectedCase ? `Case Ref: ${selectedCase.case_number || selectedCase.id.slice(0, 8)} • Lead Specialist: ${selectedCase.investigator || 'Unassigned'}` : (loadedFileName ? `Artifact: ${loadedFileName}` : 'Select a case or ingest media to begin investigation')}
           action={
             <div style={{ display: 'flex', gap: '8px' }}>
-              <Button
-                variant="primary"
-                icon={UploadCloud}
+              <button
+                className="buttonDownload"
                 onClick={() => setIsUploadModalOpen(true)}
               >
                 Ingest Media
-              </Button>
+              </button>
               <Button
                 variant="ai"
                 icon={Sparkles}
@@ -4099,13 +4149,12 @@ export default function App() {
             title="Video Evidence & Carved Streams"
             description="Acquired video containers, DVR raw sector carves, and metadata streams."
             action={
-              <Button
-                variant="primary"
-                icon={UploadCloud}
+              <button
+                className="buttonDownload"
                 onClick={() => setIsUploadModalOpen(true)}
               >
                 Ingest Media
-              </Button>
+              </button>
             }
           />
           {loadedFileName ? (
@@ -4392,14 +4441,6 @@ export default function App() {
               />
               <kbd>Enter</kbd>
             </div>
-
-            <Button
-              variant="primary"
-              icon={UploadCloud}
-              onClick={() => setIsUploadModalOpen(true)}
-            >
-              Ingest Media
-            </Button>
 
             <button
               className="icon-btn"

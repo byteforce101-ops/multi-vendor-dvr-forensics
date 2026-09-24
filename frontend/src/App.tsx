@@ -1500,7 +1500,7 @@ export default function App() {
           {/* Tab selector */}
           <div style={{ display: 'flex', gap: '6px', marginBottom: '14px', flexWrap: 'wrap' }}>
             {[
-              { id: 'npx', label: '⚡ npx (Zero Setup)' },
+              { id: 'npx', label: '⚡ Node / npx' },
               { id: 'pip', label: '🐍 Python pip' },
               { id: 'powershell', label: '🪟 Windows PowerShell' },
               { id: 'curl', label: '🐧 Linux / macOS' },
@@ -1530,9 +1530,9 @@ export default function App() {
           {(() => {
             const tabs: Record<string, { cmd: string; desc: string; usage: string }> = {
               npx: {
-                cmd: 'npx tracex',
-                desc: 'Runs the full TraceX terminal forensic studio immediately using Node/npx. Zero installation or cloning required.',
-                usage: 'Run in any terminal: npx tracex --file path/to/evidence.dd',
+                cmd: 'npx github:byteforce101-ops/multi-vendor-dvr-forensics',
+                desc: 'Runs the TraceX terminal interface directly via Node.js (requires Node 18+ and Python 3.10+ on PATH).',
+                usage: 'Run from terminal: npx github:byteforce101-ops/multi-vendor-dvr-forensics',
               },
               pip: {
                 cmd: 'pip install git+https://github.com/byteforce101-ops/multi-vendor-dvr-forensics.git',
@@ -1541,7 +1541,7 @@ export default function App() {
               },
               powershell: {
                 cmd: 'iwr -useb https://raw.githubusercontent.com/byteforce101-ops/multi-vendor-dvr-forensics/main/scripts/install.ps1 | iex',
-                desc: 'One-line automated PowerShell installer for Windows 10/11. Configures the environment and verifies FFmpeg.',
+                desc: 'One-line automated PowerShell installer for Windows 10/11. Configures Python virtual environment and verifies FFmpeg.',
                 usage: 'Paste into PowerShell (Admin or User) and press Enter.',
               },
               curl: {
@@ -1557,6 +1557,7 @@ export default function App() {
             };
             const active = tabs[cliTab] || tabs.npx;
             const isCopied = copiedCli === cliTab;
+
 
             return (
               <div style={{ background: '#020617', border: '1px solid #1e293b', borderRadius: '6px', padding: '14px' }}>

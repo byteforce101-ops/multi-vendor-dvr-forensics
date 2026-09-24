@@ -678,6 +678,7 @@ export default function App() {
     setSelectedUploadFile(file);
     setIsCalculatingHash(true);
     setUploadHash('');
+    setIsUploadModalOpen(true);
     try {
       const hash = await computeSHA256(file);
       setUploadHash(hash);
@@ -1308,7 +1309,10 @@ export default function App() {
               description="Upload a CCTV surveillance video (.mp4, .avi, .mov) or raw DVR disk image (.dd, .raw, .img) to initiate automated object detection, tampering verification, and event reconstruction."
               customAction={
                 <div className="folder-upload-wrapper">
-                  <div className="container folder-upload-box">
+                  <div
+                    className="container folder-upload-box"
+                    onClick={() => setIsUploadModalOpen(true)}
+                  >
                     <div className="folder">
                       <div className="front-side">
                         <div className="tip"></div>
@@ -1316,7 +1320,10 @@ export default function App() {
                       </div>
                       <div className="back-side cover"></div>
                     </div>
-                    <label className="custom-file-upload">
+                    <label
+                      className="custom-file-upload"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <input
                         className="title"
                         type="file"

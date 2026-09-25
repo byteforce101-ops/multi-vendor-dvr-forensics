@@ -1412,7 +1412,7 @@ export default function App() {
               </a>
               <a
                 href={api.getDesktopZipUrl()}
-                download="TraceX-DVR-Forensics-v1.0.0-Portable.zip"
+                download="TraceX-DVR-Forensics-v1.0.1-Portable.zip"
                 className="buttonDownload"
                 style={{
                   display: 'inline-flex',

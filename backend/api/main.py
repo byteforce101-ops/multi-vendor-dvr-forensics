@@ -466,20 +466,20 @@ def download_desktop_exe():
 def download_portable_zip():
     """Serve the complete all-inclusive portable .zip package (or redirect to GitHub Releases)."""
     candidate_zips = [
+        Path("dist/TraceX-DVR-Forensics-Portable.zip"),
         Path("dist/TraceX-DVR-Forensics-v1.0.1-Portable.zip"),
         Path("dist/TraceX-DVR-Forensics-v1.0.0-Portable.zip"),
-        Path("dist/TraceX-DVR-Forensics-Portable.zip"),
     ]
     for zip_path in candidate_zips:
         if zip_path.exists():
             return FileResponse(
                 path=str(zip_path),
-                filename="TraceX-DVR-Forensics-v1.0.1-Portable.zip",
+                filename="TraceX-DVR-Forensics-Portable.zip",
                 media_type="application/zip",
             )
     from fastapi.responses import RedirectResponse
     return RedirectResponse(
-        url="https://github.com/byteforce101-ops/multi-vendor-dvr-forensics/releases/latest/download/TraceX-DVR-Forensics-v1.0.1-Portable.zip",
+        url="https://github.com/byteforce101-ops/multi-vendor-dvr-forensics/releases/download/v1.0.1/TraceX-DVR-Forensics-Portable.zip",
         status_code=307,
     )
 

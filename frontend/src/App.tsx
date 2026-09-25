@@ -1411,8 +1411,8 @@ export default function App() {
                 <span>Download App (.exe)</span>
               </a>
               <a
-                href={api.getDesktopZipUrl()}
-                download="TraceX-DVR-Forensics-v1.0.1-Portable.zip"
+                href="https://github.com/byteforce101-ops/multi-vendor-dvr-forensics/releases/download/v1.0.1/TraceX-DVR-Forensics-Portable.zip"
+                download="TraceX-DVR-Forensics-Portable.zip"
                 className="buttonDownload"
                 style={{
                   display: 'inline-flex',

@@ -202,7 +202,7 @@ export const api = {
 
   getDesktopExeUrl: () => `${API_BASE}/download/desktop-exe`,
 
-  getDesktopZipUrl: () => `${API_BASE}/download/portable-zip`,
+  getDesktopZipUrl: () => 'https://github.com/byteforce101-ops/multi-vendor-dvr-forensics/releases/download/v1.0.1/TraceX-DVR-Forensics-Portable.zip',
 
   getLauncherBatUrl: () => `${API_BASE}/download/launcher-bat`,
 

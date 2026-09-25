@@ -71,6 +71,7 @@ import trackedEntitiesIcon from './assets/metric-tracked-entities.png';
 import eventsIcon from './assets/metric-events.png';
 import integrityIcon from './assets/metric-integrity.png';
 import { LoginPage } from './components/LoginPage';
+import { LoadingScreen } from './components/LoadingScreen';
 import { supabase, isSupabaseConfigured, DEFAULT_USER } from './lib/supabase';
 import { LogOut, User as UserIcon } from 'lucide-react';
 
@@ -342,6 +343,185 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [backendStatus, setBackendStatus] = useState<'checking' | 'online' | 'offline'>('checking');
 
+  // Global realistic loading screen state
+  const [loadingConfig, setLoadingConfig] = useState<{
+    isVisible: boolean;
+    variant: 'simple' | 'detailed';
+    title: string;
+    subtitle?: string;
+    steps: string[];
+    durationMs: number;
+    onComplete?: () => void;
+  }>({
+    isVisible: false,
+    variant: 'simple',
+    title: '',
+    steps: [],
+    durationMs: 1800,
+  });
+
+  const triggerLoading = (
+    title: string,
+    steps: string[],
+    onCompleteAction?: () => void,
+    subtitle = 'Loading workspace...',
+    durationMs = 1800,
+    variant: 'simple' | 'detailed' = 'simple'
+  ) => {
+    setLoadingConfig({
+      isVisible: true,
+      variant,
+      title,
+      subtitle,
+      steps,
+      durationMs,
+      onComplete: () => {
+        setLoadingConfig((prev) => ({ ...prev, isVisible: false }));
+        if (onCompleteAction) {
+          onCompleteAction();
+        }
+      },
+    });
+  };
+
+  const navigateWithLoading = (
+    targetView: View,
+    customTitle?: string,
+    customSteps?: string[]
+  ) => {
+    if (view === targetView && !loadingConfig.isVisible) {
+      setSidebarOpen(false);
+      return;
+    }
+
+    const viewStepMap: Record<View, { title: string; steps: string[] }> = {
+      Overview: {
+        title: 'Loading Operational Dashboard',
+        steps: [
+          'Querying Case Records & Telemetry Database...',
+          'Polling Neural Vision Backend Worker...',
+          'Rendering Operational Metrics Dashboard...',
+        ],
+      },
+      Investigations: {
+        title: 'Loading Case Records',
+        steps: [
+          'Connecting to Forensic Case Registry...',
+          'Fetching Active Case Inventories & Custody Logs...',
+          'Populating Case Management Workspace...',
+        ],
+      },
+      'Investigation Detail': {
+        title: 'Mounting Forensic Workspace',
+        steps: [
+          'Parsing Synchronized DVR Video Bitstreams...',
+          'Mapping Object Tracking Vectors & Bounding Matrices...',
+          'Readying Interactive Multi-Camera Viewer...',
+        ],
+      },
+      'Video Evidence': {
+        title: 'Loading Video Evidence Sources',
+        steps: [
+          'Scanning DVR Source Media & Container Descriptors...',
+          'Auditing Keyframe Index & Timestamp Vectors...',
+          'Initializing CCTV Player Matrix...',
+        ],
+      },
+      Timeline: {
+        title: 'Constructing Chronological Timeline',
+        steps: [
+          'Aggregating Multi-Camera Detection Logs...',
+          'Correlating Frame Timestamp Sequences...',
+          'Rendering Synchronized Event Scrubbers...',
+        ],
+      },
+      Detections: {
+        title: 'Loading Forensic Observations',
+        steps: [
+          'Filtering PyTorch Object Classifications...',
+          'Calculating Confidence Scores & Bounding Rects...',
+          'Building Detection Grid Matrix...',
+        ],
+      },
+      Entities: {
+        title: 'Loading Tracked Physical Objects',
+        steps: [
+          'Indexing Physical Entity Identity Chains...',
+          'Computing Kinematic Velocity & Path Vectors...',
+          'Rendering Entity Directory Workspace...',
+        ],
+      },
+      Disappearances: {
+        title: 'Analyzing Temporal Continuity',
+        steps: [
+          'Evaluating Object Absence & Occlusion Windows...',
+          'Filtering Stationary Loss Anomalies...',
+          'Populating Object Disappearance Audit...',
+        ],
+      },
+      Events: {
+        title: 'Reconstructing Incident Chain',
+        steps: [
+          'Linking Multi-Stream Incident Events...',
+          'Sequencing Reconstructed Forensic Milestones...',
+          'Displaying Reconstructed Event Dossier...',
+        ],
+      },
+      Evidence: {
+        title: 'Loading Keyframe Evidence Vault',
+        steps: [
+          'Accessing Cryptographically Hashed Frame Captures...',
+          'Validating Image Bitstream SHA-256 Hashes...',
+          'Rendering Evidence Vault Gallery...',
+        ],
+      },
+      Integrity: {
+        title: 'Auditing Bitstream & Frame Integrity',
+        steps: [
+          'Checking SHA-256 Container Hashes...',
+          'Evaluating Frame Continuity & Drop Anomalies...',
+          'Generating Cryptographic Verification Audit...',
+        ],
+      },
+      Reports: {
+        title: 'Loading Court-Ready Dossier Generator',
+        steps: [
+          'Formatting Certified Case Evidence Templates...',
+          'Attaching Cryptographic Chain of Custody Proofs...',
+          'Readying PDF Report Generator...',
+        ],
+      },
+      Processing: {
+        title: 'Connecting Processing Pipeline Console',
+        steps: [
+          'Establishing FastAPI Stream Handler...',
+          'Querying PyTorch Neural Vision Worker State...',
+          'Loading Pipeline Diagnostic Console...',
+        ],
+      },
+    };
+
+    const defaultInfo = viewStepMap[targetView] || {
+      title: `Loading ${targetView}`,
+      steps: ['Initializing Module...', 'Hydrating Telemetry...', 'Rendering Workspace...'],
+    };
+
+    const finalTitle = customTitle || defaultInfo.title;
+    const finalSteps = customSteps || defaultInfo.steps;
+
+    triggerLoading(
+      finalTitle,
+      finalSteps,
+      () => {
+        setView(targetView);
+        setSidebarOpen(false);
+      },
+      'Loading workspace view...',
+      1600,
+      'simple'
+    );
+  };
+
   // Case & evidence state
   const [cases, setCases] = useState<CaseSummary[]>([]);
   const [selectedCase, setSelectedCase] = useState<CaseSummary | null>(null);
@@ -509,20 +689,44 @@ export default function App() {
   }, []);
 
   const handleLoginSuccess = (user: SupabaseUser) => {
-    setCurrentUser(user);
-    localStorage.setItem('tracex_auth_user', JSON.stringify(user));
+    triggerLoading(
+      `Authenticating Session: ${user.name}`,
+      [
+        'Verifying Examiner Access Credentials & Badge ID...',
+        'Establishing Encrypted Cryptographic Session Tokens...',
+        'Decrypting Examiner Case Workspace & Records...',
+      ],
+      () => {
+        setCurrentUser(user);
+        localStorage.setItem('tracex_auth_user', JSON.stringify(user));
+      },
+      'Enterprise Authorization Approved',
+      2400
+    );
   };
 
   const handleSignOut = async () => {
-    if (isSupabaseConfigured && supabase) {
-      try {
-        await supabase.auth.signOut();
-      } catch (err) {
-        console.warn('Sign out error:', err);
-      }
-    }
-    setCurrentUser(null);
-    localStorage.removeItem('tracex_auth_user');
+    triggerLoading(
+      'Signing Out Examiner Session',
+      [
+        'Closing Cryptographic Encryption Keys...',
+        'Wiping Local Session Cache & Tokens...',
+        'Redirecting to Examiner Gateway...',
+      ],
+      async () => {
+        if (isSupabaseConfigured && supabase) {
+          try {
+            await supabase.auth.signOut();
+          } catch (err) {
+            console.warn('Sign out error:', err);
+          }
+        }
+        setCurrentUser(null);
+        localStorage.removeItem('tracex_auth_user');
+      },
+      'Securing Local Evidence Cache',
+      1800
+    );
   };
 
   const fetchCases = async () => {
@@ -4241,7 +4445,7 @@ export default function App() {
               <Button
                 variant="primary"
                 icon={Play}
-                onClick={() => setView('Investigation Detail')}
+                onClick={() => navigateWithLoading('Investigation Detail')}
               >
                 Return to CCTV Viewer
               </Button>
@@ -4285,23 +4489,46 @@ export default function App() {
 
   if (authChecking) {
     return (
-      <div className="min-h-screen w-full flex flex-col items-center justify-center bg-[#f5f6f7] text-[#172554]">
-        <TraceXLogo variant="dark" className="h-10 w-auto object-contain mb-4 animate-pulse" />
-        <div className="flex items-center gap-2 text-xs font-medium text-slate-600">
-          <div className="w-4 h-4 border-2 border-[#172554] border-t-transparent rounded-full animate-spin" />
-          <span>Verifying Cryptographic Examiner Session...</span>
-        </div>
-      </div>
+      <LoadingScreen
+        isVisible={true}
+        variant="simple"
+        title="TraceX — DVR Forensics"
+        subtitle="Verifying Examiner Session..."
+        durationMs={2000}
+        onComplete={() => setAuthChecking(false)}
+      />
     );
   }
 
   // If no user is logged in, show the styled Trace-X Login / Register page
   if (!currentUser) {
-    return <LoginPage onLoginSuccess={handleLoginSuccess} />;
+    return (
+      <>
+        <LoadingScreen
+          isVisible={loadingConfig.isVisible}
+          variant={loadingConfig.variant}
+          title={loadingConfig.title}
+          subtitle={loadingConfig.subtitle}
+          steps={loadingConfig.steps}
+          durationMs={loadingConfig.durationMs}
+          onComplete={loadingConfig.onComplete}
+        />
+        <LoginPage onLoginSuccess={handleLoginSuccess} />
+      </>
+    );
   }
 
   return (
     <div className="app-shell">
+      <LoadingScreen
+        isVisible={loadingConfig.isVisible}
+        variant={loadingConfig.variant}
+        title={loadingConfig.title}
+        subtitle={loadingConfig.subtitle}
+        steps={loadingConfig.steps}
+        durationMs={loadingConfig.durationMs}
+        onComplete={loadingConfig.onComplete}
+      />
       {/* Mobile Backdrop */}
       <div
         className={`sidebar-backdrop ${sidebarOpen ? 'visible' : ''}`}
@@ -4314,8 +4541,7 @@ export default function App() {
           <button
             type="button"
             onClick={() => {
-              setView('Overview');
-              setSidebarOpen(false);
+              navigateWithLoading('Overview');
             }}
             className="flex items-center hover:opacity-85 transition-opacity cursor-pointer bg-transparent border-0 p-0 text-left"
             title="Go to Overview"
@@ -4338,8 +4564,7 @@ export default function App() {
             <button
               key={itemKey}
               onClick={() => {
-                setView(itemKey);
-                setSidebarOpen(false);
+                navigateWithLoading(itemKey);
               }}
               className={view === itemKey ? 'active' : ''}
               title={desc}
@@ -4353,8 +4578,7 @@ export default function App() {
         <div className="sidebar-bottom">
           <button
             onClick={() => {
-              setView('Processing');
-              setSidebarOpen(false);
+              navigateWithLoading('Processing');
             }}
             className={view === 'Processing' ? 'active' : ''}
           >
@@ -4431,7 +4655,7 @@ export default function App() {
             <div className="crumb" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <button
                 type="button"
-                onClick={() => setView('Overview')}
+                onClick={() => navigateWithLoading('Overview')}
                 className="flex items-center hover:opacity-80 transition-opacity cursor-pointer bg-transparent border-0 p-0 text-left"
                 title="Go to Overview"
               >
@@ -4442,7 +4666,7 @@ export default function App() {
 
               <button
                 type="button"
-                onClick={() => setView(view)}
+                onClick={() => navigateWithLoading(view)}
                 className="hover:text-blue-700 transition-colors cursor-pointer bg-transparent border-0 p-0 text-left font-semibold text-slate-800"
                 title={`Current view: ${view}`}
               >
@@ -4454,7 +4678,7 @@ export default function App() {
                   <ChevronRight size={14} className="text-slate-400 shrink-0" />
                   <button
                     type="button"
-                    onClick={() => setView('Investigation Detail')}
+                    onClick={() => navigateWithLoading('Investigation Detail')}
                     className="mono hover:text-teal-800 hover:underline transition-colors cursor-pointer bg-transparent border-0 p-0 text-left"
                     style={{ color: '#0f766e', fontWeight: 600 }}
                     title={`Open investigation ${selectedCase.case_number || selectedCase.name}`}
@@ -4741,7 +4965,24 @@ export default function App() {
                 variant="primary"
                 icon={Play}
                 disabled={!selectedUploadFile || isCalculatingHash}
-                onClick={startAnalysisPipeline}
+                onClick={() => {
+                  setIsUploadModalOpen(false);
+                  const fileName = selectedUploadFile?.name || 'Media Payload';
+                  triggerLoading(
+                    `Ingesting Media Payload: ${fileName}`,
+                    [
+                      'Calculating SHA-256 Cryptographic Hash Seal...',
+                      'Streaming Bitstream Payload to FastAPI Worker...',
+                      'Initializing PyTorch Neural Vision Core & Container Parser...',
+                    ],
+                    () => {
+                      startAnalysisPipeline();
+                    },
+                    'Allocating Hardware Acceleration & Demuxing Stream',
+                    2500,
+                    'detailed'
+                  );
+                }}
               >
                 Start Forensic Analysis Pipeline
               </Button>
@@ -4963,7 +5204,7 @@ export default function App() {
                   icon={Play}
                   onClick={() => {
                     setSelectedEntity(null);
-                    setView('Investigation Detail');
+                    navigateWithLoading('Investigation Detail');
                   }}
                 >
                   Locate in CCTV Viewer

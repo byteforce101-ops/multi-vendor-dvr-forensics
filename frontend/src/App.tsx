@@ -29,6 +29,7 @@ import {
   Menu,
   MessageSquare,
   Minus,
+  Package,
   Pause,
   Play,
   Plus,
@@ -1194,10 +1195,33 @@ export default function App() {
                 href={api.getDesktopExeUrl()}
                 download="TraceX-DVR-Forensics.exe"
                 className="buttonDownload"
-                style={{ textDecoration: 'none' }}
-                title="Download Standalone Windows Desktop App (.exe) — 100% Independent & Portable, No Python or Node Required"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '7px',
+                  textDecoration: 'none',
+                }}
+                title="Download Standalone Windows Desktop App (.exe) — Independent executable with built-in ONNX deep vision neural engine"
               >
-                Download Standalone App (.exe)
+                <Download size={15} />
+                <span>Download App (.exe)</span>
+              </a>
+              <a
+                href={api.getDesktopZipUrl()}
+                download="TraceX-DVR-Forensics-v1.0.0-Portable.zip"
+                className="buttonDownload"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '7px',
+                  textDecoration: 'none',
+                  background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+                  border: '1px solid #334155',
+                }}
+                title="Download Complete Portable Package (.zip) — Full platform bundle including run launcher, parsers, and neural models"
+              >
+                <Package size={15} />
+                <span>Download Portable (.zip)</span>
               </a>
               <button
                 className="buttonNewInvestigation"

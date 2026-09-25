@@ -1,4 +1,4 @@
-name: Build & Release Windows Standalone Executable
+name: Build & Release Windows Binaries & Portable ZIP
 
 on:
   release:
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-windows-exe:
+  build-and-release:
     runs-on: windows-latest
     permissions:
       contents: write
@@ -24,23 +24,31 @@ jobs:
       - name: Install Dependencies & PyInstaller
         run: |
           python -m pip install --upgrade pip
-          pip install pyinstaller
+          pip install pyinstaller onnx onnxruntime onnxslim
           pip install -r requirements.txt
 
-      - name: Build Standalone Windows .exe
+      - name: Build Standalone Windows .exe with ONNX Neural Acceleration
         run: |
           pyinstaller --clean --noconfirm tracex.spec
 
-      - name: Upload Build Artifact
+      - name: Create Complete Portable ZIP Bundle
+        run: |
+          powershell -Command "Compress-Archive -Path run_tracex.bat, main.py, requirements.txt, backend, dist\TraceX-DVR-Forensics.exe -DestinationPath dist\TraceX-DVR-Forensics-v1.0.0-Portable.zip -Force"
+
+      - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: TraceX-DVR-Forensics-Windows
-          path: dist/TraceX-DVR-Forensics.exe
+          name: TraceX-DVR-Forensics-Distributions
+          path: |
+            dist/TraceX-DVR-Forensics.exe
+            dist/TraceX-DVR-Forensics-v1.0.0-Portable.zip
 
-      - name: Upload .exe to GitHub Release Assets
+      - name: Upload Binaries to GitHub Release Assets
         if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/TraceX-DVR-Forensics.exe
+          files: |
+            dist/TraceX-DVR-Forensics.exe
+            dist/TraceX-DVR-Forensics-v1.0.0-Portable.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

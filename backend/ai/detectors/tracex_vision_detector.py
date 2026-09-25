@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
@@ -50,18 +51,39 @@ except ImportError:
 
 
 def get_default_vision_model_path() -> str:
-    """Resolve the default TraceX vision model path."""
+    """Resolve the default TraceX vision model path (.onnx or .pt)."""
     env_path = os.getenv("TRACEX_VISION_MODEL")
     if env_path and Path(env_path).exists():
         return env_path
 
-    # Check backend/models/tracex_vision.pt relative to codebase
-    curr_dir = Path(__file__).resolve().parents[2]  # backend root
-    model_candidate = curr_dir / "models" / "tracex_vision.pt"
-    if model_candidate.exists():
-        return str(model_candidate)
+    # Check PyInstaller bundle directory (sys._MEIPASS)
+    meipass = getattr(sys, "_MEIPASS", None)
+    candidates = []
+    if meipass:
+        base_mei = Path(meipass)
+        candidates.extend([
+            base_mei / "backend" / "models" / "tracex_vision.onnx",
+            base_mei / "backend" / "models" / "tracex_vision.pt",
+            base_mei / "models" / "tracex_vision.onnx",
+            base_mei / "models" / "tracex_vision.pt",
+        ])
 
-    return "tracex_vision.pt"
+    # Check relative to this file
+    curr_dir = Path(__file__).resolve().parents[2]  # backend root
+    candidates.extend([
+        curr_dir / "models" / "tracex_vision.onnx",
+        curr_dir / "models" / "tracex_vision.pt",
+        Path.cwd() / "backend" / "models" / "tracex_vision.onnx",
+        Path.cwd() / "backend" / "models" / "tracex_vision.pt",
+        Path.cwd() / "models" / "tracex_vision.onnx",
+        Path.cwd() / "models" / "tracex_vision.pt",
+    ])
+
+    for cand in candidates:
+        if cand.exists() and cand.stat().st_size > 0:
+            return str(cand)
+
+    return "tracex_vision.onnx" if (curr_dir / "models" / "tracex_vision.onnx").exists() else "tracex_vision.pt"
 
 
 @dataclass

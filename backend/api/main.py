@@ -442,7 +442,7 @@ def get_overview_stats(
 
 
 # =========================================================
-# DOWNLOADS (STANDALONE .EXE ONLY)
+# DOWNLOADS (STANDALONE .EXE & PORTABLE .ZIP)
 # =========================================================
 
 @app.get("/download/desktop-exe")
@@ -455,13 +455,32 @@ def download_desktop_exe():
             filename="TraceX-DVR-Forensics.exe",
             media_type="application/vnd.microsoft.portable-executable",
         )
-    # If binary is hosted on GitHub Releases, redirect directly to the .exe download asset
     from fastapi.responses import RedirectResponse
     return RedirectResponse(
         url="https://github.com/byteforce101-ops/multi-vendor-dvr-forensics/releases/latest/download/TraceX-DVR-Forensics.exe",
         status_code=307,
     )
 
+
+@app.get("/download/portable-zip")
+def download_portable_zip():
+    """Serve the complete all-inclusive portable .zip package (or redirect to GitHub Releases)."""
+    candidate_zips = [
+        Path("dist/TraceX-DVR-Forensics-v1.0.0-Portable.zip"),
+        Path("dist/TraceX-DVR-Forensics-Portable.zip"),
+    ]
+    for zip_path in candidate_zips:
+        if zip_path.exists():
+            return FileResponse(
+                path=str(zip_path),
+                filename="TraceX-DVR-Forensics-v1.0.0-Portable.zip",
+                media_type="application/zip",
+            )
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(
+        url="https://github.com/byteforce101-ops/multi-vendor-dvr-forensics/releases/latest/download/TraceX-DVR-Forensics-v1.0.0-Portable.zip",
+        status_code=307,
+    )
 
 
 @app.get("/download/launcher-bat")

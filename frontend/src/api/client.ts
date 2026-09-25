@@ -202,6 +202,8 @@ export const api = {
 
   getDesktopExeUrl: () => `${API_BASE}/download/desktop-exe`,
 
+  getDesktopZipUrl: () => `${API_BASE}/download/portable-zip`,
+
   getLauncherBatUrl: () => `${API_BASE}/download/launcher-bat`,
 
   getOverviewStats: () => request<OverviewStats>('/overview/stats'),

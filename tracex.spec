@@ -6,7 +6,7 @@ from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 block_cipher = None
 
-# Collect all backend submodules
+# Collect all backend submodules and runtime dependencies
 hidden_imports = (
     collect_submodules("backend")
     + collect_submodules("textual")
@@ -15,6 +15,8 @@ hidden_imports = (
     + collect_submodules("pydantic")
     + collect_submodules("sqlalchemy")
     + collect_submodules("cv2")
+    + collect_submodules("onnxruntime")
+    + collect_submodules("ultralytics")
     + [
         "uvicorn",
         "uvicorn.logging",
@@ -29,11 +31,21 @@ hidden_imports = (
         "uvicorn.lifespan.on",
         "fastapi",
         "multipart",
+        "groq",
     ]
 )
 
-# Collect data files (OpenCV haarcascades, templates, docs, etc.)
-datas = collect_data_files("backend") + collect_data_files("textual")
+# Collect data files (OpenCV haarcascades, ONNX models, templates, etc.)
+datas = (
+    collect_data_files("backend")
+    + collect_data_files("textual")
+    + collect_data_files("onnxruntime")
+    + collect_data_files("ultralytics")
+    + [
+        ("backend/models/tracex_vision.onnx", "backend/models"),
+        ("backend/models/tracex_vision.pt", "backend/models"),
+    ]
+)
 
 a = Analysis(
     ["main.py"],

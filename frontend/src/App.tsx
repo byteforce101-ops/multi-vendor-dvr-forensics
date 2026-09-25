@@ -1429,13 +1429,6 @@ export default function App() {
               </a>
               <button
                 className="buttonNewInvestigation"
-                onClick={() => setIsUploadModalOpen(true)}
-              >
-                <UploadCloud size={15} />
-                Ingest Media
-              </button>
-              <button
-                className="buttonNewInvestigation"
                 onClick={() => setIsNewCaseModalOpen(true)}
               >
                 <Plus size={15} />

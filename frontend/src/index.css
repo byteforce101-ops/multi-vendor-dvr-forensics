@@ -1202,7 +1202,10 @@ tbody tr:hover {
 
 /* Animated Download/Upload Button */
 .buttonDownload {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
   position: relative;
   padding: 8px 22px;
   background-color: #172554;
@@ -1211,7 +1214,6 @@ tbody tr:hover {
   text-decoration: none;
   font-size: 0.85em;
   text-align: center;
-  text-indent: 15px;
   border: none;
   border-radius: 2em;
   font-weight: 600;
@@ -1225,44 +1227,6 @@ tbody tr:hover {
   color: white;
   transform: translateY(-1px);
   box-shadow: 0 6px 16px rgba(30, 58, 138, 0.35);
-}
-
-.buttonDownload:before, .buttonDownload:after {
-  content: ' ';
-  display: block;
-  position: absolute;
-  left: 15px;
-  top: 52%;
-}
-
-.buttonDownload:before {
-  width: 10px;
-  height: 2px;
-  border-style: solid;
-  border-width: 0 2px 2px;
-  border-color: white;
-}
-
-.buttonDownload:after {
-  width: 0;
-  height: 0;
-  margin-left: 3px;
-  margin-top: -7px;
-  border-style: solid;
-  border-width: 4px 4px 0 4px;
-  border-color: transparent;
-  border-top-color: white;
-  animation: downloadArrow 1s linear infinite;
-  animation-play-state: paused;
-}
-
-.buttonDownload:hover:before {
-  border-color: #bdd3ef;
-}
-
-.buttonDownload:hover:after {
-  border-top-color: #eff1f7;
-  animation-play-state: running;
 }
 
 /* Matching Pill Shape for New Investigation Button */

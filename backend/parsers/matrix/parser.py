@@ -73,7 +73,6 @@ logger = logging.getLogger(__name__)
 
 # ── Brand strings ─────────────────────────────────────────────────────────────
 MATRIX_BRAND_STRINGS: list[bytes] = [
-    b"MATRIX",
     b"Matrix Comsec",
     b"MATRIX COMSEC",
     b"MATRIX COMSEC PVT",

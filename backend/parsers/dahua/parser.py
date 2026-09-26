@@ -341,6 +341,15 @@ class DahuaParser(BaseDVRParser):
                 # Read first 7 bytes for DHFS4.1
                 head = f.read(max(7, min(_SCAN_WINDOW, size)))
 
+            # If OEM brand strings are present, yield to specialized OEM parser
+            from backend.parsers.tplink.parser import _contains_tplink_brand
+            from backend.parsers.cpplus.parser import _contains_cpplus_brand
+            from backend.parsers.godrej.parser import _contains_godrej_brand
+
+            scan_head = head[:min(65536, len(head))]
+            if _contains_tplink_brand(scan_head) or _contains_cpplus_brand(scan_head) or _contains_godrej_brand(scan_head):
+                return False, 0.0, {}
+
             # 1. DHFS4.1 disk superblock — highest confidence
             if head[:7] == DHFS_SIGNATURE:
                 return True, 0.90, {

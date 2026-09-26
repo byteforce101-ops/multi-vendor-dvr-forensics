@@ -1,0 +1,477 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>TraceX DVR Forensics Launch</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@500;700;800&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html, body {
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #070d18;
+        color: #f8fafc;
+        font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      }
+      #root {
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        background: radial-gradient(circle at 50% 30%, #0f1c34 0%, #070d18 85%);
+        overflow: hidden;
+      }
+
+      .grid-overlay {
+        position: absolute;
+        inset: 0;
+        background-size: 60px 60px;
+        background-image: 
+          linear-gradient(to right, rgba(8, 145, 178, 0.05) 1px, transparent 1px),
+          linear-gradient(to bottom, rgba(8, 145, 178, 0.05) 1px, transparent 1px);
+        pointer-events: none;
+      }
+
+      .top-hud {
+        position: absolute;
+        top: 40px;
+        left: 60px;
+        right: 60px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        z-index: 100;
+      }
+      .brand-badge {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+      .brand-logo {
+        font-family: 'Space Grotesk', sans-serif;
+        font-size: 28px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        color: #f8fafc;
+      }
+      .brand-logo span {
+        color: #0891b2;
+      }
+      .tag-pill {
+        background: rgba(8, 145, 178, 0.15);
+        border: 1px solid rgba(8, 145, 178, 0.4);
+        color: #38bdf8;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 13px;
+        padding: 5px 12px;
+        border-radius: 999px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .telemetry-status {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 14px;
+        color: #10b981;
+      }
+      .telemetry-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #10b981;
+        box-shadow: 0 0 10px #10b981;
+      }
+
+      .scene {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 100px 80px 60px;
+      }
+      .scene-inner {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .alert-box {
+        background: rgba(15, 23, 42, 0.85);
+        border: 1px solid #334155;
+        border-radius: 16px;
+        padding: 36px 48px;
+        max-width: 1100px;
+        width: 100%;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 30px rgba(8, 145, 178, 0.15);
+        text-align: center;
+      }
+      .eyebrow {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 16px;
+        color: #38bdf8;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        margin-bottom: 16px;
+      }
+      .main-heading {
+        font-size: 56px;
+        font-weight: 800;
+        line-height: 1.15;
+        letter-spacing: -0.02em;
+        margin-bottom: 24px;
+        color: #ffffff;
+      }
+      .sub-text {
+        font-size: 22px;
+        color: #94a3b8;
+        max-width: 850px;
+        margin: 0 auto 32px;
+        line-height: 1.5;
+      }
+      .hex-stream {
+        background: #030712;
+        border: 1px solid #1e293b;
+        border-radius: 8px;
+        padding: 16px 24px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 15px;
+        color: #38bdf8;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .vendor-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 20px;
+        width: 100%;
+        max-width: 1200px;
+        margin-top: 24px;
+      }
+      .vendor-card {
+        background: rgba(15, 23, 42, 0.9);
+        border: 1px solid #334155;
+        border-radius: 12px;
+        padding: 24px;
+        text-align: left;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+      }
+      .vendor-name {
+        font-size: 22px;
+        font-weight: 700;
+        color: #f8fafc;
+        margin-bottom: 6px;
+      }
+      .vendor-type {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 13px;
+        color: #0891b2;
+        margin-bottom: 12px;
+      }
+      .vendor-status {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+        color: #10b981;
+        font-family: 'JetBrains Mono', monospace;
+      }
+
+      .neural-stage {
+        position: relative;
+        width: 1200px;
+        height: 580px;
+        background: #020617;
+        border: 1px solid #334155;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.8);
+      }
+      .video-sim {
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle at 60% 40%, #1e293b 0%, #020617 90%);
+      }
+      .neural-box {
+        position: absolute;
+        border: 2px solid #38bdf8;
+        background: rgba(56, 189, 248, 0.08);
+        border-radius: 6px;
+        box-shadow: 0 0 15px rgba(56, 189, 248, 0.4);
+      }
+      .box-label {
+        position: absolute;
+        top: -26px;
+        left: -2px;
+        background: #0891b2;
+        color: #ffffff;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 12px;
+        font-weight: 700;
+        padding: 3px 8px;
+        border-radius: 4px;
+        white-space: nowrap;
+      }
+      .neural-overlay-stats {
+        position: absolute;
+        bottom: 24px;
+        left: 24px;
+        right: 24px;
+        display: flex;
+        gap: 16px;
+      }
+      .stat-pill {
+        background: rgba(15, 23, 42, 0.85);
+        border: 1px solid #334155;
+        padding: 12px 20px;
+        border-radius: 8px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 14px;
+        color: #f8fafc;
+      }
+      .stat-pill span {
+        color: #38bdf8;
+        font-weight: 700;
+      }
+
+      .dossier-card {
+        background: rgba(15, 23, 42, 0.95);
+        border: 1px solid #38bdf8;
+        border-radius: 16px;
+        padding: 40px;
+        max-width: 900px;
+        width: 100%;
+        text-align: center;
+        box-shadow: 0 0 40px rgba(8, 145, 178, 0.25);
+      }
+      .dossier-hash {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 14px;
+        color: #10b981;
+        background: rgba(16, 185, 129, 0.1);
+        border: 1px solid rgba(16, 185, 129, 0.3);
+        padding: 8px 16px;
+        border-radius: 6px;
+        display: inline-block;
+        margin-bottom: 24px;
+      }
+      .release-downloads {
+        display: flex;
+        justify-content: center;
+        gap: 20px;
+        margin-top: 32px;
+      }
+      .download-btn {
+        background: #0891b2;
+        color: #ffffff;
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        font-size: 18px;
+        font-weight: 700;
+        padding: 14px 28px;
+        border-radius: 8px;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        border: none;
+      }
+      .download-btn-secondary {
+        background: #1e293b;
+        border: 1px solid #475569;
+        color: #f8fafc;
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        font-size: 18px;
+        font-weight: 700;
+        padding: 14px 28px;
+        border-radius: 8px;
+      }
+      .outro-logo {
+        font-family: 'Space Grotesk', sans-serif;
+        font-size: 68px;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        margin-bottom: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="20"
+      data-width="1920"
+      data-height="1080"
+    >
+      <div class="grid-overlay"></div>
+
+      <!-- Top HUD Header -->
+      <div class="top-hud">
+        <div class="brand-badge">
+          <div class="brand-logo">Trace<span>X</span></div>
+          <div class="tag-pill">DVR Forensics Platform</div>
+        </div>
+        <div class="telemetry-status">
+          <div class="telemetry-dot"></div>
+          <span>ENGINE ACTIVE • v1.0.1</span>
+        </div>
+      </div>
+
+      <!-- SCENE 1: Ingestion & Problem (0.0s - 4.5s) -->
+      <div id="scene1" class="scene clip" data-start="0" data-duration="4.5" data-track-index="0">
+        <div class="scene-inner" id="scene1-inner">
+          <div class="alert-box">
+            <div class="eyebrow">Evidence Ingestion Pipeline</div>
+            <h1 class="main-heading">Proprietary DVR Filesystems.<br>Unindexed Raw Disk Dumps.</h1>
+            <p class="sub-text">Automated sector-level carving and format identification across corrupted surveillance media.</p>
+            <div class="hex-stream">
+              <span>MOUNT: /dev/evidence.dd [READ-ONLY]</span>
+              <span style="color:#10b981;">STATUS: SECTOR INDEX IDENTIFIED</span>
+              <span>SHA-256: C857803F0CD0F677...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SCENE 2: Multi-Vendor Decoders (4.5s - 9.5s) -->
+      <div id="scene2" class="scene clip" data-start="4.5" data-duration="5.0" data-track-index="1">
+        <div class="scene-inner" id="scene2-inner">
+          <div class="eyebrow" style="text-align:center;">Multi-Vendor Hardware Support</div>
+          <h2 class="main-heading" style="text-align:center; font-size:46px;">Proprietary Filesystem Decoders</h2>
+          <div class="vendor-grid">
+            <div class="vendor-card" id="vc1">
+              <div class="vendor-name">Hikvision</div>
+              <div class="vendor-type">HIKBT / HIKVISION</div>
+              <div class="vendor-status">✓ Deleted Chunks Carved</div>
+            </div>
+            <div class="vendor-card" id="vc2">
+              <div class="vendor-name">Dahua</div>
+              <div class="vendor-type">DHFS / DHAV / DAV</div>
+              <div class="vendor-status">✓ Segment Maps Decoded</div>
+            </div>
+            <div class="vendor-card" id="vc3">
+              <div class="vendor-name">Xiongmai (XM)</div>
+              <div class="vendor-type">JFTech / XM Index</div>
+              <div class="vendor-status">✓ Stream Reassembled</div>
+            </div>
+            <div class="vendor-card" id="vc4">
+              <div class="vendor-name">CP Plus</div>
+              <div class="vendor-type">CP Plus DVR OEM</div>
+              <div class="vendor-status">✓ Timestamps Aligned</div>
+            </div>
+            <div class="vendor-card" id="vc5">
+              <div class="vendor-name">Godrej Security</div>
+              <div class="vendor-type">Enterprise Partitions</div>
+              <div class="vendor-status">✓ Block Carving Verified</div>
+            </div>
+            <div class="vendor-card" id="vc6">
+              <div class="vendor-name">Honeywell</div>
+              <div class="vendor-type">MAXPRO / Performance</div>
+              <div class="vendor-status">✓ NAL Unit Extraction</div>
+            </div>
+            <div class="vendor-card" id="vc7">
+              <div class="vendor-name">Matrix Comsec</div>
+              <div class="vendor-type">Enterprise NVR Format</div>
+              <div class="vendor-status">✓ Sector Boundary Carving</div>
+            </div>
+            <div class="vendor-card" id="vc8">
+              <div class="vendor-name">Raw Disk Carver</div>
+              <div class="vendor-type">.dd / .raw / .img / .001</div>
+              <div class="vendor-status">✓ Unallocated Sectors</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SCENE 3: ONNX Neural Vision & Kinematics (9.5s - 15.0s) -->
+      <div id="scene3" class="scene clip" data-start="9.5" data-duration="5.5" data-track-index="2">
+        <div class="scene-inner" id="scene3-inner">
+          <div class="eyebrow" style="text-align:center;">Deep Vision & Kinematics Engine</div>
+          <h2 class="main-heading" style="text-align:center; font-size:44px; margin-bottom:16px;">ONNX Neural Inference (~35ms/frame)</h2>
+          <div class="neural-stage">
+            <div class="video-sim"></div>
+
+            <div class="neural-box" id="box1" style="left: 180px; top: 120px; width: 190px; height: 320px;">
+              <div class="box-label">Track #04 | 42.8 px/s | Eastbound (→) | Person</div>
+            </div>
+
+            <div class="neural-box" id="box2" style="left: 560px; top: 180px; width: 380px; height: 240px; border-color:#10b981;">
+              <div class="box-label" style="background:#10b981;">Track #09 | 86.4 px/s | Westbound (←) | Vehicle</div>
+            </div>
+
+            <div class="neural-overlay-stats">
+              <div class="stat-pill">CPU Inference: <span>34.7ms</span></div>
+              <div class="stat-pill">Kinematic Vectors: <span>Pixel Velocity & 8-Point Compass</span></div>
+              <div class="stat-pill">Automated Tests: <span>191 Passed</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SCENE 4: Structured Dossier & Standalone Distribution (15.0s - 20.0s) -->
+      <div id="scene4" class="scene clip" data-start="15.0" data-duration="5.0" data-track-index="3">
+        <div class="scene-inner" id="scene4-inner">
+          <div class="dossier-card">
+            <div class="dossier-hash">SHA-256: C857803F0CD0F677258AF2E65966BE35892AFCC760EDEE8A450142798677672C</div>
+            <div class="outro-logo">Trace<span style="color:#0891b2;">X</span></div>
+            <p style="font-size:24px; color:#cbd5e1; margin-bottom:8px;">Enterprise Digital Video Forensics Platform</p>
+            <p style="font-size:16px; color:#94a3b8; font-family:'JetBrains Mono', monospace;">Release v1.0.1 • Non-Destructive Evidence Handling</p>
+            <div class="release-downloads">
+              <div class="download-btn">Download Standalone .exe (331 MB)</div>
+              <div class="download-btn-secondary">Download Portable .zip (468 MB)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Audio Elements -->
+      <audio id="music" data-start="0" data-track-index="4" data-volume="0.6" src="assets/music/music.mp3"></audio>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      // Scene 1: Ingestion & Problem (0s - 4.5s)
+      tl.fromTo("#scene1-inner", { opacity: 0, y: 30, scale: 0.96 }, { opacity: 1, y: 0, scale: 1, duration: 0.8, ease: "power2.out" }, 0.2);
+      tl.to("#scene1-inner", { opacity: 0, y: -20, duration: 0.5, ease: "power2.in" }, 3.9);
+
+      // Scene 2: Multi-Vendor Decoders (4.5s - 9.5s)
+      tl.fromTo("#scene2-inner .main-heading", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.6 }, 4.7);
+      tl.fromTo("#scene2-inner .vendor-card", 
+        { opacity: 0, y: 25, scale: 0.94 }, 
+        { opacity: 1, y: 0, scale: 1, duration: 0.5, stagger: 0.08, ease: "back.out(1.4)" }, 
+        5.0
+      );
+      tl.to("#scene2-inner", { opacity: 0, scale: 0.98, duration: 0.5, ease: "power2.in" }, 9.0);
+
+      // Scene 3: Neural Vision (9.5s - 15.0s)
+      tl.fromTo("#scene3-inner .neural-stage", { opacity: 0, scale: 0.95 }, { opacity: 1, scale: 1, duration: 0.7, ease: "power2.out" }, 9.7);
+      tl.fromTo("#box1", { opacity: 0, scale: 0.8 }, { opacity: 1, scale: 1, duration: 0.5, ease: "power2.out" }, 10.2);
+      tl.to("#box1", { x: 80, duration: 4.0, ease: "none" }, 10.6);
+      tl.fromTo("#box2", { opacity: 0, scale: 0.8 }, { opacity: 1, scale: 1, duration: 0.5, ease: "power2.out" }, 10.8);
+      tl.to("#box2", { x: -90, duration: 3.5, ease: "none" }, 11.2);
+      tl.to("#scene3-inner", { opacity: 0, y: -20, duration: 0.5, ease: "power2.in" }, 14.5);
+
+      // Scene 4: Dossier & Outro (15.0s - 20.0s)
+      tl.fromTo("#scene4-inner .dossier-card", { opacity: 0, scale: 0.9, y: 30 }, { opacity: 1, scale: 1, y: 0, duration: 0.8, ease: "back.out(1.2)" }, 15.3);
+      tl.fromTo(".release-downloads > div", { opacity: 0, y: 15 }, { opacity: 1, y: 0, duration: 0.5, stagger: 0.15 }, 16.0);
+
+      window.__timelines["main"] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>

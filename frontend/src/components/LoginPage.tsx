@@ -260,17 +260,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               <span className="text-[10px] font-bold tracking-wider uppercase text-[#64748b]">
                 {mode === 'signin' ? 'AUTHENTICATION GATEWAY' : 'NEW EXAMINER ONBOARDING'}
               </span>
-              {isSupabaseConfigured ? (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-100/80 text-emerald-800 border border-emerald-300/50">
-                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                  Supabase Live
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-amber-100/80 text-amber-800 border border-amber-300/50" title="To connect Supabase, add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in Vercel project environment variables">
-                  <AlertCircle className="w-3 h-3 text-amber-600" />
-                  Workstation Auth
-                </span>
-              )}
+              
             </div>
 
             <h2 className="text-2xl font-bold tracking-tight text-[#172033]">
@@ -278,7 +268,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
             </h2>
             <p className="text-xs text-[#64748b] mt-1.5 leading-relaxed">
               {mode === 'signin'
-                ? 'Authenticate to access active investigations, evidence vaults, and AI forensic analysis.'
+                ? ''
                 : 'Create credentials to access verified evidence workflows and tamper audit trails.'}
             </p>
           </div>

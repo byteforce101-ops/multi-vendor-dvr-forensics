@@ -1,0 +1,5 @@
+Built TraceX: Parse proprietary DVR filesystems, carve unindexed video streams, and run local ONNX neural vision tracking across raw surveillance disk dumps. 
+
+Standalone .exe (331 MB) & portable .zip available with zero external dependencies.
+
+👉 https://github.com/byteforce101-ops/multi-vendor-dvr-forensics

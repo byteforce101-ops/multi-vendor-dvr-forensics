@@ -84,7 +84,7 @@ GODREJ_BRAND_STRINGS: list[bytes] = [
     b"Godrej",
     b"godrej",
     b"GODREJ SECURITY",
-    b"GSS",
+    b"Godrej GSS",
     b"SeeThru",
     b"seethru",
     b"STE-UR",

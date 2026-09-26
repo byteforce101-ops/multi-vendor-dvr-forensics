@@ -1733,16 +1733,13 @@ export default function App() {
                 borderBottom: '1px solid #1f2937',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#ef4444', display: 'inline-block' }} />
-                <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#f59e0b', display: 'inline-block' }} />
-                <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
-                <span style={{ marginLeft: '8px', fontSize: '10.5px', color: '#94a3b8' }}>
-                  {quickstartTab === 'setup' && 'TraceX CLI — 1. Repository Clone & Virtualenv Setup'}
-                  {quickstartTab === 'tui' && 'TraceX TUI — 2. Full-Screen Interactive Terminal GUI'}
-                  {quickstartTab === 'detect' && 'TraceX CLI — 3. DVR Vendor Signature Identification'}
-                  {quickstartTab === 'extract' && 'TraceX CLI — 4. Proprietary Video Extraction & Carving'}
-                  {quickstartTab === 'pipeline' && 'TraceX CLI — 5. Autonomous Forensic Pipeline'}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '11px', color: '#94a3b8', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
+                  {quickstartTab === 'setup' && '1. Repository Clone & Virtualenv Setup'}
+                  {quickstartTab === 'tui' && '2. Full-Screen Interactive Terminal GUI'}
+                  {quickstartTab === 'detect' && '3. DVR Vendor Signature Identification'}
+                  {quickstartTab === 'extract' && '4. Proprietary Video Extraction & Carving'}
+                  {quickstartTab === 'pipeline' && '5. Autonomous Forensic Pipeline'}
                 </span>
               </div>
               <button

@@ -1412,7 +1412,7 @@ export default function App() {
           action={
             <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
               <a
-                href={api.getDesktopExeUrl()}
+                href="https://github.com/byteforce101-ops/multi-vendor-dvr-forensics/releases/download/v1.0.1/TraceX-DVR-Forensics.exe"
                 download="TraceX-DVR-Forensics.exe"
                 className="buttonDownload"
                 style={{
@@ -1443,25 +1443,6 @@ export default function App() {
                 <Package size={15} />
                 <span>Download Portable (.zip)</span>
               </a>
-              <button
-                type="button"
-                className="buttonDownload"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '7px',
-                  textDecoration: 'none',
-                  background: 'linear-gradient(135deg, #090d16 0%, #1e1b4b 100%)',
-                  border: '1px solid #4338ca',
-                  color: '#e0e7ff',
-                  cursor: 'pointer',
-                }}
-                onClick={() => setIsCliModalOpen(true)}
-                title="View Headless CLI & Terminal Quickstart Instructions"
-              >
-                <Terminal size={15} color="#818cf8" />
-                <span>CLI & Terminal</span>
-              </button>
               <button
                 className="buttonNewInvestigation"
                 onClick={() => setIsNewCaseModalOpen(true)}

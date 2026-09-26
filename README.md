@@ -95,7 +95,7 @@ Single portable binary. No Python, Node.js, or external drivers required.
 ### 2. Complete Portable Distribution (.zip)
 All-inclusive standalone package with pre-compiled web UI, batch launcher, and model weights.
 
-* **Download:** [`TraceX-DVR-Forensics-v1.0.1-Portable.zip` (468 MB)](https://github.com/byteforce101-ops/multi-vendor-dvr-forensics/releases/download/v1.0.1/TraceX-DVR-Forensics-v1.0.1-Portable.zip)
+* **Download:** [`TraceX-DVR-Forensics-Portable.zip` (468 MB)](https://github.com/byteforce101-ops/multi-vendor-dvr-forensics/releases/download/v1.0.1/TraceX-DVR-Forensics-Portable.zip)
 * **Usage:** Extract the archive and execute `run_tracex.bat` to launch the platform.
 
 ### 3. Zero-Install CLI (npx)

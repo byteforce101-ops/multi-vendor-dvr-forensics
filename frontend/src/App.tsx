@@ -570,7 +570,7 @@ export default function App() {
   const [isQueryModalOpen, setIsQueryModalOpen] = useState(false);
   const [isCliModalOpen, setIsCliModalOpen] = useState(false);
   const [copiedCommand, setCopiedCommand] = useState<string | null>(null);
-  const [quickstartTab, setQuickstartTab] = useState<'tui' | 'detect' | 'extract' | 'pipeline' | 'setup'>('tui');
+  const [quickstartTab, setQuickstartTab] = useState<'setup' | 'tui' | 'detect' | 'extract' | 'pipeline'>('setup');
   const [globalSearchText, setGlobalSearchText] = useState('');
   const [timelineSubTab, setTimelineSubTab] = useState<'ai' | 'detections' | 'incidents' | 'disappearances'>('ai');
 
@@ -1674,11 +1674,11 @@ export default function App() {
           {/* Quickstart Tabs */}
           <div style={{ display: 'flex', gap: '6px', borderBottom: '1px solid #e2e8f0', paddingBottom: '8px', marginBottom: '14px', overflowX: 'auto' }}>
             {[
-              { id: 'tui' as const, label: 'Interactive TUI', icon: Terminal, desc: 'Interactive terminal GUI' },
-              { id: 'detect' as const, label: 'Auto-Detect', icon: Search, desc: 'Identify 11 DVR signatures' },
-              { id: 'extract' as const, label: 'Stream Extract', icon: FileVideo, desc: 'Carve & reassemble MP4' },
-              { id: 'pipeline' as const, label: 'Full Pipeline', icon: Layers, desc: 'End-to-end automated ingest' },
-              { id: 'setup' as const, label: 'Install / Clone', icon: Package, desc: 'Python virtualenv setup' },
+              { id: 'setup' as const, label: '1. Install & Setup', icon: Package, desc: 'Python virtualenv setup' },
+              { id: 'tui' as const, label: '2. Interactive TUI', icon: Terminal, desc: 'Interactive terminal GUI' },
+              { id: 'detect' as const, label: '3. Auto-Detect', icon: Search, desc: 'Identify 11 DVR signatures' },
+              { id: 'extract' as const, label: '4. Stream Extract', icon: FileVideo, desc: 'Carve & reassemble MP4' },
+              { id: 'pipeline' as const, label: '5. Full Pipeline', icon: Layers, desc: 'End-to-end automated ingest' },
             ].map((tab) => {
               const TabIcon = tab.icon;
               const isActive = quickstartTab === tab.id;
@@ -1738,22 +1738,22 @@ export default function App() {
                 <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#f59e0b', display: 'inline-block' }} />
                 <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
                 <span style={{ marginLeft: '8px', fontSize: '10.5px', color: '#94a3b8' }}>
-                  {quickstartTab === 'tui' && 'TraceX TUI — Terminal User Interface'}
-                  {quickstartTab === 'detect' && 'TraceX CLI — DVR Vendor Signature Identification'}
-                  {quickstartTab === 'extract' && 'TraceX CLI — Proprietary Video Extraction & Carving'}
-                  {quickstartTab === 'pipeline' && 'TraceX CLI — Autonomous Forensic Pipeline'}
-                  {quickstartTab === 'setup' && 'TraceX CLI — Repository Clone & Virtualenv Setup'}
+                  {quickstartTab === 'setup' && 'TraceX CLI — 1. Repository Clone & Virtualenv Setup'}
+                  {quickstartTab === 'tui' && 'TraceX TUI — 2. Full-Screen Interactive Terminal GUI'}
+                  {quickstartTab === 'detect' && 'TraceX CLI — 3. DVR Vendor Signature Identification'}
+                  {quickstartTab === 'extract' && 'TraceX CLI — 4. Proprietary Video Extraction & Carving'}
+                  {quickstartTab === 'pipeline' && 'TraceX CLI — 5. Autonomous Forensic Pipeline'}
                 </span>
               </div>
               <button
                 type="button"
                 onClick={() => {
                   let cmd = '';
-                  if (quickstartTab === 'tui') cmd = 'python -m backend.cli.tui';
+                  if (quickstartTab === 'setup') cmd = 'git clone https://github.com/byteforce101-ops/multi-vendor-dvr-forensics.git\ncd multi-vendor-dvr-forensics\npython -m venv .venv\n.venv\\Scripts\\activate\npip install -r requirements.txt\npython -m backend.cli.tui';
+                  else if (quickstartTab === 'tui') cmd = 'python -m backend.cli.tui';
                   else if (quickstartTab === 'detect') cmd = 'python -m backend.cli.main detect "path/to/evidence.dd"';
                   else if (quickstartTab === 'extract') cmd = 'python -m backend.cli.main extract "path/to/evidence.dav" --vendor dahua --output ./extracted/';
                   else if (quickstartTab === 'pipeline') cmd = 'python -m backend.cli.main pipeline "path/to/evidence.001" --output ./cases/case_001/';
-                  else if (quickstartTab === 'setup') cmd = 'git clone https://github.com/byteforce101-ops/multi-vendor-dvr-forensics.git\ncd multi-vendor-dvr-forensics\npython -m venv .venv\n.venv\\Scripts\\activate\npip install -r requirements.txt\npython -m backend.cli.tui';
                   handleCopyCommand(cmd, quickstartTab);
                 }}
                 style={{
@@ -1778,6 +1778,23 @@ export default function App() {
 
             {/* Terminal Body */}
             <div style={{ padding: '14px 18px', color: '#f8fafc', fontSize: '12px', lineHeight: 1.6 }}>
+              {quickstartTab === 'setup' && (
+                <div>
+                  <div style={{ color: '#6ee7b7', whiteSpace: 'pre-wrap' }}>
+                    <span style={{ color: '#818cf8' }}># 1. Clone TraceX forensic repository</span>{'\n'}
+                    git clone https://github.com/byteforce101-ops/multi-vendor-dvr-forensics.git{'\n'}
+                    cd multi-vendor-dvr-forensics{'\n\n'}
+                    <span style={{ color: '#818cf8' }}># 2. Create and activate isolated Python virtualenv</span>{'\n'}
+                    python -m venv .venv{'\n'}
+                    .venv\Scripts\activate   <span style={{ color: '#94a3b8' }}># Windows PowerShell / CMD</span>{'\n'}
+                    <span style={{ color: '#94a3b8' }}># source .venv/bin/activate  (Linux / macOS)</span>{'\n\n'}
+                    <span style={{ color: '#818cf8' }}># 3. Install core dependencies & launch interactive TUI</span>{'\n'}
+                    pip install -r requirements.txt{'\n'}
+                    python -m backend.cli.tui
+                  </div>
+                </div>
+              )}
+
               {quickstartTab === 'tui' && (
                 <div>
                   <div style={{ color: '#6ee7b7', marginBottom: '6px' }}>
@@ -1818,22 +1835,6 @@ export default function App() {
                   </div>
                   <div style={{ color: '#94a3b8', fontSize: '11px', marginTop: '8px' }}>
                     # Autonomous end-to-end ingestion: Auto-detects filesystem &rarr; Parses recording index &rarr; Carves video streams &rarr; Computes SHA-256 seal &rarr; Generates manifest.json.
-                  </div>
-                </div>
-              )}
-
-              {quickstartTab === 'setup' && (
-                <div>
-                  <div style={{ color: '#6ee7b7', whiteSpace: 'pre-wrap' }}>
-                    <span style={{ color: '#818cf8' }}># 1. Clone repository</span>{'\n'}
-                    git clone https://github.com/byteforce101-ops/multi-vendor-dvr-forensics.git{'\n'}
-                    cd multi-vendor-dvr-forensics{'\n\n'}
-                    <span style={{ color: '#818cf8' }}># 2. Create and activate virtual environment</span>{'\n'}
-                    python -m venv .venv{'\n'}
-                    .venv\Scripts\activate   <span style={{ color: '#94a3b8' }}># On Linux/macOS: source .venv/bin/activate</span>{'\n\n'}
-                    <span style={{ color: '#818cf8' }}># 3. Install forensic dependencies & launch TUI</span>{'\n'}
-                    pip install -r requirements.txt{'\n'}
-                    python -m backend.cli.tui
                   </div>
                 </div>
               )}

@@ -1,7 +1,6 @@
 # TraceX: Multi-Vendor DVR/NVR Digital Forensics Platform
 
 [![Release](https://img.shields.io/badge/Release-v1.0.1-blue.svg)](https://github.com/byteforce101-ops/multi-vendor-dvr-forensics/releases/tag/v1.0.1)
-[![Tests](https://img.shields.io/badge/Tests-191%20Passed-success.svg)](https://github.com/byteforce101-ops/multi-vendor-dvr-forensics)
 [![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB.svg?logo=python&logoColor=white)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI%20%2B%20SQLAlchemy-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![React](https://img.shields.io/badge/Frontend-React%2018%20%2B%20Vite-61DAFB.svg?logo=react&logoColor=black)](https://vitejs.dev)
@@ -259,4 +258,4 @@ TraceX is designed around digital forensics evidence preservation principles:
 ## License
 
 TraceX Digital Forensics Platform is maintained by the ByteForce Engineering Team.  
-Distributed under the [Apache License 2.0](LICENSE).
+

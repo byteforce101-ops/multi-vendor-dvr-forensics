@@ -224,4 +224,4 @@ TraceX is designed around digital forensics evidence preservation principles:
 ## License
 
 TraceX Digital Forensics Platform is maintained by the ByteForce Engineering Team.  
-Distributed under the [Apache License 2.0](LICENSE).
+

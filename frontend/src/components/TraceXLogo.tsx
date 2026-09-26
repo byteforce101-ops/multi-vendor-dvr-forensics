@@ -15,12 +15,13 @@ const TraceXLogo: React.FC<TraceXLogoProps> = ({
   alt = 'TRACEX Forensics Platform',
 }) => {
   const src = variant === 'white' ? logoWhite : variant === 'dark' ? logoDark : logoOriginal;
+  const hasHeight = /\bh-/.test(className);
 
   return (
     <img
       src={src}
       alt={alt}
-      className={`h-10 w-auto object-contain ${className}`}
+      className={`${hasHeight ? '' : 'h-10'} w-auto object-contain ${className}`.trim()}
     />
   );
 };

@@ -14,9 +14,6 @@ import {
   Activity,
   ChevronRight,
   Loader2,
-  HardDrive,
-  Cpu,
-  FileCheck2,
 } from 'lucide-react';
 import { supabase, isSupabaseConfigured, DEFAULT_USER } from '../lib/supabase';
 import { SupabaseUser } from '../types';
@@ -172,74 +169,40 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
       <div className="absolute inset-0 bg-[#060c18]/65 backdrop-blur-[0.5px] pointer-events-none" />
 
       {/* LEFT COLUMN: Forensic Branding & Platform Capabilities Hero */}
-      <div className="hidden lg:flex lg:w-[48%] xl:w-[52%] text-white flex-col justify-between p-12 relative z-10">
+      <div className="hidden lg:flex lg:w-[50%] xl:w-[54%] text-white flex-col justify-between p-8 xl:p-12 relative z-10">
         {/* Top Header */}
         <div className="relative z-10 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <TraceXLogo variant="white" className="h-16 xl:h-20 w-auto object-contain drop-shadow-xl" />
-          </div>
+          <span className="text-[10px] xl:text-[11px] font-mono uppercase tracking-widest text-cyan-300/85 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+            Digital Video Forensics Platform
+          </span>
         </div>
 
-        {/* Middle Hero Showcase */}
-        <div className="relative z-10 my-auto py-8 max-w-xl">
-          <h1 className="text-xl xl:text-2xl font-medium tracking-tight text-white leading-[1.3] mb-3 drop-shadow-md">
-            Cryptographic Integrity & Neural Event Reconstruction.
-          </h1>
-
-          <p className="text-xs text-cyan-300/90 font-mono mb-6">
-            ✦ Powered by TraceX's proprietary AI engine
-          </p>
-
-          {/* Feature Highlights Grid */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="p-4 rounded-lg bg-slate-900/40 border border-white/15 backdrop-blur-sm shadow-md">
-              <div className="w-8 h-8 rounded-md bg-[#0f766e]/40 text-[#5eead4] flex items-center justify-center mb-2.5">
-                <HardDrive className="w-4 h-4" />
-              </div>
-              <h4 className="text-xs font-semibold text-white mb-1">DVR File System Carving</h4>
-              <p className="text-[11px] text-slate-300 leading-normal">
-                DHFS, WFS, and raw sector recovery with H.264/H.265 GOP parsing.
-              </p>
-            </div>
-
-            <div className="p-4 rounded-lg bg-slate-900/40 border border-white/15 backdrop-blur-sm shadow-md">
-              <div className="w-8 h-8 rounded-md bg-[#3730a3]/50 text-[#c7d2fe] flex items-center justify-center mb-2.5">
-                <Cpu className="w-4 h-4" />
-              </div>
-              <h4 className="text-xs font-semibold text-white mb-1">TraceX Forensic Rule Engine</h4>
-              <p className="text-[11px] text-slate-300 leading-normal">
-                Multi-stage kinematic velocity tracking, neural vision & spatial feature analysis.
-              </p>
-            </div>
-
-            <div className="p-4 rounded-lg bg-slate-900/40 border border-white/15 backdrop-blur-sm shadow-md">
-              <div className="w-8 h-8 rounded-md bg-[#047857]/50 text-[#a7f3d0] flex items-center justify-center mb-2.5">
-                <FileCheck2 className="w-4 h-4" />
-              </div>
-              <h4 className="text-xs font-semibold text-white mb-1">Tamper Audit & Dossiers</h4>
-              <p className="text-[11px] text-slate-300 leading-normal">
-                Continuous frame timestamp audits & certified NIST court reporting.
-              </p>
-            </div>
-
-            <div className="p-4 rounded-lg bg-slate-900/40 border border-white/15 backdrop-blur-sm shadow-md">
-              <div className="w-8 h-8 rounded-md bg-[#7c3aed]/50 text-[#ddd6fe] flex items-center justify-center mb-2.5">
-                <ShieldCheck className="w-4 h-4" />
-              </div>
-              <h4 className="text-xs font-semibold text-white mb-1">Supabase Access Control</h4>
-              <p className="text-[11px] text-slate-300 leading-normal">
-                Role-based audit logging and encrypted evidence repository ledger.
+        {/* Middle Hero Showcase: Centered Side-by-Side Logo & Text */}
+        <div className="relative z-10 my-auto py-8 w-full flex items-center justify-center">
+          <div className="flex items-center gap-5 xl:gap-7 max-w-2xl w-full justify-center">
+            <TraceXLogo
+              variant="white"
+              className="h-20 xl:h-24 2xl:h-28 w-auto object-contain drop-shadow-2xl shrink-0"
+            />
+            <div className="border-l border-white/25 pl-5 xl:pl-7 max-w-[280px] xl:max-w-[350px]">
+              <h1 className="text-base xl:text-xl 2xl:text-2xl font-semibold tracking-tight text-white leading-snug drop-shadow-md">
+                Cryptographic Integrity &amp; Neural Event Reconstruction.
+              </h1>
+              <p className="text-[11px] xl:text-xs text-cyan-300/90 font-mono mt-3 tracking-wide">
+                ✦ Powered by TraceX's proprietary AI engine
               </p>
             </div>
           </div>
         </div>
 
         {/* Footer Meta */}
-        <div className="relative z-10 pt-6 border-t border-white/15 max-w-xl flex items-center justify-between text-[11px] text-slate-300 font-mono">
-          <span className="flex items-center gap-1 text-[#5eead4]">
+        <div className="relative z-10 pt-6 border-t border-white/15 w-full flex items-center justify-between text-[11px] text-slate-300 font-mono">
+          <span className="flex items-center gap-1.5 text-[#5eead4]">
             <Terminal className="w-3.5 h-3.5" />
-            SYSTEM READY
+            <span>SYSTEM READY</span>
           </span>
+          <span className="text-slate-400">NIST SP 800-86 Compliant</span>
         </div>
       </div>
 

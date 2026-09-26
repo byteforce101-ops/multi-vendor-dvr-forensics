@@ -7,20 +7,41 @@
 [![React](https://img.shields.io/badge/Frontend-React%2018%20%2B%20Vite-61DAFB.svg?logo=react&logoColor=black)](https://vitejs.dev)
 [![ONNX](https://img.shields.io/badge/Inference-ONNX%20Runtime%201.30-FF5722.svg?logo=onnx&logoColor=white)](https://onnxruntime.ai)
 
-TraceX is a digital video forensics platform built for recovering, parsing, verifying, and analyzing surveillance recordings from proprietary DVR/NVR storage formats and raw disk images. 
+TraceX is an enterprise-grade digital video forensics and incident reconstruction platform designed for recovering, parsing, verifying, and analyzing surveillance recordings from proprietary DVR/NVR storage formats, raw disk images, and unallocated sector dumps.
 
-Developed for digital forensics units, law enforcement laboratories, and incident response teams, TraceX provides automated unallocated space carving, timestamp reconstruction, kinematic vehicle/pedestrian tracking, and cryptographic chain-of-custody verification.
+Developed for digital forensics laboratories (DFIR), law enforcement agencies, and security audit teams, TraceX provides automated multi-vendor superblock parsing, unallocated space stream carving, kinematic speed/trajectory tracking, forensic timestamp reconstruction, and cryptographic chain-of-custody verification.
 
 ---
 
 ## Key Capabilities
 
-* **Proprietary Filesystem Decoders:** Sector-level index parsing and stream reconstruction for Hikvision (HIKBT), Dahua/Amcrest (DHFS/DHAV), Xiongmai/JFTech (XM), CP Plus, Godrej Security, Honeywell, and Matrix Comsec.
-* **Raw Disk & Deleted Frame Carving:** Recovers unindexed, damaged, or deleted video recordings directly from raw physical image dumps (`.dd`, `.raw`, `.img`, `.001`, `.dat`).
-* **High-Throughput ONNX Deep Vision:** Embedded ONNX Runtime execution engine providing ~34ms/frame local inference across 80+ semantic object classes with zero external PyTorch dependency.
-* **Kinematic Trajectory & ByteTrack Tracking:** Multi-frame entity association, bounding-box tracking, velocity computation ($px/s$), and spatial occlusion handling.
-* **Forensic Integrity Verification:** Automated SHA-256 and MD5 hashing, presentation timestamp validation (PTS/DTS), frame-drop detection, and ISO/IEC 27037-compliant forensic dossier export.
-* **Forensic AI Query Interface:** Context-aware natural language evidence queries powered by Groq LLaMA models, with deterministic local heuristic fallback for air-gapped forensic laboratories.
+* **11 Multi-Vendor DVR/NVR Parsers:** Native sector-level filesystem parsing and container reconstruction for Hikvision, Dahua, Honeywell, Matrix Comsec, TP-Link VIGI, Godrej Security, HeimVision, Uniview (UNV), CP Plus, Generic Forensic Carver, and Standard Video Containers.
+* **Unallocated Space & Deleted Stream Carving:** Recovers damaged, wiped, or orphaned video recordings directly from raw physical disk dumps (`.dd`, `.raw`, `.img`, `.001`, `.bin`, `.dat`).
+* **High-Throughput Local Vision Inference:** Embedded ONNX Runtime execution engine (~34ms/frame) detecting vehicles, pedestrians, and scene entities with zero external PyTorch dependencies.
+* **Kinematic Trajectory & Speed Estimation:** Multi-frame tracking via ByteTrack, bounding-box motion vectors, instantaneous velocity computation ($px/s$), acceleration anomalies, and spatial collision analysis.
+* **Forensic Timestamp & Stream Verification:** Automated SHA-256/MD5 hashing, Presentation Timestamp (PTS/DTS) validation, frame-drop detection, and ISO/IEC 27037-compliant dossier generation.
+* **Conversational Forensic AI Investigator:** Natural language evidence querying powered by Groq LLaMA models, with deterministic local heuristics for air-gapped forensic environments.
+* **Synthetic Evidence Generation Tooling:** Built-in toolchain (`scripts/generate_all_vendor_samples.py`) to transcode and encapsulate any standard video into authentic vendor filesystem disk images and containers for simulation, validation, and training.
+
+---
+
+## Supported Hardware & Vendor Parsers
+
+TraceX includes dedicated decoders for major global and Indian surveillance manufacturers:
+
+| Vendor / Platform | Filesystem / Container | File Signatures & Markers | Forensic Extraction Capabilities |
+| :--- | :--- | :--- | :--- |
+| **Hikvision** | `HIKBT` / Raw Disk (`.dd`, `.img`) | `HIKVISION@HANGZHOU`, `HIKBTREE`, `HIK.2011.03.08` | Master Block parsing, B-tree index traversal, MPEG-PS data block carving |
+| **Dahua / Amcrest** | `DHFS4.1` / DHAV (`.dav`, `.dd`) | `DHFS4.1`, `DHAV`, `DAHUA`, `dhav` footers | Superblock decoding, frame-level timestamp extraction, multi-channel demuxing |
+| **Honeywell Security** | Proprietary FS / MAXPRO (`.dd`, `.mpvc`) | Sector 34 (`0x4400`) brand strings, 20-byte NAL headers (`0x82800100` / `0x02800100`) | Proprietary sector parsing, NAL unit reconstruction, MAXPRO export decoding |
+| **Matrix Comsec** | SATATYA Native (`.stm`, `.mxs`, `.avs`) | `MATRIX COMSEC`, `SATATYA NVR`, NAL Annex B start codes | Indigenous Indian NVR stream container parsing, raw H.264/H.265 extraction |
+| **TP-Link VIGI** | VIGI NVR (`.dav`, `.raw`, `.dd`) | `TP-LINK`, `VIGI`, `NVR1004H`, DHAV container framing | VIGI partition carving, DHAV stream demuxing |
+| **Godrej Security** | GSS SeeThru / STE-NVR (`.bin`, `.dd`) | `GODREJ SECURITY`, `SeeThru`, Xiongmai `AA55AA55` sync tags | Line A (Dahua OEM) & Line B (Xiongmai `000001FD`/`FC` stream carving) |
+| **HeimVision** | Raw HEVC Stream (`.dat`, `.raw`) | H.265 VPS markers (`0000000140`), SPS/PPS/IDR NALs | Elementary HEVC stream extraction and lossless MP4 remuxing |
+| **Uniview (UNV)** | Universal Block Storage (`.uvf`, `.dd`) | `UNIVIEW`, `UNV`, `Ultra265`, `NVR301`, IDR NAL codes | UBS block scanning, Ultra265/H.264 segment boundary carving |
+| **CP Plus** | CP-UVR / CP-NVR (`.dav`, `.dd`) | `CPPLUS`, `CP-UVR`, `Aditya Infotech` metadata | Dahua OEM chain-of-custody attribution, DHAV frame reassembly |
+| **Forensic Disk Carver** | Raw Unallocated (`.dd`, `.raw`, `.img`) | MPEG-PS packs (`000001BA`), MP4 boxes (`ftyp`), FLV, AVI, MKV | Headerless multi-stream carving from corrupted or wiped physical drives |
+| **Generic Video** | Standard Containers (`.mp4`, `.avi`, `.mkv`) | ISO Media, RIFF AVI, Matroska headers | Container metadata extraction and direct analytical ingestion |
 
 ---
 
@@ -61,7 +82,7 @@ TraceX Event Builder                                           TraceX Incident H
 
 ---
 
-## Distribution and Installation
+## Installation and Quick Start
 
 ### 1. Standalone Windows Executable (.exe)
 Single portable binary. No Python, Node.js, or external drivers required.
@@ -147,17 +168,30 @@ tracex enhance path/to/low_light.mp4 --output enhanced.mp4
 
 ---
 
-## Supported Hardware & Filesystem Formats
+## Synthetic Evidence Generation
 
-| Vendor / Platform | Filesystem / Container | Supported Artifacts | Carving Capabilities |
-| :--- | :--- | :--- | :--- |
-| **Hikvision / HeimVision** | HIKBT / HIKVISION Raw | Index tables, MP4/H.264 streams | Allocated and unallocated sector carving |
-| **Dahua / Amcrest** | DHFS / DHAV / DAV | Segment maps, DAV chunk streams | Unindexed DAV chunk reconstruction |
-| **Xiongmai (XM) / JFTech** | XM Index / Raw Streams | Multi-channel video indexes | Indexless stream recovery |
-| **CP Plus** | CP Plus OEM (DHFS/XM) | Master boot records, timestamps | Video stream reassembly |
-| **Godrej Security** | Godrej Enterprise DVR | Custom sector partitions | Raw block frame extraction |
-| **Matrix Comsec** | Matrix Enterprise NVR | Proprietary NVR sector maps | Frame boundary carving |
-| **Generic Raw Image** | `.dd`, `.raw`, `.img`, `.001` | H.264/H.265 NAL units, MP4 headers | Byte-offset pattern scanning |
+TraceX includes an evidence generation utility to transform any standard video (e.g. CCTV, dashcam, MP4) into authentic disk images and stream files for all 11 parsers:
+
+```bash
+# Generate evidence packages for all 11 parsers from an input video
+python scripts/generate_all_vendor_samples.py "C:\path\to\video.mp4" -o "output\vendor_samples"
+
+# Specify a custom topic prefix for filenames
+python scripts/generate_all_vendor_samples.py "C:\path\to\video.mp4" -o "output\vendor_samples" --prefix incident_01
+```
+
+Generated packages:
+* `hikvision_*.dd` — Master Block + HIKBTREE index + MPEG-PS data block
+* `dahua_*.dav` & `dahua_*.dd` — DHAV stream & DHFS4.1 disk image
+* `honeywell_*.dd` — Sector 34 machine data + 20-byte NAL headers
+* `matrix_satatya_*.stm` — SATATYA Media stream container
+* `tplink_vigi_*.dav` — VIGI metadata + DHAV frame stream
+* `godrej_seethru_*.bin` — Xiongmai `AA55AA55` sync tags + NAL stream
+* `heimvision_*.dat` — Raw HEVC/H.265 elementary stream
+* `uniview_*.uvf` — Ultra265 Video Export container
+* `cpplus_*.dav` — CP-UVR Aditya Infotech metadata + DHAV stream
+* `carver_raw_disk_*.dd` — Unallocated physical disk with MPEG-PS packs
+* `generic_*.mp4` — Standard MP4 video container
 
 ---
 
@@ -166,7 +200,7 @@ tracex enhance path/to/low_light.mp4 --output enhanced.mp4
 TraceX incorporates a layered computer vision pipeline optimized for surveillance footage:
 
 1. **Semantic Vision Detector (`backend/models/tracex_vision.onnx`):**
-   * High-throughput 34ms inference with ONNX Runtime.
+   * High-throughput ~34ms inference with ONNX Runtime.
    * Classifies pedestrians, vehicles (cars, motorcycles, trucks, buses), bags, backpacks, and personal accessories.
 2. **Kinematics & Speed Estimation:**
    * Computes instantaneous and average pixel velocities ($px/s$).
@@ -199,7 +233,7 @@ Interactive Swagger documentation is available at `http://localhost:8000/docs`.
 
 ## Automated Test Suite
 
-TraceX maintains an automated test suite covering parser boundary conditions, corrupt stream carving, and AI event summarization:
+TraceX maintains an automated test suite covering parser contract invariants, corrupt stream carving, database migrations, and AI event summarization:
 
 ```bash
 # Run test suite
@@ -218,7 +252,7 @@ pytest -v --cov=backend
 TraceX is designed around digital forensics evidence preservation principles:
 * **ISO/IEC 27037 Compliance:** Adheres to standards for the identification, collection, acquisition, and preservation of digital evidence.
 * **Non-Destructive Processing:** Original evidence files are opened in read-only mode; all carving and normalization occurs in isolated working directories.
-* **Cryptographic Provenance:** Every carved video stream maintains immutable SHA-256 hash verification linked to source sector offsets.
+* **Cryptographic Provenance:** Every carved video stream maintains immutable SHA-256 and MD5 hash verification linked to source sector offsets.
 
 ---
 

@@ -1,4 +1,4 @@
-# TraceX: Multi-Vendor DVR/NVR Digital Forensics Platform
+# <img width="145" height="42" alt="image" src="https://github.com/user-attachments/assets/82f4c3fe-fe3b-4c55-a993-2daee218ff57" /> : Multi-Vendor DVR/NVR Digital Forensics Platform
 
 [![Release](https://img.shields.io/badge/Release-v1.0.1-blue.svg)](https://github.com/byteforce101-ops/multi-vendor-dvr-forensics/releases/tag/v1.0.1)
 [![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB.svg?logo=python&logoColor=white)](https://python.org)

@@ -8,11 +8,15 @@ import {
   AlertTriangle,
   ArrowLeft,
   Bell,
+  Check,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Clock,
+  Code,
+  Copy,
   Download,
+  ExternalLink,
   Eye,
   EyeOff,
   FileBarChart,
@@ -41,6 +45,7 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   Sparkles,
+  Terminal,
   Upload,
   UploadCloud,
   UserRound,
@@ -563,8 +568,19 @@ export default function App() {
   const [isNewCaseModalOpen, setIsNewCaseModalOpen] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isQueryModalOpen, setIsQueryModalOpen] = useState(false);
+  const [isCliModalOpen, setIsCliModalOpen] = useState(false);
+  const [copiedCommand, setCopiedCommand] = useState<string | null>(null);
+  const [quickstartTab, setQuickstartTab] = useState<'tui' | 'detect' | 'extract' | 'pipeline' | 'setup'>('tui');
   const [globalSearchText, setGlobalSearchText] = useState('');
   const [timelineSubTab, setTimelineSubTab] = useState<'ai' | 'detections' | 'incidents' | 'disappearances'>('ai');
+
+  const handleCopyCommand = (cmd: string, id: string) => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(cmd);
+    }
+    setCopiedCommand(id);
+    setTimeout(() => setCopiedCommand(null), 2500);
+  };
 
   // AI Conversational Query state
   const [groqApiKey, setGroqApiKey] = useState<string>(() => {
@@ -1428,6 +1444,25 @@ export default function App() {
                 <span>Download Portable (.zip)</span>
               </a>
               <button
+                type="button"
+                className="buttonDownload"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '7px',
+                  textDecoration: 'none',
+                  background: 'linear-gradient(135deg, #090d16 0%, #1e1b4b 100%)',
+                  border: '1px solid #4338ca',
+                  color: '#e0e7ff',
+                  cursor: 'pointer',
+                }}
+                onClick={() => setIsCliModalOpen(true)}
+                title="View Headless CLI & Terminal Quickstart Instructions"
+              >
+                <Terminal size={15} color="#818cf8" />
+                <span>CLI & Terminal</span>
+              </button>
+              <button
                 className="buttonNewInvestigation"
                 onClick={() => setIsNewCaseModalOpen(true)}
               >
@@ -1576,6 +1611,270 @@ export default function App() {
             />
           </div>
         )}
+
+        {/* Forensic CLI & Terminal Quickstart Panel */}
+        <div className="panel" style={{ padding: '22px', marginBottom: '20px', background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
+          <div className="section-head" style={{ marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+            <div>
+              <p className="eyebrow" style={{ color: '#4f46e5', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Terminal size={13} /> HEADLESS & TERMINAL AUTOMATION
+              </p>
+              <h3 style={{ fontSize: '16px', color: '#0f172a', fontWeight: 700, margin: '3px 0' }}>
+                TraceX Forensic CLI & Terminal Interface
+              </h3>
+              <p style={{ margin: 0, fontSize: '11.5px', color: '#64748b' }}>
+                Run high-speed multi-vendor DVR carving, proprietary filesystem parsing, and SHA-256 sealed extraction directly from your terminal.
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <a
+                href={api.getLauncherBatUrl()}
+                download="launch_tracex_dvr.bat"
+                className="buttonDownload"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '5px 12px',
+                  fontSize: '11px',
+                  textDecoration: 'none',
+                  background: '#f8fafc',
+                  border: '1px solid #cbd5e1',
+                  color: '#334155',
+                }}
+                title="Download 1-click Windows Terminal Batch Launcher (.bat)"
+              >
+                <Download size={13} />
+                <span>Download launcher.bat</span>
+              </a>
+              <button
+                type="button"
+                className="btn"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '5px 12px',
+                  fontSize: '11px',
+                  background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 100%)',
+                  border: '1px solid #4338ca',
+                  color: '#ffffff',
+                  borderRadius: '5px',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                }}
+                onClick={() => setIsCliModalOpen(true)}
+              >
+                <Code size={13} />
+                <span>Full CLI Reference</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Quickstart Tabs */}
+          <div style={{ display: 'flex', gap: '6px', borderBottom: '1px solid #e2e8f0', paddingBottom: '8px', marginBottom: '14px', overflowX: 'auto' }}>
+            {[
+              { id: 'tui' as const, label: 'Interactive TUI', icon: Terminal, desc: 'Interactive terminal GUI' },
+              { id: 'detect' as const, label: 'Auto-Detect', icon: Search, desc: 'Identify 11 DVR signatures' },
+              { id: 'extract' as const, label: 'Stream Extract', icon: FileVideo, desc: 'Carve & reassemble MP4' },
+              { id: 'pipeline' as const, label: 'Full Pipeline', icon: Layers, desc: 'End-to-end automated ingest' },
+              { id: 'setup' as const, label: 'Install / Clone', icon: Package, desc: 'Python virtualenv setup' },
+            ].map((tab) => {
+              const TabIcon = tab.icon;
+              const isActive = quickstartTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setQuickstartTab(tab.id)}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '6px 12px',
+                    fontSize: '11.5px',
+                    fontWeight: isActive ? 700 : 500,
+                    borderRadius: '6px',
+                    border: '1px solid',
+                    borderColor: isActive ? '#6366f1' : 'transparent',
+                    background: isActive ? '#eef2ff' : 'transparent',
+                    color: isActive ? '#4338ca' : '#64748b',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <TabIcon size={13} />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Terminal Display Box */}
+          <div
+            style={{
+              background: '#0a0e1a',
+              border: '1px solid #1e293b',
+              borderRadius: '7px',
+              overflow: 'hidden',
+              fontFamily: 'var(--font-mono)',
+              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.25)',
+            }}
+          >
+            {/* Window header */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '8px 14px',
+                background: '#111827',
+                borderBottom: '1px solid #1f2937',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#ef4444', display: 'inline-block' }} />
+                <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#f59e0b', display: 'inline-block' }} />
+                <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
+                <span style={{ marginLeft: '8px', fontSize: '10.5px', color: '#94a3b8' }}>
+                  {quickstartTab === 'tui' && 'TraceX TUI — Terminal User Interface'}
+                  {quickstartTab === 'detect' && 'TraceX CLI — DVR Vendor Signature Identification'}
+                  {quickstartTab === 'extract' && 'TraceX CLI — Proprietary Video Extraction & Carving'}
+                  {quickstartTab === 'pipeline' && 'TraceX CLI — Autonomous Forensic Pipeline'}
+                  {quickstartTab === 'setup' && 'TraceX CLI — Repository Clone & Virtualenv Setup'}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  let cmd = '';
+                  if (quickstartTab === 'tui') cmd = 'python -m backend.cli.tui';
+                  else if (quickstartTab === 'detect') cmd = 'python -m backend.cli.main detect "path/to/evidence.dd"';
+                  else if (quickstartTab === 'extract') cmd = 'python -m backend.cli.main extract "path/to/evidence.dav" --vendor dahua --output ./extracted/';
+                  else if (quickstartTab === 'pipeline') cmd = 'python -m backend.cli.main pipeline "path/to/evidence.001" --output ./cases/case_001/';
+                  else if (quickstartTab === 'setup') cmd = 'git clone https://github.com/byteforce101-ops/multi-vendor-dvr-forensics.git\ncd multi-vendor-dvr-forensics\npython -m venv .venv\n.venv\\Scripts\\activate\npip install -r requirements.txt\npython -m backend.cli.tui';
+                  handleCopyCommand(cmd, quickstartTab);
+                }}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  padding: '3px 9px',
+                  fontSize: '10px',
+                  borderRadius: '4px',
+                  background: copiedCommand === quickstartTab ? '#065f46' : '#1f2937',
+                  color: copiedCommand === quickstartTab ? '#6ee7b7' : '#cbd5e1',
+                  border: '1px solid',
+                  borderColor: copiedCommand === quickstartTab ? '#059669' : '#374151',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                }}
+              >
+                {copiedCommand === quickstartTab ? <Check size={12} /> : <Copy size={12} />}
+                <span>{copiedCommand === quickstartTab ? 'Copied!' : 'Copy Command'}</span>
+              </button>
+            </div>
+
+            {/* Terminal Body */}
+            <div style={{ padding: '14px 18px', color: '#f8fafc', fontSize: '12px', lineHeight: 1.6 }}>
+              {quickstartTab === 'tui' && (
+                <div>
+                  <div style={{ color: '#6ee7b7', marginBottom: '6px' }}>
+                    <span style={{ color: '#818cf8' }}>PS C:\TraceX&gt;</span> python -m backend.cli.tui
+                  </div>
+                  <div style={{ color: '#94a3b8', fontSize: '11px', marginTop: '8px' }}>
+                    # Opens the full-screen interactive Terminal User Interface with keyboard-driven evidence browsing, live carving progress bars, and real-time checksum calculation.
+                  </div>
+                </div>
+              )}
+
+              {quickstartTab === 'detect' && (
+                <div>
+                  <div style={{ color: '#6ee7b7', marginBottom: '6px' }}>
+                    <span style={{ color: '#818cf8' }}>PS C:\TraceX&gt;</span> python -m backend.cli.main detect <span style={{ color: '#fde047' }}>"C:\Evidence\surveillance_dump.dd"</span>
+                  </div>
+                  <div style={{ color: '#94a3b8', fontSize: '11px', marginTop: '8px' }}>
+                    # Inspects disk headers and video frames against 11 proprietary signatures (Hikvision, Dahua, HeimVision, Uniview, Matrix, Godrej, TP-Link, CP Plus, Honeywell, Carver, Generic).
+                  </div>
+                </div>
+              )}
+
+              {quickstartTab === 'extract' && (
+                <div>
+                  <div style={{ color: '#6ee7b7', marginBottom: '6px' }}>
+                    <span style={{ color: '#818cf8' }}>PS C:\TraceX&gt;</span> python -m backend.cli.main extract <span style={{ color: '#fde047' }}>"C:\Evidence\ch01.dav"</span> --vendor dahua --output <span style={{ color: '#38bdf8' }}>./extracted_footage/</span>
+                  </div>
+                  <div style={{ color: '#94a3b8', fontSize: '11px', marginTop: '8px' }}>
+                    # Carves proprietary DHAV/H.264 packets, resolves timestamp shifts, and generates forensic-grade standard decodable MP4 evidence files.
+                  </div>
+                </div>
+              )}
+
+              {quickstartTab === 'pipeline' && (
+                <div>
+                  <div style={{ color: '#6ee7b7', marginBottom: '6px' }}>
+                    <span style={{ color: '#818cf8' }}>PS C:\TraceX&gt;</span> python -m backend.cli.main pipeline <span style={{ color: '#fde047' }}>"C:\Evidence\raw_dvr_image.raw"</span> --output <span style={{ color: '#38bdf8' }}>./cases/case_001/</span>
+                  </div>
+                  <div style={{ color: '#94a3b8', fontSize: '11px', marginTop: '8px' }}>
+                    # Autonomous end-to-end ingestion: Auto-detects filesystem &rarr; Parses recording index &rarr; Carves video streams &rarr; Computes SHA-256 seal &rarr; Generates manifest.json.
+                  </div>
+                </div>
+              )}
+
+              {quickstartTab === 'setup' && (
+                <div>
+                  <div style={{ color: '#6ee7b7', whiteSpace: 'pre-wrap' }}>
+                    <span style={{ color: '#818cf8' }}># 1. Clone repository</span>{'\n'}
+                    git clone https://github.com/byteforce101-ops/multi-vendor-dvr-forensics.git{'\n'}
+                    cd multi-vendor-dvr-forensics{'\n\n'}
+                    <span style={{ color: '#818cf8' }}># 2. Create and activate virtual environment</span>{'\n'}
+                    python -m venv .venv{'\n'}
+                    .venv\Scripts\activate   <span style={{ color: '#94a3b8' }}># On Linux/macOS: source .venv/bin/activate</span>{'\n\n'}
+                    <span style={{ color: '#818cf8' }}># 3. Install forensic dependencies & launch TUI</span>{'\n'}
+                    pip install -r requirements.txt{'\n'}
+                    python -m backend.cli.tui
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Supported Vendors Tag Cloud */}
+          <div style={{ marginTop: '14px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '10.5px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              11 Native Parsers Supported:
+            </span>
+            {[
+              'Hikvision (.mp4/.dav/.dd)',
+              'Dahua (.dav/.dd)',
+              'HeimVision (.h265)',
+              'Uniview (.uvf)',
+              'Matrix Comsec (.stm)',
+              'Godrej GSS (Line B)',
+              'TP-Link VIGI (.dav)',
+              'CP Plus (.dav)',
+              'Honeywell (.dav)',
+              'Carver (Annex B)',
+              'Generic Video (MP4/AVI/MKV)',
+            ].map((v) => (
+              <span
+                key={v}
+                style={{
+                  fontSize: '10px',
+                  fontFamily: 'var(--font-mono)',
+                  padding: '2px 7px',
+                  borderRadius: '4px',
+                  background: '#f1f5f9',
+                  color: '#334155',
+                  border: '1px solid #e2e8f0',
+                }}
+              >
+                {v}
+              </span>
+            ))}
+          </div>
+        </div>
 
         {/* Cases list */}
         <div className="panel table-panel">
@@ -5144,6 +5443,295 @@ export default function App() {
                 onClick={() => setIsQueryModalOpen(false)}
               >
                 Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =================================================================== */}
+      {/* MODAL: FORENSIC CLI & TERMINAL REFERENCE */}
+      {/* =================================================================== */}
+      {isCliModalOpen && (
+        <div className="modal-backdrop" onClick={() => setIsCliModalOpen(false)}>
+          <div
+            className="modal-card"
+            style={{ width: 'min(780px, 95vw)', maxHeight: '88vh' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-head">
+              <div>
+                <p className="eyebrow" style={{ color: '#4f46e5', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Terminal size={13} /> TERMINAL OPERATIONS & HEADLESS AUTOMATION
+                </p>
+                <h3 style={{ fontSize: '17px', color: '#0f172a', fontWeight: 700 }}>
+                  TraceX Forensic CLI & Headless Pipeline Guide
+                </h3>
+              </div>
+              <button
+                className="icon-btn"
+                onClick={() => setIsCliModalOpen(false)}
+                aria-label="Close"
+              >
+                <X size={17} />
+              </button>
+            </div>
+
+            <div className="modal-body" style={{ gap: '16px', fontSize: '12.5px' }}>
+              {/* Introduction Banner */}
+              <div
+                style={{
+                  padding: '12px 14px',
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '6px',
+                  lineHeight: 1.5,
+                  color: '#334155',
+                }}
+              >
+                TraceX provides a headless command-line interface (CLI) and an interactive Terminal User Interface (TUI) for forensic video acquisition, signature classification, and stream extraction without needing a browser.
+              </div>
+
+              {/* Step 1: Environment & Virtualenv Setup */}
+              <div>
+                <h4 style={{ margin: '0 0 8px', fontSize: '13px', color: '#1e293b', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>1.</span> Python Virtual Environment Setup
+                </h4>
+                <div
+                  style={{
+                    background: '#090d16',
+                    border: '1px solid #1e293b',
+                    borderRadius: '6px',
+                    padding: '12px 14px',
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '11.5px',
+                    color: '#6ee7b7',
+                    position: 'relative',
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => handleCopyCommand(
+                      'git clone https://github.com/byteforce101-ops/multi-vendor-dvr-forensics.git\ncd multi-vendor-dvr-forensics\npython -m venv .venv\n.venv\\Scripts\\activate\npip install -r requirements.txt',
+                      'cli-modal-setup'
+                    )}
+                    style={{
+                      position: 'absolute',
+                      right: '10px',
+                      top: '10px',
+                      background: copiedCommand === 'cli-modal-setup' ? '#065f46' : '#1f2937',
+                      color: copiedCommand === 'cli-modal-setup' ? '#6ee7b7' : '#94a3b8',
+                      border: '1px solid #374151',
+                      borderRadius: '4px',
+                      padding: '3px 8px',
+                      fontSize: '10px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    {copiedCommand === 'cli-modal-setup' ? <Check size={11} /> : <Copy size={11} />}
+                    <span>{copiedCommand === 'cli-modal-setup' ? 'Copied' : 'Copy'}</span>
+                  </button>
+                  <span style={{ color: '#818cf8' }}># Clone repository and create virtualenv</span>{'\n'}
+                  git clone https://github.com/byteforce101-ops/multi-vendor-dvr-forensics.git{'\n'}
+                  cd multi-vendor-dvr-forensics{'\n'}
+                  python -m venv .venv{'\n'}
+                  .venv\Scripts\activate  <span style={{ color: '#64748b' }}># Windows PowerShell / CMD</span>{'\n'}
+                  <span style={{ color: '#64748b' }}># source .venv/bin/activate  (Linux / macOS)</span>{'\n'}
+                  pip install -r requirements.txt
+                </div>
+              </div>
+
+              {/* Step 2: Interactive TUI */}
+              <div>
+                <h4 style={{ margin: '0 0 8px', fontSize: '13px', color: '#1e293b', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>2.</span> Full-Screen Interactive Terminal UI (TUI)
+                </h4>
+                <div
+                  style={{
+                    background: '#090d16',
+                    border: '1px solid #1e293b',
+                    borderRadius: '6px',
+                    padding: '12px 14px',
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '11.5px',
+                    color: '#6ee7b7',
+                    position: 'relative',
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => handleCopyCommand('python -m backend.cli.tui', 'cli-modal-tui')}
+                    style={{
+                      position: 'absolute',
+                      right: '10px',
+                      top: '10px',
+                      background: copiedCommand === 'cli-modal-tui' ? '#065f46' : '#1f2937',
+                      color: copiedCommand === 'cli-modal-tui' ? '#6ee7b7' : '#94a3b8',
+                      border: '1px solid #374151',
+                      borderRadius: '4px',
+                      padding: '3px 8px',
+                      fontSize: '10px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    {copiedCommand === 'cli-modal-tui' ? <Check size={11} /> : <Copy size={11} />}
+                    <span>{copiedCommand === 'cli-modal-tui' ? 'Copied' : 'Copy'}</span>
+                  </button>
+                  <span style={{ color: '#818cf8' }}>PS C:\TraceX&gt;</span> python -m backend.cli.tui
+                </div>
+                <p style={{ margin: '6px 0 0', fontSize: '11px', color: '#64748b' }}>
+                  Offers a keyboard-navigable terminal application for browsing evidence disks, inspecting video streams, viewing cryptographic hashes, and initiating background extraction jobs.
+                </p>
+              </div>
+
+              {/* Step 3: CLI Subcommands */}
+              <div>
+                <h4 style={{ margin: '0 0 8px', fontSize: '13px', color: '#1e293b', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>3.</span> Headless CLI Commands Reference
+                </h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {[
+                    {
+                      cmd: 'python -m backend.cli.main detect <path_to_evidence>',
+                      label: 'Auto-Detect DVR Vendor Signature',
+                      desc: 'Scans the first sectors / headers and reports matching vendor and confidence percentage.',
+                    },
+                    {
+                      cmd: 'python -m backend.cli.main parse <path_to_evidence> --vendor <vendor_name>',
+                      label: 'Parse Recording Index Table',
+                      desc: 'Parses filesystem clusters without modifying data, outputting channel mappings and timestamps.',
+                    },
+                    {
+                      cmd: 'python -m backend.cli.main extract <path_to_evidence> --output ./extracted_footage/',
+                      label: 'Extract & Carve Decodable MP4',
+                      desc: 'Reassembles fragmented elementary streams into playable H.264/H.265 MP4 recordings.',
+                    },
+                    {
+                      cmd: 'python -m backend.cli.main pipeline <path_to_evidence> --output ./case_dossier/',
+                      label: 'End-to-End Forensic Ingest Pipeline',
+                      desc: 'Performs detection, parsing, extraction, and SHA-256 verification in a single atomic pass.',
+                    },
+                  ].map((item, idx) => (
+                    <div
+                      key={idx}
+                      style={{
+                        background: '#f8fafc',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '6px',
+                        padding: '10px 12px',
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                        <b style={{ color: '#1e293b', fontSize: '11.5px' }}>{item.label}</b>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyCommand(item.cmd, `cli-cmd-${idx}`)}
+                          style={{
+                            background: copiedCommand === `cli-cmd-${idx}` ? '#065f46' : '#e2e8f0',
+                            color: copiedCommand === `cli-cmd-${idx}` ? '#6ee7b7' : '#475569',
+                            border: 'none',
+                            borderRadius: '3px',
+                            padding: '2px 7px',
+                            fontSize: '9.5px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '3px',
+                            fontWeight: 600,
+                          }}
+                        >
+                          {copiedCommand === `cli-cmd-${idx}` ? <Check size={10} /> : <Copy size={10} />}
+                          <span>{copiedCommand === `cli-cmd-${idx}` ? 'Copied' : 'Copy'}</span>
+                        </button>
+                      </div>
+                      <div
+                        style={{
+                          background: '#090d16',
+                          color: '#38bdf8',
+                          padding: '6px 8px',
+                          borderRadius: '4px',
+                          fontFamily: 'var(--font-mono)',
+                          fontSize: '11px',
+                          overflowX: 'auto',
+                          marginBottom: '4px',
+                        }}
+                      >
+                        {item.cmd}
+                      </div>
+                      <p style={{ margin: 0, fontSize: '10.5px', color: '#64748b' }}>{item.desc}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Supported Vendor Flags */}
+              <div>
+                <h4 style={{ margin: '0 0 8px', fontSize: '13px', color: '#1e293b', fontWeight: 700 }}>
+                  4. Supported --vendor Identifier Values
+                </h4>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '6px' }}>
+                  {[
+                    { id: 'hikvision', name: 'Hikvision (.mp4 / .dav / .dd)' },
+                    { id: 'dahua', name: 'Dahua (.dav / .dd / .raw)' },
+                    { id: 'heimvision', name: 'HeimVision Raw HEVC (.h265)' },
+                    { id: 'uniview', name: 'Uniview Container (.uvf)' },
+                    { id: 'matrix', name: 'Matrix Comsec SATATYA (.stm)' },
+                    { id: 'godrej', name: 'Godrej GSS Line B (AA55AA55)' },
+                    { id: 'tplink_vigi', name: 'TP-Link VIGI (.dav / SEI)' },
+                    { id: 'cpplus', name: 'CP Plus Orange Series (.dav)' },
+                    { id: 'honeywell', name: 'Honeywell HEN Series (.dav)' },
+                    { id: 'carver', name: 'Carver (Raw Annex B Stream)' },
+                    { id: 'generic', name: 'Generic Video (MP4/AVI/MKV)' },
+                  ].map((v) => (
+                    <div
+                      key={v.id}
+                      style={{
+                        padding: '6px 10px',
+                        background: '#f1f5f9',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '4px',
+                        fontSize: '11px',
+                      }}
+                    >
+                      <code style={{ color: '#4f46e5', fontWeight: 700, marginRight: '6px' }}>{v.id}</code>
+                      <span style={{ color: '#475569', fontSize: '10px' }}>— {v.name}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="modal-footer" style={{ justifyContent: 'space-between' }}>
+              <a
+                href={api.getLauncherBatUrl()}
+                download="launch_tracex_dvr.bat"
+                className="buttonDownload"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '6px 14px',
+                  fontSize: '11.5px',
+                  textDecoration: 'none',
+                  background: '#f1f5f9',
+                  border: '1px solid #cbd5e1',
+                  color: '#334155',
+                }}
+              >
+                <Download size={14} />
+                <span>Download Windows Launcher (.bat)</span>
+              </a>
+              <Button
+                variant="primary"
+                onClick={() => setIsCliModalOpen(false)}
+              >
+                Got It
               </Button>
             </div>
           </div>
